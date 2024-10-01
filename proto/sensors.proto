@@ -1,0 +1,9 @@
+syntax = "proto2";
+
+package quadcopter.sensors;
+
+message Magnetometer {
+  required int64 timestamp = 1;
+
+  repeated float magn = 2; // x, y, z
+}

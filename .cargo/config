@@ -1,0 +1,7 @@
+[target.arm-unknown-linux-gnueabihf]
+linker = "/opt/armv8-rpi2w-linux-gnueabihf/bin/armv8-rpi2w-linux-gnueabihf-gcc"
+ar = "/opt/armv8-rpi2w-linux-gnueabihf/bin/armv8-rpi2w-linux-gnueabihf-ar"
+
+rustflags = [
+    "-C", "link-arg=--sysroot=/home/luca/code/drone/Buildroot-PREEMPT_RT/buildroot/output/host/arm-buildroot-linux-gnueabihf/sysroot",
+]
