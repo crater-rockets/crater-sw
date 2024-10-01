@@ -1,4 +1,5 @@
 use std::{
+    marker::PhantomData,
     sync::{Arc, Condvar, Mutex},
     thread::{self, ThreadId},
 };
@@ -58,6 +59,9 @@ pub struct Select<'a> {
     subscribers: Vec<(&'a dyn Selectable, SelectToken)>,
     rng: ThreadRng,
     id: ThreadId,
+
+    /// Make sure we are not "Send", as we are using our thread's ThreadId as a key to a map
+    not_send: PhantomData<*const ()>,
 }
 
 impl<'a> Default for Select<'a> {
@@ -67,6 +71,7 @@ impl<'a> Default for Select<'a> {
             subscribers: vec![],
             rng: ThreadRng::default(),
             id: thread::current().id(),
+            not_send: PhantomData::default(),
         }
     }
 }
