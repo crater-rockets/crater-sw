@@ -1,7 +1,7 @@
 use std::{
     any::{type_name, Any},
     collections::HashMap,
-    sync::{Arc, Weak},
+    sync::{Arc, Mutex, Weak},
 };
 
 use thiserror::Error;
@@ -134,6 +134,11 @@ impl TelemetryChannel {
 
 #[derive(Debug, Default)]
 pub struct TelemetryService {
+    inner: Arc<Mutex<TelemetryServiceInner>>,
+}
+
+#[derive(Debug, Default)]
+pub struct TelemetryServiceInner {
     remap: HashMap<String, String>,
     channels: HashMap<String, TelemetryChannel>,
 }
@@ -141,8 +146,10 @@ pub struct TelemetryService {
 impl TelemetryService {
     pub fn new(remap: HashMap<String, String>) -> Self {
         TelemetryService {
-            remap,
-            channels: HashMap::new(),
+            inner: Arc::new(Mutex::new(TelemetryServiceInner {
+                remap,
+                channels: HashMap::new(),
+            })),
         }
     }
 
@@ -151,14 +158,15 @@ impl TelemetryService {
         channel_name: &str,
     ) -> Result<TelemetryProducer<T>, Error> {
         // Remap the channel if needed
-        let channel_name = self
+        let mut inner = self.inner.lock().unwrap();
+        let channel_name = inner
             .remap
             .get(channel_name)
             .map(|v| v.clone())
             .or(Some(channel_name.to_string()))
             .unwrap();
 
-        let channel = self.get_channel::<T>(channel_name.as_str());
+        let channel = inner.get_channel::<T>(channel_name.as_str());
 
         channel.take_producer()
     }
@@ -168,11 +176,14 @@ impl TelemetryService {
         channel_name: &str,
         capacity: usize,
     ) -> Result<TelemetrySubscriber<T>, Error> {
-        let channel = self.get_channel::<T>(channel_name);
+        let mut inner = self.inner.lock().unwrap();
+        let channel = inner.get_channel::<T>(channel_name);
 
         channel.add_subscriber(capacity)
     }
+}
 
+impl TelemetryServiceInner {
     fn get_channel<'a, T: 'static>(&'a mut self, channel_name: &str) -> &'a mut TelemetryChannel {
         if !self.channels.contains_key(channel_name) {
             self.channels.insert(
