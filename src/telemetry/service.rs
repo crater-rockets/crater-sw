@@ -132,7 +132,7 @@ impl TelemetryChannel {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct TelemetryService {
     inner: Arc<Mutex<TelemetryServiceInner>>,
 }
