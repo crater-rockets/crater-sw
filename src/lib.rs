@@ -4,17 +4,17 @@
 use prost_reflect::DescriptorPool;
 use once_cell::sync::Lazy;
 
-pub mod quacopter {
+pub mod telemetry;
+pub mod utils;
+pub mod plot;
+
+pub mod quadcopter {
     pub mod sensors {
         include!(concat!(env!("OUT_DIR"), "/quadcopter.sensors.rs"));
     }
 }
 
-pub mod telemetry;
-pub mod utils;
-
-
-static DESCRIPTOR_POOL: Lazy<DescriptorPool> = Lazy::new(|| {
+pub static DESCRIPTOR_POOL: Lazy<DescriptorPool> = Lazy::new(|| {
     DescriptorPool::decode(
         include_bytes!(concat!(env!("OUT_DIR"), "/file_descriptor_set.bin")).as_ref(),
     )

@@ -7,11 +7,11 @@ use std::{
 use thiserror::Error;
 
 use crate::utils::ringchannel::{
-    channel, Channel, ChannelError, Receiver, Select, SelectToken, Selectable, Sender,
+    channel, Channel, ChannelError, Receiver, SelectToken, Selectable, Sender,
 };
 
 #[derive(PartialEq, Eq, Error, Debug)]
-pub enum Error {
+pub enum TelemetryError {
     #[error("Requested channel type '{requested}', but channel is a '{expected}'")]
     WrongChannelType { requested: String, expected: String },
 
@@ -29,33 +29,33 @@ pub enum Error {
 }
 
 #[derive(Debug)]
-pub struct TelemetryProducer<T> {
+pub struct TelemetrySender<T> {
     sender: Sender<T>,
 }
 
-impl<T: 'static + Clone> TelemetryProducer<T> {
+impl<T: 'static + Clone> TelemetrySender<T> {
     pub fn send(&self, t: T) {
         self.sender.send(t);
     }
 }
 
 #[derive(Debug)]
-pub struct TelemetrySubscriber<T> {
+pub struct TelemetryReceiver<T> {
     receiver: Receiver<T>,
 }
 
-impl<T> TelemetrySubscriber<T> {
-    pub fn recv(&self) -> Result<T, Error> {
+impl<T> TelemetryReceiver<T> {
+    pub fn recv(&self) -> Result<T, TelemetryError> {
         self.receiver.recv().map_err(|e| match e {
-            ChannelError::Closed => Error::ClosedChannel,
-            ChannelError::Empty => Error::EmptyChannel,
+            ChannelError::Closed => TelemetryError::ClosedChannel,
+            ChannelError::Empty => TelemetryError::EmptyChannel,
         })
     }
 
-    pub fn try_recv(&self) -> Result<T, Error> {
+    pub fn try_recv(&self) -> Result<T, TelemetryError> {
         self.receiver.try_recv().map_err(|e| match e {
-            ChannelError::Closed => Error::ClosedChannel,
-            ChannelError::Empty => Error::EmptyChannel,
+            ChannelError::Closed => TelemetryError::ClosedChannel,
+            ChannelError::Empty => TelemetryError::EmptyChannel,
         })
     }
 }
@@ -91,41 +91,41 @@ impl TelemetryChannel {
         }
     }
 
-    fn take_producer<T: 'static>(&mut self) -> Result<TelemetryProducer<T>, Error> {
+    fn take_producer<T: 'static>(&mut self) -> Result<TelemetrySender<T>, TelemetryError> {
         let channel = self.downcast_mut::<T>()?;
 
-        Ok(TelemetryProducer {
-            sender: channel.sender.take().ok_or(Error::AlreadyHasProducer)?,
+        Ok(TelemetrySender {
+            sender: channel.sender.take().ok_or(TelemetryError::AlreadyHasProducer)?,
         })
     }
 
     fn add_subscriber<T: 'static>(
         &mut self,
         capacity: usize,
-    ) -> Result<TelemetrySubscriber<T>, Error> {
+    ) -> Result<TelemetryReceiver<T>, TelemetryError> {
         let channel = self.downcast_mut::<T>()?;
 
-        let ch = Weak::upgrade(&channel.channel).ok_or(Error::ClosedChannel)?;
+        let ch = Weak::upgrade(&channel.channel).ok_or(TelemetryError::ClosedChannel)?;
 
-        Ok(TelemetrySubscriber {
+        Ok(TelemetryReceiver {
             receiver: Channel::<T>::add_receiver(capacity, &ch),
         })
     }
 
     #[allow(dead_code)]
-    fn downcast_ref<T: 'static>(&self) -> Result<&TelemetryChannelTransport<T>, Error> {
+    fn downcast_ref<T: 'static>(&self) -> Result<&TelemetryChannelTransport<T>, TelemetryError> {
         self.channel
             .downcast_ref::<TelemetryChannelTransport<T>>()
-            .ok_or(Error::WrongChannelType {
+            .ok_or(TelemetryError::WrongChannelType {
                 requested: type_name::<T>().to_string(),
                 expected: self.typename.clone(),
             })
     }
 
-    fn downcast_mut<T: 'static>(&mut self) -> Result<&mut TelemetryChannelTransport<T>, Error> {
+    fn downcast_mut<T: 'static>(&mut self) -> Result<&mut TelemetryChannelTransport<T>, TelemetryError> {
         self.channel
             .downcast_mut::<TelemetryChannelTransport<T>>()
-            .ok_or(Error::WrongChannelType {
+            .ok_or(TelemetryError::WrongChannelType {
                 requested: type_name::<T>().to_string(),
                 expected: self.typename.clone(),
             })
@@ -156,7 +156,7 @@ impl TelemetryService {
     pub fn publish<T: 'static>(
         &mut self,
         channel_name: &str,
-    ) -> Result<TelemetryProducer<T>, Error> {
+    ) -> Result<TelemetrySender<T>, TelemetryError> {
         // Remap the channel if needed
         let mut inner = self.inner.lock().unwrap();
         let channel_name = inner
@@ -175,7 +175,7 @@ impl TelemetryService {
         &mut self,
         channel_name: &str,
         capacity: usize,
-    ) -> Result<TelemetrySubscriber<T>, Error> {
+    ) -> Result<TelemetryReceiver<T>, TelemetryError> {
         let mut inner = self.inner.lock().unwrap();
         let channel = inner.get_channel::<T>(channel_name);
 
@@ -196,7 +196,7 @@ impl TelemetryServiceInner {
     }
 }
 
-impl<T> Selectable for TelemetrySubscriber<T> {
+impl<T> Selectable for TelemetryReceiver<T> {
     fn register(
         &self,
         id: std::thread::ThreadId,
@@ -213,21 +213,23 @@ impl<T> Selectable for TelemetrySubscriber<T> {
 
 #[cfg(test)]
 mod tests {
+    use crate::utils::ringchannel::Select;
+
     use super::*;
 
     #[test]
-    fn test_empty_chan() -> Result<(), Error> {
+    fn test_empty_chan() -> Result<(), TelemetryError> {
         let mut telem_service = TelemetryService::default();
 
         let sub1 = telem_service.subcribe::<f64>("/test/channel/1", 1)?;
 
-        assert_eq!(sub1.try_recv(), Err(Error::EmptyChannel));
+        assert_eq!(sub1.try_recv(), Err(TelemetryError::EmptyChannel));
 
         Ok(())
     }
 
     #[test]
-    fn test_multiple_prod() -> Result<(), Error> {
+    fn test_multiple_prod() -> Result<(), TelemetryError> {
         let mut telem_service = TelemetryService::default();
 
         telem_service.publish::<f64>("/test/channel/1")?;
@@ -238,7 +240,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pub_sub() -> Result<(), Error> {
+    fn test_pub_sub() -> Result<(), TelemetryError> {
         let mut telem_service = TelemetryService::default();
 
         let sub1 = telem_service.subcribe::<f64>("/test/channel/1", 1)?;
@@ -251,14 +253,14 @@ mod tests {
         assert_eq!(sub1.try_recv(), Ok(1.234));
         assert_eq!(sub2.try_recv(), Ok(1.234));
 
-        assert_eq!(sub1.try_recv(), Err(Error::EmptyChannel));
-        assert_eq!(sub2.try_recv(), Err(Error::EmptyChannel));
+        assert_eq!(sub1.try_recv(), Err(TelemetryError::EmptyChannel));
+        assert_eq!(sub2.try_recv(), Err(TelemetryError::EmptyChannel));
 
         Ok(())
     }
 
     #[test]
-    fn test_remap() -> Result<(), Error> {
+    fn test_remap() -> Result<(), TelemetryError> {
         let remap = HashMap::from([
             ("/test/channel/1".to_string(), "/test/channel/2".to_string()),
             ("/test/channel/3".to_string(), "/test/channel/1".to_string()),
@@ -276,20 +278,20 @@ mod tests {
         assert!(telem_service.publish::<f64>("/test/channel/2").is_err());
 
         p_ch1.send(1.0);
-        assert_eq!(s_ch1.try_recv(), Err(Error::EmptyChannel));
+        assert_eq!(s_ch1.try_recv(), Err(TelemetryError::EmptyChannel));
         assert_eq!(s_ch2.try_recv(), Ok(1.0));
-        assert_eq!(s_ch3.try_recv(), Err(Error::EmptyChannel));
+        assert_eq!(s_ch3.try_recv(), Err(TelemetryError::EmptyChannel));
 
         p_ch3.send(1.0);
         assert_eq!(s_ch1.try_recv(), Ok(1.0));
-        assert_eq!(s_ch2.try_recv(), Err(Error::EmptyChannel));
-        assert_eq!(s_ch3.try_recv(), Err(Error::EmptyChannel));
+        assert_eq!(s_ch2.try_recv(), Err(TelemetryError::EmptyChannel));
+        assert_eq!(s_ch3.try_recv(), Err(TelemetryError::EmptyChannel));
 
         Ok(())
     }
 
     #[test]
-    fn test_ring_buf() -> Result<(), Error> {
+    fn test_ring_buf() -> Result<(), TelemetryError> {
         let mut telem_service = TelemetryService::default();
 
         let sub = telem_service.subcribe::<f64>("/test/channel/1", 3)?;
@@ -302,7 +304,7 @@ mod tests {
         assert_eq!(sub.try_recv(), Ok(1.0));
         assert_eq!(sub.try_recv(), Ok(2.0));
         assert_eq!(sub.try_recv(), Ok(3.0));
-        assert_eq!(sub.try_recv(), Err(Error::EmptyChannel));
+        assert_eq!(sub.try_recv(), Err(TelemetryError::EmptyChannel));
 
         prod.send(1.0);
         prod.send(2.0);
@@ -312,13 +314,13 @@ mod tests {
         assert_eq!(sub.try_recv(), Ok(2.0));
         assert_eq!(sub.try_recv(), Ok(3.0));
         assert_eq!(sub.try_recv(), Ok(4.0));
-        assert_eq!(sub.try_recv(), Err(Error::EmptyChannel));
+        assert_eq!(sub.try_recv(), Err(TelemetryError::EmptyChannel));
 
         Ok(())
     }
 
     #[test]
-    fn test_bad_channel_type() -> Result<(), Error> {
+    fn test_bad_channel_type() -> Result<(), TelemetryError> {
         let mut telem_service = TelemetryService::default();
 
         telem_service.subcribe::<f64>("/test/channel/1", 1)?;
@@ -328,7 +330,7 @@ mod tests {
         assert!(pub1.is_err());
         assert_eq!(
             pub1.err().unwrap(),
-            Error::WrongChannelType {
+            TelemetryError::WrongChannelType {
                 requested: std::any::type_name::<f32>().to_string(),
                 expected: std::any::type_name::<f64>().to_string()
             }
@@ -339,8 +341,8 @@ mod tests {
 
         assert!(sub2.is_err());
         assert_eq!(
-            std::mem::discriminant::<Error>(&sub2.err().unwrap()),
-            std::mem::discriminant::<Error>(&Error::WrongChannelType {
+            std::mem::discriminant::<TelemetryError>(&sub2.err().unwrap()),
+            std::mem::discriminant::<TelemetryError>(&TelemetryError::WrongChannelType {
                 requested: std::any::type_name::<f64>().to_string(),
                 expected: std::any::type_name::<f32>().to_string()
             })
