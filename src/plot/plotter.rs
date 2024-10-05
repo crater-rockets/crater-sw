@@ -52,7 +52,7 @@ impl Plotter {
                 .unwrap(),
         );
 
-        plot_message(ts, &msg, senders).map_err(|_| PlotterError::SendError)?;
+        plot_message(ts, &msg, senders).map_err(|_| PlotterError::Closed)?;
 
         Ok(())
     }

@@ -18,5 +18,5 @@ pub enum PlotterError {
     UnregisteredChannel,
 
     #[error("Plotter closed")]
-    SendError,
+    Closed,
 }
