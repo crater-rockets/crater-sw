@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
-use anyhow::{anyhow, Result};
 use prost_reflect::{DynamicMessage, FieldDescriptor, Kind, MessageDescriptor, Value};
 use rust_data_inspector::{
-    DataInspector, PlotSampleSender, PlotSignalError, PlotSignalSample, PlotSignals,
+    PlotSampleSender, PlotSignalError, PlotSignalSample, PlotSignalSendError, PlotSignals,
 };
 
 use crate::utils::time::nsec_to_sec_f64;
+
+use super::PlotterError;
 
 enum FieldSender {
     Sender(PlotSampleSender),
@@ -29,7 +30,7 @@ impl Plotter {
         signals: &mut PlotSignals,
         channel: &str,
         desc: MessageDescriptor,
-    ) -> Result<()> {
+    ) -> Result<(), PlotterError> {
         let field_senders = build_sender(signals, channel, desc)?;
 
         self.senders.insert(channel.to_string(), field_senders);
@@ -37,12 +38,13 @@ impl Plotter {
         Ok(())
     }
 
-    pub fn plot(&mut self, channel: &str, msg: DynamicMessage) -> Result<()> {
+    pub fn plot(&mut self, channel: &str, msg: DynamicMessage) -> Result<(), PlotterError> {
         let senders = self
             .senders
             .get_mut(channel)
-            .ok_or(anyhow!("Channel not registered"))?;
+            .ok_or(PlotterError::UnregisteredChannel)?;
 
+        // TODO: Timestamp first class citizen
         let ts = nsec_to_sec_f64(
             msg.get_field_by_name("timestamp")
                 .unwrap()
@@ -50,15 +52,10 @@ impl Plotter {
                 .unwrap(),
         );
 
-        plot_message(ts, &msg, senders);
+        plot_message(ts, &msg, senders).map_err(|_| PlotterError::SendError)?;
 
         Ok(())
     }
-
-    // fn run(self) -> Result<()> {
-    //     DataInspector::run_native("plotter", self.signals).unwrap();
-    //     Ok(())
-    // }
 }
 
 fn build_sender(
@@ -102,83 +99,75 @@ fn build_sender(
     Ok(field_senders)
 }
 
-fn plot_message(time: f64, msg: &DynamicMessage, field_senders: &mut HashMap<u32, FieldSender>) {
+fn plot_message(
+    time: f64,
+    msg: &DynamicMessage,
+    field_senders: &mut HashMap<u32, FieldSender>,
+) -> Result<(), PlotSignalSendError<PlotSignalSample>> {
     for (desc, val) in msg.fields() {
-        match (val, field_senders.get_mut(&desc.number()).unwrap()) {
-            (Value::Bool(v), FieldSender::Sender(s)) => {
-                s.send(PlotSignalSample {
-                    time,
-                    value: (*v as u8) as f64,
-                })
-                .unwrap();
-            }
-            (Value::I32(v), FieldSender::Sender(s)) => {
-                s.send(PlotSignalSample {
-                    time,
-                    value: *v as f64,
-                })
-                .unwrap();
-            }
-            (Value::I64(v), FieldSender::Sender(s)) => {
-                s.send(PlotSignalSample {
-                    time,
-                    value: *v as f64,
-                })
-                .unwrap();
-            }
-            (Value::U32(v), FieldSender::Sender(s)) => {
-                s.send(PlotSignalSample {
-                    time,
-                    value: *v as f64,
-                })
-                .unwrap();
-            }
-            (Value::U64(v), FieldSender::Sender(s)) => {
-                s.send(PlotSignalSample {
-                    time,
-                    value: *v as f64,
-                })
-                .unwrap();
-            }
-            (Value::F32(v), FieldSender::Sender(s)) => {
-                s.send(PlotSignalSample {
-                    time,
-                    value: *v as f64,
-                })
-                .unwrap();
-            }
-            (Value::F64(v), FieldSender::Sender(s)) => {
-                s.send(PlotSignalSample {
-                    time,
-                    value: *v as f64,
-                })
-                .unwrap();
-            }
-            (Value::EnumNumber(v), FieldSender::Sender(s)) => {
-                s.send(PlotSignalSample {
-                    time,
-                    value: *v as f64,
-                })
-                .unwrap();
-            }
-            (Value::Message(msg), FieldSender::Nested(map)) => {
-                plot_message(time, msg, map);
-            }
+        let res = match (
+            val,
+            field_senders
+                .get_mut(&desc.number())
+                .expect("Sender for provided field number not found!"),
+        ) {
+            (Value::Bool(v), FieldSender::Sender(s)) => s.send(PlotSignalSample {
+                time,
+                value: (*v as u8) as f64,
+            }),
+            (Value::I32(v), FieldSender::Sender(s)) => s.send(PlotSignalSample {
+                time,
+                value: *v as f64,
+            }),
+            (Value::I64(v), FieldSender::Sender(s)) => s.send(PlotSignalSample {
+                time,
+                value: *v as f64,
+            }),
+            (Value::U32(v), FieldSender::Sender(s)) => s.send(PlotSignalSample {
+                time,
+                value: *v as f64,
+            }),
+            (Value::U64(v), FieldSender::Sender(s)) => s.send(PlotSignalSample {
+                time,
+                value: *v as f64,
+            }),
+            (Value::F32(v), FieldSender::Sender(s)) => s.send(PlotSignalSample {
+                time,
+                value: *v as f64,
+            }),
+            (Value::F64(v), FieldSender::Sender(s)) => s.send(PlotSignalSample {
+                time,
+                value: *v as f64,
+            }),
+            (Value::EnumNumber(v), FieldSender::Sender(s)) => s.send(PlotSignalSample {
+                time,
+                value: *v as f64,
+            }),
+            (Value::Message(msg), FieldSender::Nested(map)) => plot_message(time, msg, map),
             (Value::String(_), _) => {
                 // Ignore
+                Ok(())
             }
             (Value::Bytes(_), _) => {
                 // Ignore
+                Ok(())
             }
             (Value::List(_), _) => {
                 // Ignore
+                Ok(())
             }
             (Value::Map(_), _) => {
                 // Ignore
+                Ok(())
             }
             _ => {
                 panic!("Unexpected field sender type");
             }
+        };
+
+        if let Err(e) = res {
+            return Err(e);
         }
     }
+    Ok(())
 }

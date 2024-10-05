@@ -1,24 +1,18 @@
 use std::{
     any::Any,
-    sync::mpsc::{channel, Receiver, Sender},
     thread::{self, JoinHandle},
 };
 
 use anyhow::Result;
-use prost_reflect::{
-    Cardinality, DynamicMessage, FieldDescriptor, Kind, MessageDescriptor, ReflectMessage, Value,
-};
-use rust_data_inspector::{PlotSampleSender, PlotSignalError, PlotSignalSample, PlotSignals};
+use prost_reflect::{DynamicMessage, ReflectMessage};
+use rust_data_inspector::PlotSignals;
 
 use crate::{
     telemetry::{TelemetryError, TelemetryReceiver, TelemetryService},
-    utils::{
-        ringchannel::{Select, Selectable},
-        time::nsec_to_sec_f64,
-    },
+    utils::ringchannel::{Select, Selectable},
 };
 
-use super::plotter::{self, Plotter};
+use super::{plotter::Plotter, PlotterError};
 
 trait SelectableDowncastable: Selectable {
     fn as_any(&self) -> &dyn Any;
@@ -63,7 +57,7 @@ impl LocalPlotter {
         &mut self,
         signals: &mut PlotSignals,
         channel: &str,
-    ) -> Result<()> {
+    ) -> Result<(), PlotterError> {
         let desc = T::default().descriptor();
 
         let telem_receiver = self.ts.subcribe::<T>(channel, 1)?;
@@ -85,7 +79,7 @@ impl LocalPlotter {
             Box<dyn SelectableDowncastable + Send>,
             DynamicRecvFn,
         )>,
-    ) {
+    ) -> Result<(), PlotterError> {
         let mut select = Select::default();
 
         for (_, r, _) in receivers.iter() {
@@ -96,8 +90,15 @@ impl LocalPlotter {
             let index = select.ready();
             let (channel, r, recv_fn) = receivers.get(index).unwrap();
 
-            let msg = recv_fn(r.as_ref()).unwrap();
-            plotter.plot(channel.as_str(), msg).unwrap();
+            match recv_fn(r.as_ref()) {
+                Ok(msg) => {
+                    plotter.plot(channel.as_str(), msg)?;
+                }
+                Err(TelemetryError::ClosedChannel) => {}
+                Err(e) => {
+                    panic!("Unexpected error when reading from telemetry: {:#?}", e);
+                }
+            }
         }
     }
 
@@ -107,12 +108,14 @@ impl LocalPlotter {
         let receiver = receiver
             .as_any()
             .downcast_ref::<TelemetryReceiver<T>>()
-            .unwrap();
+            .expect("Error downcast receiver to TelemetryReceiver<T>");
 
         Ok(receiver.try_recv()?.transcode_to_dynamic())
     }
 
-    pub fn run(self) -> JoinHandle<()> {
-        thread::spawn(|| Self::receive_telemetry(self.plotter, self.receivers))
+    pub fn run(self) -> JoinHandle<Result<(), PlotterError>> {
+        thread::spawn(|| -> Result<(), PlotterError> {
+            Self::receive_telemetry(self.plotter, self.receivers)
+        })
     }
 }
