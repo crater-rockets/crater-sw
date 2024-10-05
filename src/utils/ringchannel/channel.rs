@@ -165,6 +165,9 @@ impl<T> Receiver<T> {
             .unwrap();
 
         if inner.closed && inner.buf.is_empty() {
+            for (_, (tk, handle)) in inner.select_handles.iter() {
+                handle.close_reported(*tk);
+            }
             Err(ChannelError::Closed)
         } else {
             for (_, (tk, handle)) in inner.select_handles.iter() {
@@ -178,6 +181,9 @@ impl<T> Receiver<T> {
         let mut inner = self.shared.inner.lock().unwrap();
 
         if inner.closed && inner.buf.is_empty() {
+            for (_, (tk, handle)) in inner.select_handles.iter() {
+                handle.close_reported(*tk);
+            }
             Err(ChannelError::Closed)
         } else if inner.buf.is_empty() {
             Err(ChannelError::Empty)

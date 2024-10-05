@@ -6,6 +6,8 @@ use std::{
 
 use rand::{rngs::ThreadRng, seq::IteratorRandom};
 
+use super::ChannelError;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SelectToken {
     index: usize,
@@ -18,7 +20,7 @@ pub struct SelectHandle {
 
 #[derive(Debug, Default)]
 struct SelectHandleInner {
-    ready_list: Mutex<Vec<(usize, bool)>>,
+    ready_list: Mutex<Vec<(usize, bool, bool)>>, // ready n, closed, close reported
     cv: Condvar,
 }
 
@@ -45,6 +47,12 @@ impl SelectHandle {
         ready_list.get_mut(token.index).unwrap().1 = true;
 
         self.inner.cv.notify_one();
+    }
+
+    pub fn close_reported(&self, token: SelectToken) {
+        let mut ready_list = self.inner.ready_list.lock().unwrap();
+
+        ready_list.get_mut(token.index).unwrap().2 = true;
     }
 }
 
@@ -102,7 +110,7 @@ impl<'a> Select<'a> {
 
         {
             let mut ready_list = self.handle.inner.ready_list.lock().unwrap();
-            ready_list.push((0, false));
+            ready_list.push((0, false, false));
         }
 
         selectable.register(self.id, tk, self.handle.clone());
@@ -114,19 +122,33 @@ impl<'a> Select<'a> {
         let ready_list = handle
             .cv
             .wait_while(handle.ready_list.lock().unwrap(), |r| {
-                r.iter().all(|(n, closed)| *n == 0usize && !*closed)
+                r.iter().all(|(n, closed, close_reported)| {
+                    *n == 0usize && !(*closed && !*close_reported)
+                })
             })
             .unwrap();
 
-        let ready_index = ready_list
+        ready_list
             .iter()
             .enumerate()
-            .filter(|(_, (n, closed))| *n > 0usize || *closed)
+            .filter(|(_, (n, closed, close_reported))| *n > 0usize || (*closed && !*close_reported))
             .map(|(i, _)| i)
             .choose(&mut self.rng)
-            .unwrap();
+            .unwrap()
+    }
 
-        ready_index
+    pub fn try_ready(&mut self) -> Result<usize, ChannelError> {
+        let handle = self.handle.inner.as_ref();
+
+        let ready_list = handle.ready_list.lock().unwrap();
+
+        ready_list
+            .iter()
+            .enumerate()
+            .filter(|(_, (n, closed, close_reported))| *n > 0usize || (*closed && !*close_reported))
+            .map(|(i, _)| i)
+            .choose(&mut self.rng)
+            .ok_or(ChannelError::Empty)
     }
 }
 
@@ -189,6 +211,12 @@ mod tests {
 
         drop(s1);
         assert_eq!(select.ready(), 0);
+        assert_eq!(select.try_ready(), Ok(0));
+
+        assert_eq!(r1.recv(), Err(ChannelError::Closed));
+
+        // Channel being closed is not reported anymore after the channel has been read
+        assert_eq!(select.try_ready(), Err(ChannelError::Empty));
 
         Ok(())
     }
