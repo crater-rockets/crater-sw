@@ -1,0 +1,7 @@
+[drone]
+
+[navigation]
+kalman_gains = { val = [1, 2, 3], dtype = "f32" }
+magn_bias = { val = [3, 2, 1], dtype = "f32" }
+sampling_rate = { val = 77, dtype = "i32" }
+

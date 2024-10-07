@@ -7,6 +7,7 @@ use once_cell::sync::Lazy;
 pub mod telemetry;
 pub mod utils;
 pub mod plot;
+pub mod parameters;
 
 pub mod quadcopter {
     pub mod sensors {

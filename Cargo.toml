@@ -17,6 +17,7 @@ toml = "0.8.19"
 
 rust_data_inspector = { git = "https://github.com/Hixos/rust-data-inspector.git"}
 rust_data_inspector_signals = { git = "https://github.com/Hixos/rust-data-inspector.git"}
+itertools = "0.13.0"
 
 [build-dependencies]
 prost-build = "0.13.3"
