@@ -2,7 +2,7 @@ use anyhow::Result;
 use quadcopter::plot::localplotter::LocalPlotter;
 use quadcopter::plot::PlotterError;
 use quadcopter::quadcopter::sensors::{Magnetometer, Vec3};
-use quadcopter::telemetry::TelemetryService;
+use quadcopter::telemetry::{TelemetryDispatcher, TelemetryService};
 use rand::Rng;
 use rust_data_inspector::DataInspector;
 use rust_data_inspector_signals::PlotSignals;
@@ -49,7 +49,7 @@ fn main() -> Result<()> {
 }
 
 pub fn telemetry_producer(
-    mut ts: TelemetryService,
+    ts: TelemetryService,
     channel: &str,
     a: f32,
     f: f32,
