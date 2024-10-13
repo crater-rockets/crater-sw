@@ -31,7 +31,9 @@ struct Cart {
 impl Cart {
     fn new(ctx: NodeContext) -> Result<Self> {
         let snd_state = ctx.telemetry().publish::<CartState>("/cart/state")?;
-        let rcv_force = ctx.telemetry().subcribe::<Force>("/cart/force", 1)?;
+        let rcv_force = ctx
+            .telemetry()
+            .subcribe::<Force>("/cart/force", 1usize.into())?;
 
         Ok(Cart {
             m: 1.0,
@@ -60,7 +62,7 @@ impl Node for Cart {
         };
 
         self.t += self.dt;
-        let acc = self.m * f.f;
+        let acc = self.m * f.f - self.state.vel;
         self.state.vel = self.state.vel + acc * self.dt;
         self.state.pos = self.state.pos + self.state.vel * self.dt;
         self.state.timestamp = (self.t as f64 * 1000000000.0) as i64;
@@ -82,7 +84,7 @@ struct PositionControl {
 
 impl PositionControl {
     fn new(ctx: NodeContext) -> Result<Self> {
-        let rcv_state = ctx.telemetry().subcribe("/cart/state", 1)?;
+        let rcv_state = ctx.telemetry().subcribe("/cart/state", 1usize.into())?;
         let snd_force = ctx.telemetry().publish("/cart/force")?;
 
         Ok(Self {
@@ -96,7 +98,7 @@ impl Node for PositionControl {
         let state = self.rcv_state.recv()?;
         state.timestamp;
 
-        let f = -(state.pos - 2.0) * 1.0;
+        let f = -(state.pos - 2.0) * 0.5;
 
         self.snd_force.send(Force {
             timestamp: state.timestamp,

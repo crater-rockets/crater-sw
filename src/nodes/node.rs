@@ -5,7 +5,7 @@ use crate::{
     telemetry::{
         TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetrySender, TelemetryService,
     },
-    utils::path::Path,
+    utils::{capacity::Capacity, path::Path},
 };
 
 #[derive(Debug, Error)]
@@ -123,7 +123,7 @@ impl TelemetryDispatcher for NodeTelemetry {
     fn subcribe<T: 'static>(
         &self,
         channel_name: &str,
-        capacity: usize,
+        capacity: Capacity,
     ) -> Result<TelemetryReceiver<T>, TelemetryError> {
         let path = if self.input_map.contains_key(channel_name) {
             self.input_map.get(channel_name).unwrap().clone()
@@ -156,13 +156,13 @@ mod tests {
             ]),
         );
 
-        let r1 = nt.subcribe::<i32>("i1", 1)?;
-        let r1_2 = nt.subcribe::<i32>("/a/b/i1", 1)?;
+        let r1 = nt.subcribe::<i32>("i1", 1usize.into())?;
+        let r1_2 = nt.subcribe::<i32>("/a/b/i1", 1usize.into())?;
 
-        assert!(nt.subcribe::<i32>("o2", 1).is_err());
-        assert!(nt.subcribe::<i32>("no_remap", 1).is_err());
+        assert!(nt.subcribe::<i32>("o2", 1usize.into()).is_err());
+        assert!(nt.subcribe::<i32>("no_remap", 1usize.into()).is_err());
 
-        let r2 = nt.subcribe::<i32>("i2", 1)?;
+        let r2 = nt.subcribe::<i32>("i2", 1usize.into())?;
 
         let p1 = nt.publish::<i32>("/a/b/i1")?;
         let p2 = nt.publish::<i32>("/a/b/i2")?;
@@ -190,8 +190,8 @@ mod tests {
             ]),
         );
 
-        let r1 = nt.subcribe::<i32>("/a/b/i1", 1)?;
-        let r2 = nt.subcribe::<i32>("/a/b/i2", 1)?;
+        let r1 = nt.subcribe::<i32>("/a/b/i1", 1usize.into())?;
+        let r2 = nt.subcribe::<i32>("/a/b/i2", 1usize.into())?;
 
         assert!(nt.publish::<i32>("i1").is_err());
         assert!(nt.publish::<i32>("no_remap").is_err());
@@ -235,7 +235,7 @@ mod tests {
 
     impl MockNodeR {
         fn new(ctx: NodeContext, feedback: Sender<i32>) -> Result<Self> {
-            let receiver = ctx.telemetry().subcribe::<i32>("i1", 1)?;
+            let receiver = ctx.telemetry().subcribe::<i32>("i1", 1usize.into())?;
             Ok(MockNodeR {
                 receiver,
                 cnt: 0,
@@ -254,22 +254,31 @@ mod tests {
 
     #[test]
     fn test_add_node_ok() -> Result<()> {
-        let mut nm = NodeManager::new(TelemetryService::default(), HashMap::from([
-            (
-                "node_s".to_string(),
-                NodeConfig {
-                    tm_input_map: HashMap::default(),
-                    tm_output_map: HashMap::from([("o1".to_string(), Path::from_str("/a/b/c")?)]),
-                },
-            ),
-            (
-                "node_r".to_string(),
-                NodeConfig {
-                    tm_input_map: HashMap::from([("i1".to_string(), Path::from_str("/a/b/c")?)]),
-                    tm_output_map: HashMap::default(),
-                },
-            ),
-        ]));
+        let mut nm = NodeManager::new(
+            TelemetryService::default(),
+            HashMap::from([
+                (
+                    "node_s".to_string(),
+                    NodeConfig {
+                        tm_input_map: HashMap::default(),
+                        tm_output_map: HashMap::from([(
+                            "o1".to_string(),
+                            Path::from_str("/a/b/c")?,
+                        )]),
+                    },
+                ),
+                (
+                    "node_r".to_string(),
+                    NodeConfig {
+                        tm_input_map: HashMap::from([(
+                            "i1".to_string(),
+                            Path::from_str("/a/b/c")?,
+                        )]),
+                        tm_output_map: HashMap::default(),
+                    },
+                ),
+            ]),
+        );
 
         nm.add_node(
             "node_s",

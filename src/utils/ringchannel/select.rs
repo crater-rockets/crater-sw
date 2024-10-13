@@ -154,17 +154,20 @@ impl<'a> Select<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::{thread, time::Duration};
+    use std::{num::NonZero, thread, time::Duration};
 
     use super::Select;
-    use crate::utils::ringchannel::channel::{channel, ChannelError};
+    use crate::utils::{
+        capacity::Capacity,
+        ringchannel::channel::{channel, ChannelError},
+    };
     use anyhow::Result;
 
     #[test]
     fn test_select() -> Result<()> {
-        let (s1, r1) = channel::<i32>(1);
-        let (s2, r2) = channel::<i32>(1);
-        let (s3, r3) = channel::<i32>(1);
+        let (s1, r1) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
+        let (s2, r2) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
+        let (s3, r3) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
 
         let receivers = [r1, r2, r3];
 
@@ -202,8 +205,8 @@ mod tests {
 
     #[test]
     fn test_select_closed() -> Result<()> {
-        let (s1, r1) = channel::<i32>(1);
-        let (_, r2) = channel::<i32>(1);
+        let (s1, r1) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
+        let (_, r2) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
 
         let mut select = Select::default();
         select.add(&r1);
@@ -223,8 +226,8 @@ mod tests {
 
     #[test]
     fn test_select_ready_blocking() -> Result<()> {
-        let (s1, r1) = channel::<i32>(1);
-        let (_, r2) = channel::<i32>(1);
+        let (s1, r1) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
+        let (_, r2) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
 
         let handle = thread::spawn(move || -> Result<usize, ChannelError> {
             let mut select = Select::default();
@@ -243,8 +246,8 @@ mod tests {
 
     #[test]
     fn test_select_drop_blocking() -> Result<()> {
-        let (_, r1) = channel::<i32>(1);
-        let (s2, r2) = channel::<i32>(1);
+        let (_, r1) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
+        let (s2, r2) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
 
         let handle = thread::spawn(move || -> Result<usize, ChannelError> {
             let mut select = Select::default();
@@ -263,7 +266,7 @@ mod tests {
 
     #[test]
     fn test_select_buf_overflow_try() -> Result<()> {
-        let (s1, r1) = channel::<i32>(3);
+        let (s1, r1) = channel::<i32>(Capacity::Bounded(NonZero::new(3).unwrap()));
 
         let mut select = Select::default();
         select.add(&r1);
@@ -289,7 +292,7 @@ mod tests {
 
     #[test]
     fn test_select_buf_overflow() -> Result<()> {
-        let (s1, r1) = channel::<i32>(3);
+        let (s1, r1) = channel::<i32>(Capacity::Bounded(NonZero::new(3).unwrap()));
 
         let mut select = Select::default();
         select.add(&r1);

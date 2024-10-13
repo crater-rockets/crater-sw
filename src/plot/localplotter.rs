@@ -9,7 +9,7 @@ use rust_data_inspector::PlotSignals;
 
 use crate::{
     telemetry::{TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetryService},
-    utils::ringchannel::{Select, Selectable},
+    utils::{capacity::Capacity, ringchannel::{Select, Selectable}},
 };
 
 use super::{plotter::Plotter, PlotterError};
@@ -60,7 +60,7 @@ impl LocalPlotter {
     ) -> Result<(), PlotterError> {
         let desc = T::default().descriptor();
 
-        let telem_receiver = self.ts.subcribe::<T>(channel, 1000)?;
+        let telem_receiver = self.ts.subcribe::<T>(channel, Capacity::Unbounded)?;
 
         self.plotter.register(signals, channel, desc)?;
         self.receivers.push((

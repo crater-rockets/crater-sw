@@ -1,12 +1,16 @@
-use ringbuffer::{AllocRingBuffer, RingBuffer};
 use thiserror::Error;
 
 use std::{
+    num::NonZero,
     sync::{Arc, Condvar, Mutex},
-    vec,
 };
 
-use super::select::{SelectGroup, SelectToken, Selectable};
+use crate::utils::capacity::Capacity;
+
+use super::{
+    buffer::Buffer,
+    select::{SelectGroup, SelectToken, Selectable},
+};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ChannelError {
@@ -52,7 +56,7 @@ impl<T> Default for Channel<T> {
 }
 
 impl<T> Channel<T> {
-    pub fn add_receiver(capacity: usize, this: &Arc<Channel<T>>) -> Receiver<T> {
+    pub fn add_receiver(capacity: Capacity, this: &Arc<Channel<T>>) -> Receiver<T> {
         let mut inner = this.inner.lock().unwrap();
 
         let index = inner.counter;
@@ -103,7 +107,7 @@ impl<T> Channel<T> {
 pub struct Receiver<T> {
     shared: Arc<ReceiverShared<T>>,
     channel_index: usize,
-    capacity: usize,
+    capacity: Capacity,
     channel: Arc<Channel<T>>,
 }
 
@@ -128,16 +132,21 @@ impl<T> ReceiverShared<T> {
 
 #[derive(Debug)]
 struct ReceiverInner<T> {
-    buf: AllocRingBuffer<T>,
+    buf: Buffer<T>,
     closed: bool,
     select_handle: Option<(SelectToken, SelectGroup)>,
 }
 
 impl<T> ReceiverShared<T> {
-    fn new(capacity: usize, closed: bool) -> Self {
+    fn new(capacity: Capacity, closed: bool) -> Self {
         Self {
             inner: Mutex::new(ReceiverInner {
-                buf: AllocRingBuffer::new(capacity),
+                buf: match capacity {
+                    Capacity::Unbounded => Buffer::unbounded(),
+                    Capacity::Bounded(capacity) => {
+                        Buffer::bounded(NonZero::new(capacity.get()).unwrap())
+                    }
+                },
                 closed,
                 select_handle: None,
             }),
@@ -202,11 +211,11 @@ impl<T> Receiver<T> {
         }
     }
 
-    pub fn clone_with_capacity(&self, capacity: usize) -> Self {
+    pub fn clone_with_capacity(&self, capacity: Capacity) -> Self {
         Channel::<T>::add_receiver(capacity, &self.channel)
     }
 
-    pub fn capacity(&self) -> usize {
+    pub fn capacity(&self) -> Capacity {
         self.capacity
     }
 }
@@ -252,7 +261,7 @@ impl<T> Sender<T> {
     }
 }
 
-pub fn channel<T>(capacity: usize) -> (Sender<T>, Receiver<T>) {
+pub fn channel<T>(capacity: Capacity) -> (Sender<T>, Receiver<T>) {
     let channel = Arc::new(Channel::<T>::default());
 
     let receiver = Channel::<T>::add_receiver(capacity, &channel);
@@ -269,7 +278,7 @@ mod tests {
 
     #[test]
     fn test_simple_channel() {
-        let (s, r_recv) = channel::<f32>(2);
+        let (s, r_recv) = channel::<f32>(Capacity::Bounded(NonZero::new(2).unwrap()));
 
         let r_try = r_recv.clone();
 
@@ -288,7 +297,7 @@ mod tests {
 
     #[test]
     fn test_capacity() {
-        let (s, r) = channel::<f32>(2);
+        let (s, r) = channel::<f32>(Capacity::Bounded(NonZero::new(2).unwrap()));
         s.send(1.1);
         s.send(1.2);
 
@@ -306,10 +315,24 @@ mod tests {
     }
 
     #[test]
-    fn test_different_clone_capacity() {
-        let (s, r) = channel::<f32>(2);
+    fn test_unbounded() {
+        let (s, r) = channel::<f32>(Capacity::Unbounded);
+        for i in 0..1000 {
+            s.send(i as f32 * 0.1);
+        }
 
-        let r3 = r.clone_with_capacity(3);
+        for i in 0..1000 {
+            assert_eq!(r.recv(), Ok(i as f32 * 0.1));
+        }
+
+        assert_eq!(r.try_recv(), Err(ChannelError::Empty));
+    }
+
+    #[test]
+    fn test_different_clone_capacity() {
+        let (s, r) = channel::<f32>(Capacity::Bounded(NonZero::new(2).unwrap()));
+
+        let r3 = r.clone_with_capacity(Capacity::Bounded(NonZero::new(3).unwrap()));
 
         s.send(1.1);
         s.send(1.2);
@@ -327,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_multiple_receiver() {
-        let (s, r) = channel::<f32>(2);
+        let (s, r) = channel::<f32>(Capacity::Bounded(NonZero::new(2).unwrap()));
 
         s.send(1.1);
         assert_eq!(r.recv(), Ok(1.1));
@@ -350,7 +373,7 @@ mod tests {
 
     #[test]
     fn test_drop_receivers() {
-        let (s, r) = channel::<f32>(2);
+        let (s, r) = channel::<f32>(Capacity::Bounded(NonZero::new(2).unwrap()));
 
         assert_eq!(s.channel.num_receivers(), 1);
 
@@ -358,7 +381,7 @@ mod tests {
 
         assert_eq!(s.channel.num_receivers(), 2);
 
-        let r3 = r.clone_with_capacity(3);
+        let r3 = r.clone_with_capacity(Capacity::Bounded(NonZero::new(3).unwrap()));
 
         assert_eq!(s.channel.num_receivers(), 3);
 
@@ -374,7 +397,7 @@ mod tests {
 
     #[test]
     fn test_drop_and_readd_receiver() {
-        let (s, r) = channel::<f32>(2);
+        let (s, r) = channel::<f32>(Capacity::Bounded(NonZero::new(2).unwrap()));
 
         let w_channel: Weak<Channel<f32>> = Arc::downgrade(&s.channel);
 
@@ -386,7 +409,10 @@ mod tests {
         let channel = Weak::upgrade(&w_channel);
         assert!(channel.is_some());
 
-        let r2 = Channel::<f32>::add_receiver(3, &channel.unwrap());
+        let r2 = Channel::<f32>::add_receiver(
+            Capacity::Bounded(NonZero::new(3).unwrap()),
+            &channel.unwrap(),
+        );
 
         s.send(2.2);
         assert_eq!(r2.try_recv(), Ok(2.2));
@@ -394,7 +420,7 @@ mod tests {
 
     #[test]
     fn test_thread_send() {
-        let (s, r) = channel::<f32>(2);
+        let (s, r) = channel::<f32>(Capacity::Bounded(NonZero::new(2).unwrap()));
 
         let handle = thread::spawn(move || {
             thread::sleep(Duration::from_millis(50));
@@ -408,7 +434,7 @@ mod tests {
 
     #[test]
     fn test_thread_drop() {
-        let (s, r) = channel::<f32>(2);
+        let (s, r) = channel::<f32>(Capacity::Bounded(NonZero::new(2).unwrap()));
 
         let handle = thread::spawn(move || {
             thread::sleep(Duration::from_millis(50));
