@@ -8,7 +8,7 @@ use prost_reflect::{DynamicMessage, ReflectMessage};
 use rust_data_inspector::PlotSignals;
 
 use crate::{
-    telemetry::{TelemetryError, TelemetryReceiver, TelemetryService},
+    telemetry::{TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetryService},
     utils::ringchannel::{Select, Selectable},
 };
 
