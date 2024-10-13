@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+package quadcopter.examples.cart;
+
+message CartState {
+  required int64 timestamp = 1;
+  required float pos = 2;
+  required float vel = 3;
+}
+
+message Force {
+  required int64 timestamp = 1;
+  required float f = 2;
+}

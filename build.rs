@@ -4,7 +4,9 @@ fn main() -> Result<()> {
 
     prost_reflect_build::Builder::new()
         .descriptor_pool("crate::DESCRIPTOR_POOL")
-        .compile_protos(&["proto/sensors.proto"], &["proto/"])?;
-
+        .compile_protos(
+            &["proto/sensors.proto", "proto/examples.proto"],
+            &["proto/"],
+        )?;
     Ok(())
 }
