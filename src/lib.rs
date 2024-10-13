@@ -8,6 +8,7 @@ pub mod telemetry;
 pub mod utils;
 pub mod plot;
 pub mod parameters;
+pub mod nodes;
 
 pub mod quadcopter {
     pub mod sensors {
