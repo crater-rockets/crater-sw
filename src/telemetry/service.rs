@@ -58,6 +58,13 @@ impl<T> TelemetryReceiver<T> {
             ChannelError::Empty => TelemetryError::EmptyChannel,
         })
     }
+
+    pub fn recv_default(&self, default: T) -> Result<T, TelemetryError> {
+        self.receiver.try_recv().or_else(|e| match e {
+            ChannelError::Closed => Err(TelemetryError::ClosedChannel),
+            ChannelError::Empty => Ok(default),
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -95,7 +102,10 @@ impl TelemetryChannel {
         let channel = self.downcast_mut::<T>()?;
 
         Ok(TelemetrySender {
-            sender: channel.sender.take().ok_or(TelemetryError::AlreadyHasProducer)?,
+            sender: channel
+                .sender
+                .take()
+                .ok_or(TelemetryError::AlreadyHasProducer)?,
         })
     }
 
@@ -122,7 +132,9 @@ impl TelemetryChannel {
             })
     }
 
-    fn downcast_mut<T: 'static>(&mut self) -> Result<&mut TelemetryChannelTransport<T>, TelemetryError> {
+    fn downcast_mut<T: 'static>(
+        &mut self,
+    ) -> Result<&mut TelemetryChannelTransport<T>, TelemetryError> {
         self.channel
             .downcast_mut::<TelemetryChannelTransport<T>>()
             .ok_or(TelemetryError::WrongChannelType {
@@ -152,9 +164,22 @@ impl TelemetryService {
             })),
         }
     }
+}
 
-    pub fn publish<T: 'static>(
-        &mut self,
+pub trait TelemetryDispatcher {
+    fn publish<T: 'static>(&self, channel_name: &str)
+        -> Result<TelemetrySender<T>, TelemetryError>;
+
+    fn subcribe<T: 'static>(
+        &self,
+        channel_name: &str,
+        capacity: usize,
+    ) -> Result<TelemetryReceiver<T>, TelemetryError>;
+}
+
+impl TelemetryDispatcher for TelemetryService {
+    fn publish<T: 'static>(
+        &self,
         channel_name: &str,
     ) -> Result<TelemetrySender<T>, TelemetryError> {
         // Remap the channel if needed
@@ -171,8 +196,8 @@ impl TelemetryService {
         channel.take_producer()
     }
 
-    pub fn subcribe<T: 'static>(
-        &mut self,
+    fn subcribe<T: 'static>(
+        &self,
         channel_name: &str,
         capacity: usize,
     ) -> Result<TelemetryReceiver<T>, TelemetryError> {
