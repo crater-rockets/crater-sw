@@ -2,13 +2,11 @@ use ringbuffer::{AllocRingBuffer, RingBuffer};
 use thiserror::Error;
 
 use std::{
-    collections::HashMap,
     sync::{Arc, Condvar, Mutex},
-    thread::ThreadId,
     vec,
 };
 
-use super::select::{SelectHandle, SelectToken, Selectable};
+use super::select::{SelectGroup, SelectToken, Selectable};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ChannelError {
@@ -36,14 +34,7 @@ impl<T: Clone> Channel<T> {
         let receivers = &self.inner.lock().unwrap().receivers;
 
         for (_, receiver) in receivers.iter() {
-            let mut inner = receiver.inner.lock().unwrap();
-            inner.buf.push(data.clone());
-
-            for (_, (tk, handle)) in inner.select_handles.iter() {
-                handle.notify(*tk);
-            }
-
-            receiver.cv.notify_one();
+            receiver.write(data.clone());
         }
     }
 }
@@ -93,8 +84,8 @@ impl<T> Channel<T> {
             let mut recv_inner = recv.inner.lock().unwrap();
             recv_inner.closed = true;
 
-            for (_, (tk, h)) in recv_inner.select_handles.iter() {
-                h.close(*tk);
+            if let Some((tk, handle)) = &recv_inner.select_handle {
+                handle.close(*tk);
             }
 
             recv.cv.notify_one();
@@ -122,11 +113,24 @@ struct ReceiverShared<T> {
     cv: Condvar,
 }
 
+impl<T> ReceiverShared<T> {
+    fn write(&self, data: T) {
+        let mut inner = self.inner.lock().unwrap();
+        inner.buf.push(data);
+
+        if let Some((tk, handle)) = &inner.select_handle {
+            handle.update(*tk, inner.buf.len());
+        }
+
+        self.cv.notify_one();
+    }
+}
+
 #[derive(Debug)]
 struct ReceiverInner<T> {
     buf: AllocRingBuffer<T>,
     closed: bool,
-    select_handles: HashMap<ThreadId, (SelectToken, SelectHandle)>,
+    select_handle: Option<(SelectToken, SelectGroup)>,
 }
 
 impl<T> ReceiverShared<T> {
@@ -135,7 +139,7 @@ impl<T> ReceiverShared<T> {
             inner: Mutex::new(ReceiverInner {
                 buf: AllocRingBuffer::new(capacity),
                 closed,
-                select_handles: HashMap::new(),
+                select_handle: None,
             }),
             cv: Condvar::default(),
         }
@@ -165,13 +169,16 @@ impl<T> Receiver<T> {
             .unwrap();
 
         if inner.closed && inner.buf.is_empty() {
-            for (_, (tk, handle)) in inner.select_handles.iter() {
-                handle.close_reported(*tk);
+            if let Some((tk, handle)) = &inner.select_handle {
+                handle.ack_close(*tk);
             }
+
             Err(ChannelError::Closed)
         } else {
-            for (_, (tk, handle)) in inner.select_handles.iter() {
-                handle.read(*tk);
+            if let Some((tk, handle)) = &inner.select_handle {
+                debug_assert_ne!(inner.buf.len(), 0);
+
+                handle.update(*tk, inner.buf.len() - 1);
             }
             Ok(inner.buf.dequeue().unwrap())
         }
@@ -181,15 +188,15 @@ impl<T> Receiver<T> {
         let mut inner = self.shared.inner.lock().unwrap();
 
         if inner.closed && inner.buf.is_empty() {
-            for (_, (tk, handle)) in inner.select_handles.iter() {
-                handle.close_reported(*tk);
+            if let Some((tk, handle)) = &inner.select_handle {
+                handle.ack_close(*tk);
             }
             Err(ChannelError::Closed)
         } else if inner.buf.is_empty() {
             Err(ChannelError::Empty)
         } else {
-            for (_, (tk, handle)) in inner.select_handles.iter() {
-                handle.read(*tk);
+            if let Some((tk, handle)) = &inner.select_handle {
+                handle.update(*tk, inner.buf.len() - 1);
             }
             Ok(inner.buf.dequeue().unwrap())
         }
@@ -205,15 +212,20 @@ impl<T> Receiver<T> {
 }
 
 impl<T> Selectable for Receiver<T> {
-    fn register(&self, id: ThreadId, token: SelectToken, handle: SelectHandle) {
+    fn register(&self, token: SelectToken, handle: SelectGroup) {
         let mut inner = self.shared.inner.lock().unwrap();
 
-        inner.select_handles.insert(id, (token, handle));
+        debug_assert!(inner.select_handle.is_none());
+
+        inner.select_handle = Some((token, handle));
     }
 
-    fn unregister(&self, id: ThreadId) {
+    fn unregister(&self) {
         let mut inner = self.shared.inner.lock().unwrap();
-        inner.select_handles.remove(&id);
+
+        debug_assert!(inner.select_handle.is_some());
+
+        inner.select_handle = None;
     }
 }
 

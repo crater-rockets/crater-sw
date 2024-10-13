@@ -1,7 +1,6 @@
 use std::{
     marker::PhantomData,
     sync::{Arc, Condvar, Mutex},
-    thread::{self, ThreadId},
 };
 
 use rand::{rngs::ThreadRng, seq::IteratorRandom};
@@ -14,59 +13,57 @@ pub struct SelectToken {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct SelectHandle {
-    inner: Arc<SelectHandleInner>,
+pub struct SelectGroup {
+    inner: Arc<SelectGroupInner>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CloseState {
+    Open,
+    CloseSignaled,
+    CloseAcknowldged,
 }
 
 #[derive(Debug, Default)]
-struct SelectHandleInner {
-    ready_list: Mutex<Vec<(usize, bool, bool)>>, // ready n, closed, close reported
+struct SelectGroupInner {
+    ready_list: Mutex<Vec<(usize, CloseState)>>,
     cv: Condvar,
 }
 
-impl SelectHandle {
-    pub fn notify(&self, token: SelectToken) {
+impl SelectGroup {
+    pub fn update(&self, token: SelectToken, nelem: usize) {
         let mut ready_list = self.inner.ready_list.lock().unwrap();
 
-        ready_list.get_mut(token.index).unwrap().0 += 1;
+        ready_list.get_mut(token.index).unwrap().0 = nelem;
 
         self.inner.cv.notify_one();
-    }
-
-    pub fn read(&self, token: SelectToken) {
-        let mut ready_list = self.inner.ready_list.lock().unwrap();
-
-        debug_assert_ne!(ready_list.get_mut(token.index).unwrap().0, 0);
-
-        ready_list.get_mut(token.index).unwrap().0 -= 1;
     }
 
     pub fn close(&self, token: SelectToken) {
         let mut ready_list = self.inner.ready_list.lock().unwrap();
 
-        ready_list.get_mut(token.index).unwrap().1 = true;
+        ready_list.get_mut(token.index).unwrap().1 = CloseState::CloseSignaled;
 
         self.inner.cv.notify_one();
     }
 
-    pub fn close_reported(&self, token: SelectToken) {
+    pub fn ack_close(&self, token: SelectToken) {
         let mut ready_list = self.inner.ready_list.lock().unwrap();
 
-        ready_list.get_mut(token.index).unwrap().2 = true;
+        ready_list.get_mut(token.index).unwrap().1 = CloseState::CloseAcknowldged;
     }
 }
 
 pub trait Selectable {
-    fn register(&self, id: ThreadId, token: SelectToken, handle: SelectHandle);
+    fn register(&self, token: SelectToken, handle: SelectGroup);
 
-    fn unregister(&self, id: ThreadId);
+    fn unregister(&self);
 }
 
 pub struct Select<'a> {
-    handle: SelectHandle,
+    handle: SelectGroup,
     subscribers: Vec<(&'a dyn Selectable, SelectToken)>,
     rng: ThreadRng,
-    id: ThreadId,
 
     /// Make sure we are not "Send", as we are using our thread's ThreadId as a key to a map
     not_send: PhantomData<*const ()>,
@@ -75,10 +72,9 @@ pub struct Select<'a> {
 impl<'a> Default for Select<'a> {
     fn default() -> Self {
         Self {
-            handle: SelectHandle::default(),
+            handle: SelectGroup::default(),
             subscribers: vec![],
             rng: ThreadRng::default(),
-            id: thread::current().id(),
             not_send: PhantomData::default(),
         }
     }
@@ -87,7 +83,7 @@ impl<'a> Default for Select<'a> {
 impl<'a> Drop for Select<'a> {
     fn drop(&mut self) {
         for (s, _) in self.subscribers.iter() {
-            s.unregister(self.id);
+            s.unregister();
         }
     }
 }
@@ -110,10 +106,10 @@ impl<'a> Select<'a> {
 
         {
             let mut ready_list = self.handle.inner.ready_list.lock().unwrap();
-            ready_list.push((0, false, false));
+            ready_list.push((0, CloseState::Open));
         }
 
-        selectable.register(self.id, tk, self.handle.clone());
+        selectable.register(tk, self.handle.clone());
     }
 
     pub fn ready(&mut self) -> usize {
@@ -122,8 +118,8 @@ impl<'a> Select<'a> {
         let ready_list = handle
             .cv
             .wait_while(handle.ready_list.lock().unwrap(), |r| {
-                r.iter().all(|(n, closed, close_reported)| {
-                    *n == 0usize && !(*closed && !*close_reported)
+                r.iter().all(|(n, close_state)| {
+                    *n == 0usize && !(*close_state == CloseState::CloseSignaled)
                 })
             })
             .unwrap();
@@ -131,7 +127,9 @@ impl<'a> Select<'a> {
         ready_list
             .iter()
             .enumerate()
-            .filter(|(_, (n, closed, close_reported))| *n > 0usize || (*closed && !*close_reported))
+            .filter(|(_, (n, close_state))| {
+                *n > 0usize || (*close_state == CloseState::CloseSignaled)
+            })
             .map(|(i, _)| i)
             .choose(&mut self.rng)
             .unwrap()
@@ -145,7 +143,9 @@ impl<'a> Select<'a> {
         ready_list
             .iter()
             .enumerate()
-            .filter(|(_, (n, closed, close_reported))| *n > 0usize || (*closed && !*close_reported))
+            .filter(|(_, (n, close_state))| {
+                *n > 0usize || (*close_state == CloseState::CloseSignaled)
+            })
             .map(|(i, _)| i)
             .choose(&mut self.rng)
             .ok_or(ChannelError::Empty)
@@ -258,6 +258,58 @@ mod tests {
         drop(s2);
 
         assert_eq!(handle.join().unwrap(), Ok(1));
+        Ok(())
+    }
+
+    #[test]
+    fn test_select_buf_overflow_try() -> Result<()> {
+        let (s1, r1) = channel::<i32>(3);
+
+        let mut select = Select::default();
+        select.add(&r1);
+
+        s1.send(1);
+        s1.send(2);
+        s1.send(3);
+        s1.send(4);
+
+        assert_eq!(select.try_ready(), Ok(0));
+        assert_eq!(r1.try_recv(), Ok(2));
+
+        assert_eq!(select.try_ready(), Ok(0));
+        assert_eq!(r1.try_recv(), Ok(3));
+
+        assert_eq!(select.try_ready(), Ok(0));
+        assert_eq!(r1.try_recv(), Ok(4));
+
+        assert_eq!(select.try_ready(), Err(ChannelError::Empty));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_select_buf_overflow() -> Result<()> {
+        let (s1, r1) = channel::<i32>(3);
+
+        let mut select = Select::default();
+        select.add(&r1);
+
+        s1.send(1);
+        s1.send(2);
+        s1.send(3);
+        s1.send(4);
+
+        assert_eq!(select.ready(), 0);
+        assert_eq!(r1.recv(), Ok(2));
+
+        assert_eq!(select.ready(), 0);
+        assert_eq!(r1.recv(), Ok(3));
+
+        assert_eq!(select.ready(), 0);
+        assert_eq!(r1.recv(), Ok(4));
+
+        assert_eq!(select.try_ready(), Err(ChannelError::Empty));
+
         Ok(())
     }
 }

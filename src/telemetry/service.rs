@@ -222,17 +222,12 @@ impl TelemetryServiceInner {
 }
 
 impl<T> Selectable for TelemetryReceiver<T> {
-    fn register(
-        &self,
-        id: std::thread::ThreadId,
-        token: SelectToken,
-        handle: crate::utils::ringchannel::SelectHandle,
-    ) {
-        self.receiver.register(id, token, handle)
+    fn register(&self, token: SelectToken, handle: crate::utils::ringchannel::SelectGroup) {
+        self.receiver.register(token, handle)
     }
 
-    fn unregister(&self, id: std::thread::ThreadId) {
-        self.receiver.unregister(id)
+    fn unregister(&self) {
+        self.receiver.unregister()
     }
 }
 
