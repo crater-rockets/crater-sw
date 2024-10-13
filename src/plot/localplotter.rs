@@ -60,7 +60,7 @@ impl LocalPlotter {
     ) -> Result<(), PlotterError> {
         let desc = T::default().descriptor();
 
-        let telem_receiver = self.ts.subcribe::<T>(channel, 1)?;
+        let telem_receiver = self.ts.subcribe::<T>(channel, 1000)?;
 
         self.plotter.register(signals, channel, desc)?;
         self.receivers.push((
