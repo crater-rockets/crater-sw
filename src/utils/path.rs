@@ -1,24 +1,9 @@
+use itertools::join;
 use thiserror::Error;
 
 #[derive(Error, Clone, Debug, PartialEq, Eq, Default)]
 #[error("Invalid Path")]
 pub struct PathError {}
-
-pub fn split_parts(path: &str) -> Option<Vec<String>> {
-    if !path.starts_with('/') {
-        return None;
-    }
-
-    let mut parts: Vec<String> = path.split("/").skip(1).map(|v| v.to_string()).collect();
-
-    for v in parts.iter_mut() {
-        if v.len() == 0 || !v.chars().all(|c| c.is_alphanumeric() || c == '_') {
-            return None;
-        }
-    }
-
-    Some(parts)
-}
 
 pub fn validate_path(path: &str) -> bool {
     path.starts_with('/')
@@ -36,13 +21,16 @@ pub struct Path {
 impl Path {
     pub fn from_str(path: &str) -> Result<Self, PathError> {
         if validate_path(path) {
-            Ok(Path {
-                path: path.to_string(),
-                is_root: path.split('/').filter(|p| p.len() > 0).count() == 0,
-            })
+            let path = format!("/{}", join(Self::split_parts(path), "/"));
+            let is_root = path == "/";
+            Ok(Path { path, is_root })
         } else {
             Err(PathError::default())
         }
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.path
     }
 
     pub fn path(&self) -> &str {
@@ -50,7 +38,11 @@ impl Path {
     }
 
     pub fn iter_parts(&self) -> impl Iterator<Item = &str> {
-        self.path.split('/').filter(|p| p.len() > 0)
+        Self::split_parts(&self.path)
+    }
+
+    pub fn split_parts(path: &str) -> impl Iterator<Item = &str> {
+        path.split('/').filter(|p| p.len() > 0)
     }
 
     pub fn is_root(&self) -> bool {
@@ -76,6 +68,17 @@ impl From<String> for Path {
     }
 }
 
+impl From<Path> for String {
+    fn from(value: Path) -> Self {
+        value.path.clone()
+    }
+}
+
+impl<'a> From<&'a Path> for &'a str {
+    fn from(value: &'a Path) -> Self {
+        value.path.as_str()
+    }
+}
 
 #[cfg(test)]
 mod tests {
