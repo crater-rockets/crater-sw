@@ -8,5 +8,6 @@ fn main() -> Result<()> {
             &["proto/sensors.proto", "proto/examples.proto"],
             &["proto/"],
         )?;
+        println!("cargo:rerun-if-changed=proto/");
     Ok(())
 }
