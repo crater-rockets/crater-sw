@@ -53,7 +53,7 @@ impl LocalPlotter {
         }
     }
 
-    pub fn register<T: ReflectMessage + Default + 'static>(
+    pub fn plot_channel<T: ReflectMessage + Default + 'static>(
         &mut self,
         signals: &mut PlotSignals,
         channel: &str,

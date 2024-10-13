@@ -17,8 +17,8 @@ fn main() -> Result<()> {
 
     let mut local_plotter = LocalPlotter::new(telemetry_service.clone());
 
-    local_plotter.register::<Magnetometer>(&mut signals, "/a/b/c")?;
-    local_plotter.register::<Magnetometer>(&mut signals, "/one/two")?;
+    local_plotter.plot_channel::<Magnetometer>(&mut signals, "/a/b/c")?;
+    local_plotter.plot_channel::<Magnetometer>(&mut signals, "/one/two")?;
 
     let start = Instant::now();
     let mut rng = rand::thread_rng();

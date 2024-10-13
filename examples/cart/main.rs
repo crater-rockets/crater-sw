@@ -125,8 +125,8 @@ fn main() -> Result<()> {
     let mut signals = PlotSignals::default();
     let mut local_plotter = LocalPlotter::new(ts.clone());
 
-    local_plotter.register::<CartState>(&mut signals, "/cart/state")?;
-    local_plotter.register::<Force>(&mut signals, "/cart/force")?;
+    local_plotter.plot_channel::<CartState>(&mut signals, "/cart/state")?;
+    local_plotter.plot_channel::<Force>(&mut signals, "/cart/force")?;
     local_plotter.run();
 
     let exec = ThreadedExecutor::run(nm);
