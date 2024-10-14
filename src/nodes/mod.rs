@@ -2,4 +2,4 @@ mod node;
 mod executor;
 
 pub use node::*;
-pub use executor::{ThreadedExecutor, Executor};
+pub use executor::{ThreadedExecutor, FtlOrderedExecutor};

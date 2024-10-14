@@ -52,3 +52,18 @@ impl ThreadedExecutor {
         res
     }
 }
+
+pub struct FtlOrderedExecutor;
+
+impl FtlOrderedExecutor {
+    pub fn run_blocking(mut node_mgr: NodeManager, simulated_step_period: TimeDelta) -> Result<()> {
+        let mut clock = SimulatedClock::new(Utc::now(), TimeDelta::zero());
+
+        loop {
+            clock.step(simulated_step_period);
+            for node in node_mgr.nodes.iter_mut() {
+                node.step(&clock)?;
+            }
+        }
+    }
+}
