@@ -75,7 +75,7 @@ struct TelemetryChannel {
 
     typename: String,
 
-    channel: Box<dyn Any>, // Box<TelemetryChannelTransport<T>>
+    channel: Box<dyn Any + Send>, // Box<TelemetryChannelTransport<T>>
 }
 
 struct TelemetryChannelTransport<T> {
@@ -84,7 +84,7 @@ struct TelemetryChannelTransport<T> {
 }
 
 impl TelemetryChannel {
-    fn new<T: 'static>(name: &str) -> Self {
+    fn new<T: 'static + Send>(name: &str) -> Self {
         let (sender, _) = channel::<T>(Capacity::Unbounded);
 
         let transport = TelemetryChannelTransport::<T> {
@@ -168,10 +168,10 @@ impl TelemetryService {
 }
 
 pub trait TelemetryDispatcher {
-    fn publish<T: 'static>(&self, channel_name: &str)
+    fn publish<T: 'static + Send>(&self, channel_name: &str)
         -> Result<TelemetrySender<T>, TelemetryError>;
 
-    fn subcribe<T: 'static>(
+    fn subcribe<T: 'static + Send>(
         &self,
         channel_name: &str,
         capacity: Capacity,
@@ -179,7 +179,7 @@ pub trait TelemetryDispatcher {
 }
 
 impl TelemetryDispatcher for TelemetryService {
-    fn publish<T: 'static>(
+    fn publish<T: 'static + Send>(
         &self,
         channel_name: &str,
     ) -> Result<TelemetrySender<T>, TelemetryError> {
@@ -197,7 +197,7 @@ impl TelemetryDispatcher for TelemetryService {
         channel.take_producer()
     }
 
-    fn subcribe<T: 'static>(
+    fn subcribe<T: 'static + Send>(
         &self,
         channel_name: &str,
         capacity: Capacity,
@@ -210,7 +210,7 @@ impl TelemetryDispatcher for TelemetryService {
 }
 
 impl TelemetryServiceInner {
-    fn get_channel<'a, T: 'static>(&'a mut self, channel_name: &str) -> &'a mut TelemetryChannel {
+    fn get_channel<'a, T: 'static + Send>(&'a mut self, channel_name: &str) -> &'a mut TelemetryChannel {
         if !self.channels.contains_key(channel_name) {
             self.channels.insert(
                 channel_name.to_string(),
