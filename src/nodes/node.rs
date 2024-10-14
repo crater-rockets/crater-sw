@@ -5,7 +5,7 @@ use crate::{
     telemetry::{
         TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetrySender, TelemetryService,
     },
-    utils::{capacity::Capacity, path::Path},
+    utils::{capacity::Capacity, path::Path, time::Clock},
 };
 
 #[derive(Debug, Error)]
@@ -18,7 +18,7 @@ pub enum Error {
 }
 
 pub trait Node {
-    fn step(&mut self) -> anyhow::Result<()>;
+    fn step(&mut self, clock: &dyn Clock) -> anyhow::Result<()>;
 }
 
 #[derive(Default)]
@@ -107,7 +107,7 @@ impl NodeTelemetry {
 }
 
 impl TelemetryDispatcher for NodeTelemetry {
-    fn publish<T: 'static>(
+    fn publish<T: 'static + Send>(
         &self,
         channel_name: &str,
     ) -> Result<TelemetrySender<T>, TelemetryError> {
@@ -120,7 +120,7 @@ impl TelemetryDispatcher for NodeTelemetry {
         self.telemetry.publish::<T>(path.as_str())
     }
 
-    fn subcribe<T: 'static>(
+    fn subcribe<T: 'static + Send>(
         &self,
         channel_name: &str,
         capacity: Capacity,
@@ -138,6 +138,8 @@ impl TelemetryDispatcher for NodeTelemetry {
 #[cfg(test)]
 mod tests {
     use std::sync::mpsc::{channel, Sender};
+
+    use crate::utils::time::WallClock;
 
     use super::*;
     use anyhow::Result;
@@ -219,7 +221,7 @@ mod tests {
         }
     }
     impl Node for MockNodeS {
-        fn step(&mut self) -> Result<()> {
+        fn step(&mut self, clock: &dyn Clock) -> Result<()> {
             self.sender.send(self.cnt);
             self.cnt += 1;
 
@@ -244,7 +246,7 @@ mod tests {
         }
     }
     impl Node for MockNodeR {
-        fn step(&mut self) -> Result<()> {
+        fn step(&mut self, clock: &dyn Clock) -> Result<()> {
             self.cnt = self.receiver.recv().unwrap();
             self.feedback.send(self.cnt).unwrap();
 
@@ -297,13 +299,15 @@ mod tests {
 
         assert_eq!(nm.nodes.len(), 2);
 
-        nm.nodes[0].step().unwrap();
-        nm.nodes[1].step().unwrap();
+        let clock = Arc::new(WallClock {});
+
+        nm.nodes[0].step(clock.as_ref()).unwrap();
+        nm.nodes[1].step(clock.as_ref()).unwrap();
 
         assert_eq!(fb_receiver.try_recv(), Ok(0));
 
-        nm.nodes[0].step().unwrap();
-        nm.nodes[1].step().unwrap();
+        nm.nodes[0].step(clock.as_ref()).unwrap();
+        nm.nodes[1].step(clock.as_ref()).unwrap();
 
         assert_eq!(fb_receiver.try_recv(), Ok(1));
 
