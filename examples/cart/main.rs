@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ::quadcopter::nodes::{NodeConfig, NodeContext, NodeManager, ThreadedExecutor};
+use ::quadcopter::nodes::{Executor, NodeConfig, NodeContext, NodeManager, ThreadedExecutor};
 use ::quadcopter::plot::localplotter::LocalPlotter;
 use ::quadcopter::telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetryService};
 use ::quadcopter::DESCRIPTOR_POOL;

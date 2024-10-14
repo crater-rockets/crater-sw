@@ -5,13 +5,21 @@ use std::{
     thread::{self, JoinHandle},
 };
 
+pub trait Executor {
+    fn run(nodes: NodeManager) -> Self
+    where
+        Self: Sized;
+
+    fn join(self) -> Result<()>;
+}
+
 pub struct ThreadedExecutor {
     handles: Vec<JoinHandle<Result<()>>>,
     fail_receiver: Receiver<()>,
 }
 
-impl ThreadedExecutor {
-    pub fn run(node_mgr: NodeManager) -> ThreadedExecutor {
+impl Executor for ThreadedExecutor {
+    fn run(node_mgr: NodeManager) -> ThreadedExecutor {
         let (fail_s, fail_r) = channel::<()>();
         let mut exec = ThreadedExecutor {
             handles: vec![],
@@ -30,7 +38,7 @@ impl ThreadedExecutor {
         exec
     }
 
-    pub fn join(self) -> Result<()> {
+    fn join(self) -> Result<()> {
         let _ = self.fail_receiver.recv();
         let mut res = Ok(());
         for h in self.handles {
@@ -40,11 +48,5 @@ impl ThreadedExecutor {
         }
 
         res
-    }
-
-    pub fn run_blocking(
-        node_mgr: NodeManager,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        todo!()
     }
 }
