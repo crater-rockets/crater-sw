@@ -1,11 +1,17 @@
 use std::collections::HashMap;
+use std::thread;
 
-use ::quadcopter::nodes::{Executor, NodeConfig, NodeContext, NodeManager, ThreadedExecutor};
+use ::quadcopter::nodes::{
+    FtlOrderedExecutor, NodeConfig, NodeContext, NodeManager, ThreadedExecutor,
+};
 use ::quadcopter::plot::localplotter::LocalPlotter;
 use ::quadcopter::telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetryService};
+use ::quadcopter::utils::time::{Clock, Instant};
 use ::quadcopter::DESCRIPTOR_POOL;
 use ::quadcopter::{nodes::Node, telemetry::TelemetrySender};
 use anyhow::{anyhow, Result};
+use chrono::TimeDelta;
+use once_cell::sync::OnceCell;
 
 pub mod quadcopter {
     pub mod examples {
@@ -21,7 +27,7 @@ struct Cart {
     m: f32,
     t: f32,
     dt: f32,
-
+    start_t: OnceCell<Instant>,
     state: CartState,
 
     rcv_force: TelemetryReceiver<Force>,
@@ -39,6 +45,7 @@ impl Cart {
             m: 1.0,
             t: 0.0,
             dt: 0.01,
+            start_t: OnceCell::new(),
             state: CartState {
                 timestamp: 0,
                 pos: 0.0,
@@ -51,7 +58,9 @@ impl Cart {
 }
 
 impl Node for Cart {
-    fn step(&mut self) -> Result<()> {
+    fn step(&mut self, clock: &dyn Clock) -> Result<()> {
+        let _ = self.start_t.set(clock.monotonic());
+
         let f = if self.t > 0.0 {
             self.rcv_force.recv()?
         } else {
@@ -61,15 +70,16 @@ impl Node for Cart {
             }
         };
 
-        self.t += self.dt;
         let acc = self.m * f.f - self.state.vel;
         self.state.vel = self.state.vel + acc * self.dt;
         self.state.pos = self.state.pos + self.state.vel * self.dt;
-        self.state.timestamp = (self.t as f64 * 1000000000.0) as i64;
+        self.state.timestamp = clock.monotonic().elapsed().num_nanoseconds().unwrap();
 
         self.snd_state.send(self.state);
 
-        if self.t >= 10.0 {
+        if (clock.monotonic() - self.start_t.get().unwrap().elapsed()).elapsed()
+            > TimeDelta::seconds(10)
+        {
             Err(anyhow!("Finish!"))
         } else {
             Ok(())
@@ -94,14 +104,13 @@ impl PositionControl {
     }
 }
 impl Node for PositionControl {
-    fn step(&mut self) -> anyhow::Result<()> {
+    fn step(&mut self, clock: &dyn Clock) -> anyhow::Result<()> {
         let state = self.rcv_state.recv()?;
-        state.timestamp;
 
         let f = -(state.pos - 2.0) * 0.5;
 
         self.snd_force.send(Force {
-            timestamp: state.timestamp,
+            timestamp: clock.monotonic().elapsed().num_nanoseconds().unwrap(),
             f,
         });
 
@@ -131,10 +140,13 @@ fn main() -> Result<()> {
     local_plotter.plot_channel::<Force>(&mut signals, "/cart/force")?;
     local_plotter.run();
 
-    let exec = ThreadedExecutor::run(nm);
+    // let exec = ThreadedExecutor::run(nm);
+
+    let exec =
+        thread::spawn(move || FtlOrderedExecutor::run_blocking(nm, TimeDelta::milliseconds(10)));
     DataInspector::run_native("plotter", signals).unwrap();
 
-    exec.join()?;
+    exec.join().unwrap()?;
 
     Ok(())
 }
