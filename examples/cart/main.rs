@@ -5,7 +5,6 @@ use ::quadcopter::nodes::{FtlOrderedExecutor, NodeConfig, NodeContext, NodeManag
 use ::quadcopter::parameters::ParameterService;
 use ::quadcopter::plot::localplotter::LocalPlotter;
 use ::quadcopter::telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetryService};
-use ::quadcopter::utils::path::Path;
 use ::quadcopter::utils::time::{Clock, Instant};
 use ::quadcopter::DESCRIPTOR_POOL;
 use ::quadcopter::{nodes::Node, telemetry::TelemetrySender};
@@ -26,6 +25,7 @@ use rust_data_inspector::{DataInspector, PlotSignals};
 struct Cart {
     m: f32,
     dt: f32,
+    duration: i64,
     start_t: OnceCell<Instant>,
     state: CartState,
 
@@ -43,6 +43,7 @@ impl Cart {
         Ok(Cart {
             m: ctx.parameters().get_f32("/example/cart/mass")?,
             dt: ctx.parameters().get_f32("/example/dt")?,
+            duration: ctx.parameters().get_i64("/example/duration_ms")?,
             start_t: OnceCell::new(),
             state: CartState {
                 timestamp: 0,
@@ -76,7 +77,7 @@ impl Node for Cart {
         self.snd_state.send(self.state);
 
         if (clock.monotonic() - self.start_t.get().unwrap().elapsed()).elapsed()
-            > TimeDelta::seconds(10)
+            > TimeDelta::milliseconds(self.duration)
         {
             Err(anyhow!("Finish!"))
         } else {
