@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 use crate::{
+    parameters::ParameterService,
     telemetry::{
         TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetrySender, TelemetryService,
     },
@@ -24,14 +25,20 @@ pub trait Node {
 #[derive(Default)]
 pub struct NodeManager {
     telemetry: TelemetryService,
+    parameters: ParameterService,
     node_configs: HashMap<String, NodeConfig>,
     pub(super) nodes: Vec<Box<dyn Node + Send>>,
 }
 
 impl NodeManager {
-    pub fn new(telemetry: TelemetryService, node_configs: HashMap<String, NodeConfig>) -> Self {
+    pub fn new(
+        telemetry: TelemetryService,
+        parameters: ParameterService,
+        node_configs: HashMap<String, NodeConfig>,
+    ) -> Self {
         NodeManager {
             telemetry,
+            parameters,
             node_configs: node_configs,
             nodes: vec![],
         }
@@ -51,11 +58,14 @@ impl NodeManager {
             .get(name)
             .ok_or(Error::MissingConfig(name.to_string()))?;
 
-        let context = NodeContext::new(NodeTelemetry::new(
-            self.telemetry.clone(),
-            config.tm_input_map.clone(),
-            config.tm_output_map.clone(),
-        ));
+        let context = NodeContext::new(
+            NodeTelemetry::new(
+                self.telemetry.clone(),
+                config.tm_input_map.clone(),
+                config.tm_output_map.clone(),
+            ),
+            self.parameters.clone(),
+        );
 
         self.nodes
             .push(creator(context).map_err(|e| Error::NodeInstantiation(e))?);
@@ -73,15 +83,23 @@ pub struct NodeConfig {
 #[derive(Debug)]
 pub struct NodeContext {
     tm_dispatcher: NodeTelemetry,
+    parameters: ParameterService,
 }
 
 impl NodeContext {
-    fn new(tm_dispatcher: NodeTelemetry) -> Self {
-        Self { tm_dispatcher }
+    fn new(tm_dispatcher: NodeTelemetry, parameters: ParameterService) -> Self {
+        Self {
+            tm_dispatcher,
+            parameters,
+        }
     }
 
     pub fn telemetry<'a>(&'a self) -> &'a NodeTelemetry {
         &self.tm_dispatcher
+    }
+
+    pub fn parameters<'a>(&'a self) -> &'a ParameterService {
+        &self.parameters
     }
 }
 
@@ -137,7 +155,10 @@ impl TelemetryDispatcher for NodeTelemetry {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::mpsc::{channel, Sender};
+    use std::sync::{
+        mpsc::{channel, Sender},
+        Arc,
+    };
 
     use crate::utils::time::WallClock;
 
@@ -221,7 +242,7 @@ mod tests {
         }
     }
     impl Node for MockNodeS {
-        fn step(&mut self, clock: &dyn Clock) -> Result<()> {
+        fn step(&mut self, _: &dyn Clock) -> Result<()> {
             self.sender.send(self.cnt);
             self.cnt += 1;
 
@@ -246,7 +267,7 @@ mod tests {
         }
     }
     impl Node for MockNodeR {
-        fn step(&mut self, clock: &dyn Clock) -> Result<()> {
+        fn step(&mut self, _: &dyn Clock) -> Result<()> {
             self.cnt = self.receiver.recv().unwrap();
             self.feedback.send(self.cnt).unwrap();
 
@@ -258,6 +279,7 @@ mod tests {
     fn test_add_node_ok() -> Result<()> {
         let mut nm = NodeManager::new(
             TelemetryService::default(),
+            ParameterService::default(),
             HashMap::from([
                 (
                     "node_s".to_string(),
