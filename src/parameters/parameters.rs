@@ -1,5 +1,8 @@
 use super::deser::{self};
-use crate::{parameters::deser::parse_str, utils::path::Path};
+use crate::{
+    parameters::deser::parse_str,
+    utils::path::{Path, PathError},
+};
 use itertools::join;
 use std::{
     collections::{btree_map, BTreeMap},
@@ -17,8 +20,17 @@ pub enum Error {
     #[error("Cannot overwrite root parameter")]
     RootOverwrite,
 
-    #[error("Error parsing paramter from toml")]
+    #[error("Error parsing parameter from toml")]
     Toml(#[from] deser::Error),
+
+    #[error("Invalid path")]
+    Path(#[from] PathError),
+
+    #[error("No parameter found for path '{0}'")]
+    NotFound(Path),
+
+    #[error("Request type '{0}' for parameter '{1}', but is a '{2}")]
+    TypeMismatch(String, Path, String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -384,6 +396,129 @@ impl ParameterService {
         }
 
         Some(root.clone())
+    }
+
+    pub fn get_bool(&self, path: &str) -> Result<bool, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+        Ok(*param.as_bool().ok_or(Error::TypeMismatch(
+            "bool".to_string(),
+            path,
+            param.type_string().to_string(),
+        ))?)
+    }
+
+    pub fn get_u8(&self, path: &str) -> Result<u8, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+        Ok(*param.as_u8().ok_or(Error::TypeMismatch(
+            "u8".to_string(),
+            path,
+            param.type_string().to_string(),
+        ))?)
+    }
+
+    pub fn get_u16(&self, path: &str) -> Result<u16, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+        Ok(*param.as_u16().ok_or(Error::TypeMismatch(
+            "u16".to_string(),
+            path,
+            param.type_string().to_string(),
+        ))?)
+    }
+
+    pub fn get_u32(&self, path: &str) -> Result<u32, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+        Ok(*param.as_u32().ok_or(Error::TypeMismatch(
+            "u32".to_string(),
+            path,
+            param.type_string().to_string(),
+        ))?)
+    }
+
+    pub fn get_u64(&self, path: &str) -> Result<u64, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+        Ok(*param.as_u64().ok_or(Error::TypeMismatch(
+            "u64".to_string(),
+            path,
+            param.type_string().to_string(),
+        ))?)
+    }
+
+    pub fn get_i8(&self, path: &str) -> Result<i8, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+        Ok(*param.as_i8().ok_or(Error::TypeMismatch(
+            "i8".to_string(),
+            path,
+            param.type_string().to_string(),
+        ))?)
+    }
+
+    pub fn get_i16(&self, path: &str) -> Result<i16, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+        Ok(*param.as_i16().ok_or(Error::TypeMismatch(
+            "i16".to_string(),
+            path,
+            param.type_string().to_string(),
+        ))?)
+    }
+
+    pub fn get_i32(&self, path: &str) -> Result<i32, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+        Ok(*param.as_i32().ok_or(Error::TypeMismatch(
+            "i32".to_string(),
+            path,
+            param.type_string().to_string(),
+        ))?)
+    }
+
+    pub fn get_i64(&self, path: &str) -> Result<i64, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+        Ok(*param.as_i64().ok_or(Error::TypeMismatch(
+            "i64".to_string(),
+            path,
+            param.type_string().to_string(),
+        ))?)
+    }
+
+    pub fn get_f32(&self, path: &str) -> Result<f32, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+        Ok(*param.as_f32().ok_or(Error::TypeMismatch(
+            "f32".to_string(),
+            path,
+            param.type_string().to_string(),
+        ))?)
+    }
+
+    pub fn get_f64(&self, path: &str) -> Result<f64, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+        Ok(*param.as_f64().ok_or(Error::TypeMismatch(
+            "f64".to_string(),
+            path,
+            param.type_string().to_string(),
+        ))?)
+    }
+
+    pub fn get_string(&self, path: &str) -> Result<String, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+        Ok(param
+            .as_string()
+            .ok_or(Error::TypeMismatch(
+                "String".to_string(),
+                path,
+                param.type_string().to_string(),
+            ))?
+            .clone())
     }
 
     pub fn set(&mut self, path: &Path, val: Parameter) -> Result<Option<Parameter>, Error> {
