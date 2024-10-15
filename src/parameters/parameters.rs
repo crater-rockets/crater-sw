@@ -1,12 +1,13 @@
+use super::deser::{self};
 use crate::{parameters::deser::parse_str, utils::path::Path};
 use itertools::join;
 use std::{
     collections::{btree_map, BTreeMap},
     fmt::Display,
     mem,
+    sync::{Arc, Mutex},
 };
 use thiserror::Error;
-use super::deser::{self};
 
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum Error {
@@ -326,15 +327,22 @@ impl Display for Parameter {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ParameterService {
+    inner: Arc<Mutex<ParameterServiceInner>>,
+}
+
+#[derive(Debug, Clone)]
+struct ParameterServiceInner {
     root: Parameter,
 }
 
 impl Default for ParameterService {
     fn default() -> Self {
         ParameterService {
-            root: Parameter::Map(BTreeMap::default()),
+            inner: Arc::new(Mutex::new(ParameterServiceInner {
+                root: Parameter::Map(BTreeMap::default()),
+            })),
         }
     }
 }
@@ -355,8 +363,27 @@ impl ParameterService {
         Ok(ps)
     }
 
+    fn from_root(root: Parameter) -> Self {
+        ParameterService {
+            inner: Arc::new(Mutex::new(ParameterServiceInner { root })),
+        }
+    }
+
     pub fn get(&self, path: &Path) -> Option<Parameter> {
-        self.get_ref(path).cloned()
+        let mut root = &self.inner.lock().unwrap().root;
+
+        for part in path.iter_parts() {
+            match root {
+                Parameter::Map(m) => {
+                    root = m.get(part)?;
+                }
+                _ => {
+                    return None;
+                }
+            }
+        }
+
+        Some(root.clone())
     }
 
     pub fn set(&mut self, path: &Path, val: Parameter) -> Result<Option<Parameter>, Error> {
@@ -364,7 +391,7 @@ impl ParameterService {
             return Err(Error::RootOverwrite);
         }
 
-        let mut root = &mut self.root;
+        let mut root = &mut self.inner.lock().unwrap().root;
 
         for part in Self::skip_last(path.iter_parts()) {
             root = match root {
@@ -389,25 +416,13 @@ impl ParameterService {
         }
     }
 
-    pub fn iter(&self) -> ParameterIter<'_> {
-        self.root.iter()
-    }
-
-    fn get_ref(&self, path: &Path) -> Option<&Parameter> {
-        let mut root = &self.root;
-
-        for part in path.iter_parts() {
-            match root {
-                Parameter::Map(m) => {
-                    root = m.get(part)?;
-                }
-                _ => {
-                    return None;
-                }
-            }
-        }
-
-        Some(root)
+    fn as_vec(&self) -> Vec<(String, Parameter)> {
+        self.inner
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(p, par)| (p, par.clone()))
+            .collect::<Vec<_>>()
     }
 
     fn skip_last<T>(mut iter: impl Iterator<Item = T>) -> impl Iterator<Item = T> {
@@ -416,9 +431,16 @@ impl ParameterService {
     }
 }
 
+impl ParameterServiceInner {
+    pub fn iter(&self) -> ParameterIter<'_> {
+        self.root.iter()
+    }
+}
+
 impl Display for ParameterService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (path, v) in self.iter() {
+        let inner = self.inner.lock().unwrap();
+        for (path, v) in inner.iter() {
             write!(f, "{}: {}  = {}", path, v.type_string(), v)?;
         }
 
@@ -504,7 +526,7 @@ mod tests {
     fn test_get() {
         let root = build_params();
 
-        let ps = ParameterService { root: root.clone() };
+        let ps = ParameterService::from_root(root.clone());
 
         assert_eq!(ps.get(&Path::from_str("/").unwrap()), Some(root));
 
@@ -545,9 +567,7 @@ mod tests {
         //         "b2": F64(1.23)
         //     }
         // }
-        let mut ps = ParameterService {
-            root: build_params(),
-        };
+        let mut ps = ParameterService::from_root(build_params());
 
         let mut flattened: BTreeMap<&str, Parameter> = BTreeMap::from([
             ("/a1", Parameter::F32(1.23)),
@@ -611,9 +631,7 @@ mod tests {
 
     #[test]
     fn test_iter() {
-        let ps = ParameterService {
-            root: build_params(),
-        };
+        let ps = ParameterService::from_root(build_params());
 
         let flattened: Vec<(String, Parameter)> = vec![
             ("/a1".to_string(), Parameter::F32(1.23)),
@@ -626,12 +644,7 @@ mod tests {
             ("/a3/b2".to_string(), Parameter::F64(1.23)),
         ];
 
-        assert_eq!(
-            ps.iter()
-                .map(|(p, par)| (p, par.clone()))
-                .collect::<Vec<_>>(),
-            flattened
-        );
+        assert_eq!(ps.as_vec(), flattened);
     }
 
     #[test]
@@ -660,12 +673,7 @@ mod tests {
             ("/a3/b2".to_string(), Parameter::F64(1.23)),
         ];
 
-        assert_eq!(
-            ps.iter()
-                .map(|(p, par)| (p, par.clone()))
-                .collect::<Vec<_>>(),
-            flattened
-        );
+        assert_eq!(ps.as_vec(), flattened);
 
         Ok(())
     }
