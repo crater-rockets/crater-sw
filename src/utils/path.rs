@@ -1,3 +1,5 @@
+use core::fmt;
+
 use itertools::join;
 use thiserror::Error;
 
@@ -50,12 +52,6 @@ impl Path {
     }
 }
 
-impl ToString for Path {
-    fn to_string(&self) -> String {
-        self.path.to_string()
-    }
-}
-
 impl From<&str> for Path {
     fn from(value: &str) -> Self {
         Path::from_str(value).expect("Bad path")
@@ -77,6 +73,12 @@ impl From<Path> for String {
 impl<'a> From<&'a Path> for &'a str {
     fn from(value: &'a Path) -> Self {
         value.path.as_str()
+    }
+}
+
+impl fmt::Display for Path {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
     }
 }
 
