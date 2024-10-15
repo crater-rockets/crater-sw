@@ -110,7 +110,7 @@ impl Node for PositionControl {
     fn step(&mut self, clock: &dyn Clock) -> anyhow::Result<()> {
         let state = self.rcv_state.recv()?;
 
-        let f = -(state.pos - 2.0) * 0.5;
+        let f = -(state.pos - self.target_pos) * self.kp;
 
         self.snd_force.send(Force {
             timestamp: clock.monotonic().elapsed().num_nanoseconds().unwrap(),
