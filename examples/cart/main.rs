@@ -1,11 +1,11 @@
 use std::collections::HashMap;
-use std::thread;
+use std::{fs, thread};
 
-use ::quadcopter::nodes::{
-    FtlOrderedExecutor, NodeConfig, NodeContext, NodeManager, ThreadedExecutor,
-};
+use ::quadcopter::nodes::{FtlOrderedExecutor, NodeConfig, NodeContext, NodeManager};
+use ::quadcopter::parameters::ParameterService;
 use ::quadcopter::plot::localplotter::LocalPlotter;
 use ::quadcopter::telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetryService};
+use ::quadcopter::utils::path::Path;
 use ::quadcopter::utils::time::{Clock, Instant};
 use ::quadcopter::DESCRIPTOR_POOL;
 use ::quadcopter::{nodes::Node, telemetry::TelemetrySender};
@@ -25,7 +25,6 @@ use quadcopter::examples::cart::*;
 use rust_data_inspector::{DataInspector, PlotSignals};
 struct Cart {
     m: f32,
-    t: f32,
     dt: f32,
     start_t: OnceCell<Instant>,
     state: CartState,
@@ -42,14 +41,13 @@ impl Cart {
             .subcribe::<Force>("/cart/force", 1usize.into())?;
 
         Ok(Cart {
-            m: 1.0,
-            t: 0.0,
-            dt: 0.01,
+            m: ctx.parameters().get_f32("/example/cart/mass")?,
+            dt: ctx.parameters().get_f32("/example/dt")?,
             start_t: OnceCell::new(),
             state: CartState {
                 timestamp: 0,
-                pos: 0.0,
-                vel: 1.0,
+                pos: ctx.parameters().get_f32("/example/cart/initial_cond/pos")?,
+                vel: ctx.parameters().get_f32("/example/cart/initial_cond/vel")?,
             },
             rcv_force,
             snd_state,
@@ -59,9 +57,7 @@ impl Cart {
 
 impl Node for Cart {
     fn step(&mut self, clock: &dyn Clock) -> Result<()> {
-        let _ = self.start_t.set(clock.monotonic());
-
-        let f = if self.t > 0.0 {
+        let f = if self.start_t.get().is_some() {
             self.rcv_force.recv()?
         } else {
             Force {
@@ -69,6 +65,8 @@ impl Node for Cart {
                 f: 0.0,
             }
         };
+
+        let _ = self.start_t.set(clock.monotonic());
 
         let acc = self.m * f.f - self.state.vel;
         self.state.vel = self.state.vel + acc * self.dt;
@@ -90,6 +88,9 @@ impl Node for Cart {
 struct PositionControl {
     rcv_state: TelemetryReceiver<CartState>,
     snd_force: TelemetrySender<Force>,
+
+    target_pos: f32,
+    kp: f32,
 }
 
 impl PositionControl {
@@ -100,6 +101,8 @@ impl PositionControl {
         Ok(Self {
             rcv_state,
             snd_force,
+            target_pos: ctx.parameters().get_f32("/example/poscontrol/target")?,
+            kp: ctx.parameters().get_f32("/example/poscontrol/kp")?,
         })
     }
 }
@@ -120,8 +123,11 @@ impl Node for PositionControl {
 
 fn main() -> Result<()> {
     let ts = TelemetryService::default();
+    let params_toml = fs::read_to_string("params.toml")?;
+    let params = ParameterService::from_toml(&params_toml)?;
     let mut nm = NodeManager::new(
         ts.clone(),
+        params.clone(),
         HashMap::from([
             ("cart".to_string(), NodeConfig::default()),
             ("pos_controller".to_string(), NodeConfig::default()),
@@ -142,8 +148,9 @@ fn main() -> Result<()> {
 
     // let exec = ThreadedExecutor::run(nm);
 
+    let dt = (params.get_f32("/example/dt")? * 1000.0) as i64;
     let exec =
-        thread::spawn(move || FtlOrderedExecutor::run_blocking(nm, TimeDelta::milliseconds(10)));
+        thread::spawn(move || FtlOrderedExecutor::run_blocking(nm, TimeDelta::milliseconds(dt)));
     DataInspector::run_native("plotter", signals).unwrap();
 
     exec.join().unwrap()?;

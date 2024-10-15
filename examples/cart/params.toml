@@ -1,0 +1,13 @@
+[example]
+dt = { val = 0.01, dtype = "f32" }
+
+[example.cart]
+mass = { val = 10, dtype = "f32" }
+
+[example.cart.initial_cond]
+pos = { val = 0, dtype = "f32" }
+vel = { val = 0, dtype = "f32" }
+
+[example.poscontrol]
+target = { val = 2, dtype = "f32" }
+kp = { val = 0.5, dtype = "f32" }
