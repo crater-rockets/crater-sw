@@ -123,6 +123,8 @@ mod tests {
     #[test]
     fn test_from_trait_str() {
         let p: Path = "/abc".into();
+        
+        assert_eq!(p.as_str(), "/abc")
     }
 
     #[test]

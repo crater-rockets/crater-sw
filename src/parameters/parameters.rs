@@ -375,6 +375,7 @@ impl ParameterService {
         Ok(ps)
     }
 
+    #[allow(dead_code)]
     fn from_root(root: Parameter) -> Self {
         ParameterService {
             inner: Arc::new(Mutex::new(ParameterServiceInner { root })),
@@ -551,6 +552,7 @@ impl ParameterService {
         }
     }
 
+    #[allow(dead_code)]
     fn as_vec(&self) -> Vec<(String, Parameter)> {
         self.inner
             .lock()

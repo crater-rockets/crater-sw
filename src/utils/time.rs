@@ -21,18 +21,21 @@ impl Instant {
         self.delta - other.delta
     }
 
+    #[allow(dead_code)]
     fn checked_add(&self, other: &Instant) -> Option<Instant> {
         Some(Instant {
             delta: self.delta.checked_add(&other.delta)?,
         })
     }
 
+    #[allow(dead_code)]
     fn checked_sub(&self, other: &Instant) -> Option<Instant> {
         Some(Instant {
             delta: self.delta.checked_sub(&other.delta)?,
         })
     }
 
+    #[allow(dead_code)]
     fn checked_duration_since(&self, other: &Instant) -> Option<TimeDelta> {
         self.delta.checked_sub(&other.delta)
     }
