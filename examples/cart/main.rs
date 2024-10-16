@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::{fs, thread};
 
-use ::quadcopter::nodes::{FtlOrderedExecutor, NodeConfig, NodeContext, NodeManager};
+use ::quadcopter::nodes::{FtlOrderedExecutor, NodeConfig, NodeContext, NodeManager, StepResult};
 use ::quadcopter::parameters::ParameterService;
 use ::quadcopter::plot::localplotter::LocalPlotter;
 use ::quadcopter::telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetryService};
 use ::quadcopter::utils::time::{Clock, Instant};
 use ::quadcopter::DESCRIPTOR_POOL;
 use ::quadcopter::{nodes::Node, telemetry::TelemetrySender};
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use chrono::TimeDelta;
 use once_cell::sync::OnceCell;
 
@@ -57,7 +57,7 @@ impl Cart {
 }
 
 impl Node for Cart {
-    fn step(&mut self, clock: &dyn Clock) -> Result<()> {
+    fn step(&mut self, clock: &dyn Clock) -> Result<StepResult> {
         let f = if self.start_t.get().is_some() {
             self.rcv_force.recv()?
         } else {
@@ -79,9 +79,9 @@ impl Node for Cart {
         if (clock.monotonic() - self.start_t.get().unwrap().elapsed()).elapsed()
             > TimeDelta::milliseconds(self.duration)
         {
-            Err(anyhow!("Finish!"))
+            Ok(StepResult::Stop)
         } else {
-            Ok(())
+            Ok(StepResult::Continue)
         }
     }
 }
@@ -108,7 +108,7 @@ impl PositionControl {
     }
 }
 impl Node for PositionControl {
-    fn step(&mut self, clock: &dyn Clock) -> anyhow::Result<()> {
+    fn step(&mut self, clock: &dyn Clock) -> anyhow::Result<StepResult> {
         let state = self.rcv_state.recv()?;
 
         let f = -(state.pos - self.target_pos) * self.kp;
@@ -118,7 +118,7 @@ impl Node for PositionControl {
             f,
         });
 
-        Ok(())
+        Ok(StepResult::Continue)
     }
 }
 

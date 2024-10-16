@@ -1,54 +1,72 @@
-use crate::utils::time::{SimulatedClock, WallClock};
+use crate::utils::time::{Clock, SimulatedClock, WallClock};
 
-use super::NodeManager;
-use anyhow::Result;
+use super::{Node, NodeManager, StepResult};
+use anyhow::{Context, Result};
 use chrono::{TimeDelta, Utc};
 use std::{
-    sync::{
-        mpsc::{channel, Receiver},
-        Arc,
-    },
+    collections::HashMap,
+    sync::{atomic::AtomicBool, Arc},
     thread::{self, JoinHandle},
 };
 
 pub struct ThreadedExecutor {
-    handles: Vec<JoinHandle<Result<()>>>,
-    fail_receiver: Receiver<()>,
+    node_join_handles: HashMap<String, JoinHandle<Result<()>>>,
     clock: Arc<WallClock>,
 }
 
 impl ThreadedExecutor {
     pub fn run(node_mgr: NodeManager) -> ThreadedExecutor {
-        let (fail_s, fail_r) = channel::<()>();
+        let stop = Arc::new(AtomicBool::new(false));
+
         let mut exec = ThreadedExecutor {
-            handles: vec![],
-            fail_receiver: fail_r,
+            node_join_handles: HashMap::new(),
             clock: Arc::new(WallClock {}),
         };
 
-        for mut n in node_mgr.nodes.into_iter() {
-            let fail_s = fail_s.clone();
+        for (name, node) in node_mgr.nodes.into_iter() {
+            let stop = stop.clone();
             let clock = exec.clock.clone();
-            exec.handles.push(thread::spawn(move || -> Result<()> {
-                loop {
-                    n.step(clock.as_ref())
-                        .inspect_err(|_| fail_s.send(()).unwrap())?;
-                }
-            }));
+
+            exec.node_join_handles.insert(
+                name,
+                thread::spawn(move || -> Result<()> {
+                    Self::node_thread(node, clock.as_ref(), stop)
+                }),
+            );
         }
 
         exec
     }
 
-    pub fn join(self) -> Result<()> {
-        let _ = self.fail_receiver.recv();
-        let mut res = Ok(());
-        for h in self.handles {
-            if let Err(e) = h.join().unwrap() {
-                res = Err(e);
+    fn node_thread(
+        mut node: Box<dyn Node + Send>,
+        clock: &dyn Clock,
+        stop: Arc<AtomicBool>,
+    ) -> Result<()> {
+        while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+            let res = node
+                .step(clock)
+                .inspect_err(|_| stop.store(true, std::sync::atomic::Ordering::Relaxed))?;
+
+            match res {
+                StepResult::Stop => break,
+                StepResult::Continue => continue,
             }
         }
+        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        Ok(())
+    }
 
+    pub fn join(self) -> Result<()> {
+        let mut res = Ok(());
+        for (name, h) in self.node_join_handles {
+            if let Err(e) = h.join().unwrap() {
+                if res.is_ok() {
+                    res =
+                        Err(e).with_context(|| format!("Node {}: step() reported an error", name));
+                }
+            }
+        }
         res
     }
 }
@@ -59,11 +77,29 @@ impl FtlOrderedExecutor {
     pub fn run_blocking(mut node_mgr: NodeManager, simulated_step_period: TimeDelta) -> Result<()> {
         let mut clock = SimulatedClock::new(Utc::now(), TimeDelta::zero());
 
-        loop {
+        let mut outer_res = Ok(StepResult::Continue);
+        let mut stop = false;
+
+        while !stop {
             clock.step(simulated_step_period);
-            for node in node_mgr.nodes.iter_mut() {
-                node.step(&clock)?;
+
+            for (name, node) in node_mgr.nodes.iter_mut() {
+                let res = node
+                    .step(&clock)
+                    .with_context(|| format!("Node {}: step() reported an error", name));
+
+                match res {
+                    Ok(StepResult::Continue) => (),
+                    Err(e) => {
+                        outer_res = Err(e);
+                        stop = true;
+                    }
+                    _ => stop = true,
+                }
             }
         }
+
+        outer_res?;
+        Ok(())
     }
 }
