@@ -1,15 +1,52 @@
 syntax = "proto2";
 
-package quadcopter.sensors;
+package crater.sensors;
 
-message Vec3 {
-  required float x = 1;
-  required float y = 2;
-  required float z = 3;
-}
+import "proto/basic.proto";
 
-message Magnetometer {
+
+message Position {
   required int64 timestamp = 1;
 
-  required Vec3 magn = 2;
+  required basic.Vec3 pos = 2;
+}
+
+message Velocity {
+  required int64 timestamp = 1;
+
+  required basic.Vec3 vel = 2;
+}
+
+message OrientationQuat {
+  required int64 timestamp = 1;
+
+  required basic.Quaternion quat = 2;
+}
+
+
+message EulerAngles {
+  required int64 timestamp = 1;
+
+  required double yaw = 2;
+  required double pitch = 3;
+  required double roll = 4;
+}
+
+
+message AngularVelocity {
+  required int64 timestamp = 1;
+
+  required basic.Vec3 ang_vel = 2;
+}
+
+message MagneticField {
+  required int64 timestamp = 1;
+
+  required basic.Vec3 magn = 2;
+}
+
+message Thrust {
+  required int64 timestamp = 1;
+
+  required basic.Vec3 thrust = 2;
 }

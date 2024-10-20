@@ -15,7 +15,7 @@ use once_cell::sync::OnceCell;
 pub mod quadcopter {
     pub mod examples {
         pub mod cart {
-            include!(concat!(env!("OUT_DIR"), "/quadcopter.examples.cart.rs"));
+            include!(concat!(env!("OUT_DIR"), "/crater.examples.cart.rs"));
         }
     }
 }

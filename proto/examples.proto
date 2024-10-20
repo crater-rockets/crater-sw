@@ -1,6 +1,6 @@
 syntax = "proto2";
 
-package quadcopter.examples.cart;
+package crater.examples.cart;
 
 message CartState {
   required int64 timestamp = 1;
