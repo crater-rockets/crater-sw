@@ -30,7 +30,7 @@ impl Default for Coefficients {
             cY_r: 154.0,
             cN_a: 24.0744,
             cN_q: 154.0,
-            cl_0: -0.02,
+            cl_0: 0.0,
             cl_p: -19.0,
             cm_a: -37.2959,
             cm_q: -1813.0,

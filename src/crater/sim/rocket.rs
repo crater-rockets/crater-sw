@@ -242,7 +242,8 @@ impl Node for Rocket {
 
 struct Senders {
     snd_pos: TelemetrySender<Position>,
-    snd_vel: TelemetrySender<Velocity>,
+    snd_vel_ned: TelemetrySender<Velocity>,
+    snd_vel_body: TelemetrySender<Velocity>,
     snd_quat: TelemetrySender<OrientationQuat>,
     snd_euler: TelemetrySender<EulerAngles>,
     snd_angvel: TelemetrySender<AngularVelocity>,
@@ -255,7 +256,8 @@ impl Senders {
     fn new(telemetry: &NodeTelemetry) -> Result<Self> {
         Ok(Self {
             snd_pos: telemetry.publish("/rocket/position")?,
-            snd_vel: telemetry.publish("/rocket/velocity")?,
+            snd_vel_ned: telemetry.publish("/rocket/velocity_ned")?,
+            snd_vel_body: telemetry.publish("/rocket/velocity_body")?,
             snd_quat: telemetry.publish("/rocket/orientation/quat")?,
             snd_euler: telemetry.publish("/rocket/orientation/euler")?,
             snd_angvel: telemetry.publish("/rocket/angular_vel")?,
@@ -273,9 +275,16 @@ impl Senders {
             pos: Vec3::from(state.pos()),
         });
 
-        self.snd_vel.send(Velocity {
+        self.snd_vel_ned.send(Velocity {
             timestamp,
             vel: Vec3::from(state.vel()),
+        });
+
+        let quat = state.quat();
+
+        self.snd_vel_body.send(Velocity {
+            timestamp,
+            vel: Vec3::from(quat.inverse_transform_vector(&state.vel().clone_owned())),
         });
 
         self.snd_quat.send(OrientationQuat {

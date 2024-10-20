@@ -31,7 +31,8 @@ fn main() -> Result<()> {
     let mut local_plotter = LocalPlotter::new(ts.clone());
 
     local_plotter.plot_channel::<Position>(&mut signals, "/rocket/position")?;
-    local_plotter.plot_channel::<Velocity>(&mut signals, "/rocket/velocity")?;
+    local_plotter.plot_channel::<Velocity>(&mut signals, "/rocket/velocity_ned")?;
+    local_plotter.plot_channel::<Velocity>(&mut signals, "/rocket/velocity_body")?;
     local_plotter.plot_channel::<AngularVelocity>(&mut signals, "/rocket/angular_vel")?;
     local_plotter.plot_channel::<Thrust>(&mut signals, "/rocket/thrust")?;
     local_plotter.plot_channel::<OrientationQuat>(&mut signals, "/rocket/orientation/quat")?;
