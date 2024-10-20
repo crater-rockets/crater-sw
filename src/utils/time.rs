@@ -17,6 +17,10 @@ impl Instant {
         self.delta
     }
 
+    pub fn elapsed_seconds(&self) -> f64 {
+        TD(self.elapsed()).seconds()
+    }
+
     pub fn duration_since(&self, other: &Instant) -> TimeDelta {
         self.delta - other.delta
     }
@@ -172,6 +176,14 @@ impl Clock for SimulatedClock {
         Instant {
             delta: self.elapsed,
         }
+    }
+}
+
+pub struct TD(pub TimeDelta);
+
+impl TD {
+    pub fn seconds(&self) -> f64 {
+        self.0.num_seconds() as f64 + (self.0.subsec_nanos() as f64) / 1000000000.0
     }
 }
 
