@@ -1,8 +1,12 @@
+use core::f64;
+
 use crate::{
     crater::sim::engine::SimpleRocketEngine,
     crater_messages::{
         basic::Vec3,
-        sensors::{AngularVelocity, EulerAngles, OrientationQuat, Position, Thrust, Velocity},
+        sensors::{
+            AeroState, AngularVelocity, EulerAngles, OrientationQuat, Position, Thrust, Velocity,
+        },
     },
     math::ode::{OdeProblem, OdeSolver, RungeKutta4},
     nodes::{Node, NodeContext, NodeTelemetry, StepResult},
@@ -17,7 +21,10 @@ use nalgebra::{
     VectorViewMut, U1, U13, U3, U4,
 };
 
-use super::engine::RocketEngine;
+use super::{
+    aerodynamics::{Aerodynamics, Coefficients},
+    engine::RocketEngine,
+};
 
 pub struct Rocket {
     engine: Box<dyn RocketEngine + Send>,
@@ -30,6 +37,8 @@ pub struct Rocket {
 struct Params {
     mass: f64,
     inertia: Matrix3<f64>,
+    diameter: f64,
+    surface: f64,
     inv_inertia: Matrix3<f64>,
     max_t: f64,
     azimuth: f64,
@@ -45,10 +54,15 @@ impl Params {
             .try_inverse()
             .ok_or(anyhow!("The intertia matrix is not invertible"))?;
 
+        let diameter = param_service.get_f64(format!("{path}/diameter").as_str())?;
+        let surface = f64::consts::PI * (diameter / 2.0).powf(2.0);
+
         Ok(Params {
             mass: param_service.get_f64(format!("{path}/mass").as_str())?,
             inertia,
             inv_inertia,
+            diameter,
+            surface,
             max_t: param_service.get_f64(format!("/sim/max_t").as_str())?,
             azimuth: param_service
                 .get_f64(format!("{path}/init/azimuth").as_str())?
@@ -157,7 +171,20 @@ impl OdeProblem<f64, 13> for Rocket {
 
         let q_nb = state.quat();
 
-        let f_n = q_nb.transform_vector(&self.engine.thrust(t)) + vector![0.0, 0.0, 9.81];
+        let aero = Aerodynamics::new(
+            state.vel().clone_owned(),
+            Vector3::zeros(),
+            state.angvel().clone_owned(),
+            self.params.diameter,
+            self.params.surface,
+        );
+
+        let (f_aero, m_aero) = aero.actions(&Coefficients::default());
+
+        let f_n =
+            q_nb.transform_vector(&(self.engine.thrust(t) + f_aero)) + vector![0.0, 0.0, 9.81];
+        let m = m_aero;
+
         let acc_n = f_n / self.params.mass;
         let vel = state.vel().clone_owned();
 
@@ -165,7 +192,6 @@ impl OdeProblem<f64, 13> for Rocket {
         let qw = Quaternion::from_vector(Vector4::new(w[0], w[1], w[2], 0.0) / 2.0);
         let qdot = q_nb.into_inner() * qw;
 
-        let m = Vector3::zeros();
         let w_dot = self.params.inv_inertia * (m + (self.params.inertia * w).cross(&w));
 
         dstate.pos_mut().set_column(0, &vel);
@@ -184,7 +210,8 @@ impl Node for Rocket {
 
         // First step, just propagate the initial conditions
         if dt.is_none() {
-            self.senders.send(t, &self.state, &*self.engine);
+            self.senders
+                .send(t, &self.state, &*self.engine, &self.params);
             return Ok(StepResult::Continue);
         }
 
@@ -198,7 +225,8 @@ impl Node for Rocket {
         self.state.0 = next;
         self.state.normalize_quat();
 
-        self.senders.send(t, &self.state, &*self.engine);
+        self.senders
+            .send(t, &self.state, &*self.engine, &self.params);
 
         // Stop conditions
         if (self.state.pos()[2] > 0.0 && t.elapsed_seconds() > 1.0)
@@ -218,6 +246,7 @@ struct Senders {
     snd_euler: TelemetrySender<EulerAngles>,
     snd_angvel: TelemetrySender<AngularVelocity>,
     snd_thrust: TelemetrySender<Thrust>,
+    snd_aerostate: TelemetrySender<AeroState>,
 }
 
 impl Senders {
@@ -229,10 +258,11 @@ impl Senders {
             snd_euler: telemetry.publish("/rocket/orientation/euler")?,
             snd_angvel: telemetry.publish("/rocket/angular_vel")?,
             snd_thrust: telemetry.publish("/rocket/thrust")?,
+            snd_aerostate: telemetry.publish("/rocket/aerostate")?,
         })
     }
 
-    fn send(&self, t: Instant, state: &State, engine: &dyn RocketEngine) {
+    fn send(&self, t: Instant, state: &State, engine: &dyn RocketEngine, params: &Params) {
         let timestamp = t.elapsed().num_nanoseconds().unwrap();
 
         self.snd_pos.send(Position {
@@ -267,6 +297,20 @@ impl Senders {
         self.snd_thrust.send(Thrust {
             timestamp,
             thrust: Vec3::from(engine.thrust(t.elapsed_seconds())),
+        });
+
+        let aero = Aerodynamics::new(
+            state.vel().clone_owned(),
+            Vector3::zeros(),
+            state.angvel().clone_owned(),
+            params.diameter,
+            params.surface,
+        );
+
+        self.snd_aerostate.send(AeroState {
+            timestamp,
+            alpha: aero.alpha().to_degrees(),
+            beta: aero.beta().to_degrees(),
         });
     }
 }

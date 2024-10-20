@@ -50,3 +50,10 @@ message Thrust {
 
   required basic.Vec3 thrust = 2;
 }
+
+message AeroState {
+  required int64 timestamp = 1;
+
+  required double alpha = 2;
+  required double beta = 3;
+}

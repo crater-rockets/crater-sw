@@ -6,6 +6,7 @@ max_t =  { val = 90, dtype = "f64" }
 [sim.rocket.crater]
 mass = { val = 2, dtype = "f64" }
 inertia = { val = [0.005, 0.26, 0.26], dtype = "f64" }
+diameter = { val = 0.08, dtype = "f64" }
 
 [sim.rocket.crater.init]
 azimuth = { val = 10, dtype = "f64" }
