@@ -29,7 +29,7 @@ pub enum Error {
     #[error("No parameter found for path '{0}'")]
     NotFound(Path),
 
-    #[error("Request type '{0}' for parameter '{1}', but is a '{2}")]
+    #[error("Requested type '{0}' for parameter '{1}', but is a '{2}")]
     TypeMismatch(String, Path, String),
 }
 
@@ -520,6 +520,83 @@ impl ParameterService {
                 param.type_string().to_string(),
             ))?
             .clone())
+    }
+
+    fn get_vec<T: Clone>(
+        &self,
+        path: &str,
+        request_typename: &str,
+        extract: impl Fn(&Parameter) -> Option<&T>,
+    ) -> Result<Vec<T>, Error> {
+        let path = Path::from_str(path)?;
+        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
+
+        let list = param.as_list().ok_or(Error::TypeMismatch(
+            format!("list<{}>", request_typename),
+            path.clone(),
+            param.type_string().to_string(),
+        ))?;
+
+        let mut out = vec![];
+        for v in list {
+            out.push(
+                extract(v)
+                    .ok_or_else(|| {
+                        Error::TypeMismatch(
+                            format!("list<{}>", request_typename),
+                            path.clone(),
+                            param.type_string().to_string(),
+                        )
+                    })?
+                    .clone(),
+            );
+        }
+
+        Ok(out)
+    }
+
+    pub fn get_vec_u8(&self, path: &str) -> Result<Vec<u8>, Error> {
+        self.get_vec::<u8>(path, "u8", |p| p.as_u8())
+    }
+
+    pub fn get_vec_u16(&self, path: &str) -> Result<Vec<u16>, Error> {
+        self.get_vec::<u16>(path, "u16", |p| p.as_u16())
+    }
+
+    pub fn get_vec_u32(&self, path: &str) -> Result<Vec<u32>, Error> {
+        self.get_vec::<u32>(path, "u32", |p| p.as_u32())
+    }
+
+    pub fn get_vec_u64(&self, path: &str) -> Result<Vec<u64>, Error> {
+        self.get_vec::<u64>(path, "u64", |p| p.as_u64())
+    }
+
+    pub fn get_vec_i8(&self, path: &str) -> Result<Vec<i8>, Error> {
+        self.get_vec::<i8>(path, "i8", |p| p.as_i8())
+    }
+
+    pub fn get_vec_i16(&self, path: &str) -> Result<Vec<i16>, Error> {
+        self.get_vec::<i16>(path, "i16", |p| p.as_i16())
+    }
+
+    pub fn get_vec_i32(&self, path: &str) -> Result<Vec<i32>, Error> {
+        self.get_vec::<i32>(path, "i32", |p| p.as_i32())
+    }
+
+    pub fn get_vec_i64(&self, path: &str) -> Result<Vec<i64>, Error> {
+        self.get_vec::<i64>(path, "i64", |p| p.as_i64())
+    }
+
+    pub fn get_vec_f32(&self, path: &str) -> Result<Vec<f32>, Error> {
+        self.get_vec::<f32>(path, "f32", |p| p.as_f32())
+    }
+
+    pub fn get_vec_f64(&self, path: &str) -> Result<Vec<f64>, Error> {
+        self.get_vec::<f64>(path, "f64", |p| p.as_f64())
+    }
+
+    pub fn get_vec_string(&self, path: &str) -> Result<Vec<String>, Error> {
+        self.get_vec::<String>(path, "string", |p| p.as_string())
     }
 
     pub fn set(&mut self, path: &Path, val: Parameter) -> Result<Option<Parameter>, Error> {
