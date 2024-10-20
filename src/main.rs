@@ -4,7 +4,10 @@ use anyhow::Result;
 use chrono::TimeDelta;
 use quadcopter::{
     crater::sim::rocket::Rocket,
-    crater_messages::sensors::{AeroState, AngularVelocity, EulerAngles, OrientationQuat, Position, Thrust, Velocity},
+    crater_messages::sensors::{
+        AeroForces, AeroState, AngularVelocity, EulerAngles, OrientationQuat, Position, Thrust,
+        Velocity,
+    },
     nodes::{FtlOrderedExecutor, NodeConfig, NodeManager},
     parameters::ParameterService,
     plot::localplotter::LocalPlotter,
@@ -33,7 +36,8 @@ fn main() -> Result<()> {
     local_plotter.plot_channel::<Thrust>(&mut signals, "/rocket/thrust")?;
     local_plotter.plot_channel::<OrientationQuat>(&mut signals, "/rocket/orientation/quat")?;
     local_plotter.plot_channel::<EulerAngles>(&mut signals, "/rocket/orientation/euler")?;
-    local_plotter.plot_channel::<AeroState>(&mut signals, "/rocket/aerostate")?;
+    local_plotter.plot_channel::<AeroState>(&mut signals, "/rocket/aero/state")?;
+    local_plotter.plot_channel::<AeroForces>(&mut signals, "/rocket/aero/actions")?;
     local_plotter.run();
 
     // let exec = ThreadedExecutor::run(nm);

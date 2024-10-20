@@ -5,7 +5,8 @@ use crate::{
     crater_messages::{
         basic::Vec3,
         sensors::{
-            AeroState, AngularVelocity, EulerAngles, OrientationQuat, Position, Thrust, Velocity,
+            AeroForces, AeroState, AngularVelocity, EulerAngles, OrientationQuat, Position, Thrust,
+            Velocity,
         },
     },
     math::ode::{OdeProblem, OdeSolver, RungeKutta4},
@@ -247,6 +248,7 @@ struct Senders {
     snd_angvel: TelemetrySender<AngularVelocity>,
     snd_thrust: TelemetrySender<Thrust>,
     snd_aerostate: TelemetrySender<AeroState>,
+    snd_aeroforces: TelemetrySender<AeroForces>,
 }
 
 impl Senders {
@@ -258,7 +260,8 @@ impl Senders {
             snd_euler: telemetry.publish("/rocket/orientation/euler")?,
             snd_angvel: telemetry.publish("/rocket/angular_vel")?,
             snd_thrust: telemetry.publish("/rocket/thrust")?,
-            snd_aerostate: telemetry.publish("/rocket/aerostate")?,
+            snd_aerostate: telemetry.publish("/rocket/aero/state")?,
+            snd_aeroforces: telemetry.publish("/rocket/aero/actions")?,
         })
     }
 
@@ -311,6 +314,14 @@ impl Senders {
             timestamp,
             alpha: aero.alpha().to_degrees(),
             beta: aero.beta().to_degrees(),
+        });
+
+        let (af, at) = aero.actions(&Coefficients::default());
+
+        self.snd_aeroforces.send(AeroForces {
+            timestamp,
+            force: Vec3::from(af),
+            torque: Vec3::from(at),
         });
     }
 }

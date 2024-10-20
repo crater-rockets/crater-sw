@@ -57,3 +57,10 @@ message AeroState {
   required double alpha = 2;
   required double beta = 3;
 }
+
+message AeroForces {
+  required int64 timestamp = 1;
+
+  required basic.Vec3 force = 2;
+  required basic.Vec3 torque = 3;
+}
