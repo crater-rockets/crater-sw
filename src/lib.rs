@@ -4,6 +4,7 @@
 use once_cell::sync::Lazy;
 use prost_reflect::DescriptorPool;
 
+pub mod crater;
 pub mod math;
 pub mod nodes;
 pub mod parameters;
