@@ -9,7 +9,10 @@ use rust_data_inspector::PlotSignals;
 
 use crate::{
     telemetry::{TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetryService},
-    utils::{capacity::Capacity, ringchannel::{Select, Selectable}},
+    utils::{
+        capacity::Capacity,
+        ringchannel::{Select, Selectable},
+    },
 };
 
 use super::{plotter::Plotter, PlotterError};
