@@ -1,7 +1,10 @@
 use core::f64;
 
+use anyhow::Result;
 use nalgebra::{vector, Vector3};
 use num_traits::Pow;
+
+use crate::parameters::ParameterService;
 
 #[allow(nonstandard_style)]
 pub struct Coefficients {
@@ -20,27 +23,27 @@ pub struct Coefficients {
     cn_r: f64,
 }
 
-impl Default for Coefficients {
-    fn default() -> Self {
-        Coefficients {
-            cA_0: 0.3200,
-            cA_a: -0.1725,
-            cA_b: -0.1725,
-            cY_b: -24.0744,
-            cY_r: 154.0,
-            cN_a: 24.0744,
-            cN_q: 154.0,
-            cl_0: 0.0,
-            cl_p: -19.0,
-            cm_a: -37.2959,
-            cm_q: -1813.0,
-            cn_b: 37.2959,
-            cn_r: -1813.0,
-        }
+impl Coefficients {
+    pub fn from_params(basepath: &str, params: &ParameterService) -> Result<Self> {
+        Ok(Self {
+            cA_0: params.get_f64(format!("{basepath}/aero/cA_0").as_str())?,
+            cA_a: params.get_f64(format!("{basepath}/aero/cA_a").as_str())?,
+            cA_b: params.get_f64(format!("{basepath}/aero/cA_b").as_str())?,
+            cY_b: params.get_f64(format!("{basepath}/aero/cY_b").as_str())?,
+            cY_r: params.get_f64(format!("{basepath}/aero/cY_r").as_str())?,
+            cN_a: params.get_f64(format!("{basepath}/aero/cN_a").as_str())?,
+            cN_q: params.get_f64(format!("{basepath}/aero/cN_q").as_str())?,
+            cl_0: params.get_f64(format!("{basepath}/aero/cl_0").as_str())?,
+            cl_p: params.get_f64(format!("{basepath}/aero/cl_p").as_str())?,
+            cm_a: params.get_f64(format!("{basepath}/aero/cm_a").as_str())?,
+            cm_q: params.get_f64(format!("{basepath}/aero/cm_q").as_str())?,
+            cn_b: params.get_f64(format!("{basepath}/aero/cn_b").as_str())?,
+            cn_r: params.get_f64(format!("{basepath}/aero/cn_r").as_str())?,
+        })
     }
 }
 
-const V_SMALL: f64 = 1.0e-8;
+const V_SMALL: f64 = 1.0e-5;
 pub struct Aerodynamics {
     v_air_b: Vector3<f64>,
     v_norm: f64,
@@ -109,17 +112,17 @@ impl Aerodynamics {
 
         let f = vector![
             -q * self.surface * cA,
-            q * self.surface * cY + q_v * self.surface * self.diameter * c.cY_r * self.v_air_b[2],
-            -q * self.surface * cN - q_v * self.surface * self.diameter * c.cN_q * self.v_air_b[1],
+            q * self.surface * cY + q_v * self.surface * self.diameter * c.cY_r * self.w[2],
+            -q * self.surface * cN - q_v * self.surface * self.diameter * c.cN_q * self.w[1],
         ];
 
         let t = vector![
             q * self.surface * cl * self.diameter
-                + 0.5 * q_v * self.surface * self.diameter.pow(2.0) * c.cl_p * self.v_air_b[0],
+                + 0.5 * q_v * self.surface * self.diameter.pow(2.0) * c.cl_p * self.w[0],
             q * self.surface * cm * self.diameter
-                + 0.5 * q_v * self.surface * self.diameter.pow(2.0) * c.cm_q * self.v_air_b[1],
+                + 0.5 * q_v * self.surface * self.diameter.pow(2.0) * c.cm_q * self.w[1],
             q * self.surface * cn * self.diameter
-                + 0.5 * q_v * self.surface * self.diameter.pow(2.0) * c.cn_r * self.v_air_b[2],
+                + 0.5 * q_v * self.surface * self.diameter.pow(2.0) * c.cn_r * self.w[2],
         ];
 
         (f, t)

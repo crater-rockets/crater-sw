@@ -30,6 +30,7 @@ use super::{
 pub struct Rocket {
     engine: Box<dyn RocketEngine + Send>,
     params: Params,
+    coefficients: Coefficients,
     state: State,
     senders: Senders,
     dt: Dt,
@@ -38,9 +39,13 @@ pub struct Rocket {
 struct Params {
     mass: f64,
     inertia: Matrix3<f64>,
+    inv_inertia: Matrix3<f64>,
+    p0_n: Vector3<f64>,
+    v0_b: Vector3<f64>,
+    w0_b: Vector3<f64>,
+    g_n: Vector3<f64>,
     diameter: f64,
     surface: f64,
-    inv_inertia: Matrix3<f64>,
     max_t: f64,
     azimuth: f64,
     elevation: f64,
@@ -58,10 +63,27 @@ impl Params {
         let diameter = param_service.get_f64(format!("{path}/diameter").as_str())?;
         let surface = f64::consts::PI * (diameter / 2.0).powf(2.0);
 
+        let p0_n = param_service.get_vec_f64(format!("{path}/init/p0_n").as_str())?;
+        let p0_n = Vector3::from_column_slice(&p0_n);
+
+        let v0_b = param_service.get_vec_f64(format!("{path}/init/v0_b").as_str())?;
+        let v0_b = Vector3::from_column_slice(&v0_b);
+
+        let mut w0_b = param_service.get_vec_f64(format!("{path}/init/w0_b_deg").as_str())?;
+        w0_b.iter_mut().for_each(|w| *w = w.to_radians());
+        let w0_b = Vector3::from_column_slice(&w0_b);
+
+        let g_n = param_service.get_vec_f64(format!("{path}/g_n").as_str())?;
+        let g_n = Vector3::from_column_slice(&g_n);
+
         Ok(Params {
             mass: param_service.get_f64(format!("{path}/mass").as_str())?,
             inertia,
             inv_inertia,
+            p0_n,
+            v0_b,
+            w0_b,
+            g_n,
             diameter,
             surface,
             max_t: param_service.get_f64(format!("/sim/max_t").as_str())?,
@@ -84,50 +106,59 @@ impl State {
 
         let mut state: SVector<f64, 13> = SVector::zeros();
 
-        let mut v = state.fixed_rows_mut::<4>(6);
-        v.set_column(0, q_nb.as_vector());
+        let mut p_view = state.fixed_rows_mut::<3>(0);
+        p_view.set_column(0, &params.p0_n);
+
+        let mut v_view = state.fixed_rows_mut::<3>(3);
+        v_view.set_column(0, &q_nb.transform_vector(&params.v0_b));
+
+        let mut q_view = state.fixed_rows_mut::<4>(6);
+        q_view.set_column(0, q_nb.as_vector());
+
+        let mut w_view = state.fixed_rows_mut::<3>(10);
+        w_view.set_column(0, &params.w0_b);
 
         Self(state)
     }
 
-    fn pos(&self) -> VectorView<'_, f64, U3, U1, U13> {
+    fn pos_n(&self) -> VectorView<'_, f64, U3, U1, U13> {
         self.0.fixed_rows::<3>(0)
     }
 
-    fn vel(&self) -> VectorView<'_, f64, U3, U1, U13> {
+    fn vel_n(&self) -> VectorView<'_, f64, U3, U1, U13> {
         self.0.fixed_rows::<3>(3)
     }
 
-    fn quat_vec(&self) -> VectorView<'_, f64, U4, U1, U13> {
+    fn quat_nb_vec(&self) -> VectorView<'_, f64, U4, U1, U13> {
         self.0.fixed_rows::<4>(6)
     }
 
-    fn angvel(&self) -> VectorView<'_, f64, U3, U1, U13> {
+    fn angvel_b(&self) -> VectorView<'_, f64, U3, U1, U13> {
         self.0.fixed_rows::<3>(10)
     }
 
-    fn pos_mut(&mut self) -> VectorViewMut<'_, f64, U3, U1, U13> {
+    fn pos_n_mut(&mut self) -> VectorViewMut<'_, f64, U3, U1, U13> {
         self.0.fixed_rows_mut::<3>(0)
     }
-    fn vel_mut(&mut self) -> VectorViewMut<'_, f64, U3, U1, U13> {
+    fn vel_n_mut(&mut self) -> VectorViewMut<'_, f64, U3, U1, U13> {
         self.0.fixed_rows_mut::<3>(3)
     }
 
-    fn quat_vec_mut(&mut self) -> VectorViewMut<'_, f64, U4, U1, U13> {
+    fn quat_nb_vec_mut(&mut self) -> VectorViewMut<'_, f64, U4, U1, U13> {
         self.0.fixed_rows_mut::<4>(6)
     }
 
-    fn angvel_mut(&mut self) -> VectorViewMut<'_, f64, U3, U1, U13> {
+    fn angvel_b_mut(&mut self) -> VectorViewMut<'_, f64, U3, U1, U13> {
         self.0.fixed_rows_mut::<3>(10)
     }
 
-    fn quat(&self) -> UnitQuaternion<f64> {
-        UnitQuaternion::from_quaternion(Quaternion::from_vector(self.quat_vec().clone_owned()))
+    fn quat_nb(&self) -> UnitQuaternion<f64> {
+        UnitQuaternion::from_quaternion(Quaternion::from_vector(self.quat_nb_vec().clone_owned()))
     }
 
     fn normalize_quat(&mut self) {
-        let n = self.quat_vec().normalize();
-        self.quat_vec_mut().set_column(0, &n);
+        let n = self.quat_nb_vec().normalize();
+        self.quat_nb_vec_mut().set_column(0, &n);
     }
 }
 
@@ -158,6 +189,7 @@ impl Rocket {
         Ok(Rocket {
             engine,
             params,
+            coefficients: Coefficients::from_params(&param_path, &ctx.parameters())?,
             state,
             senders,
             dt: Dt::new(),
@@ -170,35 +202,34 @@ impl OdeProblem<f64, 13> for Rocket {
         let state = State(y);
         let mut dstate = State::default();
 
-        let q_nb = state.quat();
-
+        let q_nb = state.quat_nb();
+        let vel_b = q_nb.inverse_transform_vector(&state.vel_n().clone_owned());
         let aero = Aerodynamics::new(
-            state.vel().clone_owned(),
+            vel_b,
             Vector3::zeros(),
-            state.angvel().clone_owned(),
+            state.angvel_b().clone_owned(),
             self.params.diameter,
             self.params.surface,
         );
 
-        let (f_aero, m_aero) = aero.actions(&Coefficients::default());
+        let (f_aero_b, m_aero_b) = aero.actions(&self.coefficients);
 
-        let f_n =
-            q_nb.transform_vector(&(self.engine.thrust(t) + f_aero)) + vector![0.0, 0.0, 9.81];
-        let m = m_aero;
+        let f_n = q_nb.transform_vector(&(self.engine.thrust_b(t) + f_aero_b)) + self.params.g_n;
+        let m_b = m_aero_b;
 
         let acc_n = f_n / self.params.mass;
-        let vel = state.vel().clone_owned();
 
-        let w = state.angvel();
-        let qw = Quaternion::from_vector(Vector4::new(w[0], w[1], w[2], 0.0) / 2.0);
+        let w_b = state.angvel_b();
+        let qw =
+            Quaternion::from_vector(Vector4::new(w_b[0] / 2.0, w_b[1] / 2.0, w_b[2] / 2.0, 0.0));
         let qdot = q_nb.into_inner() * qw;
 
-        let w_dot = self.params.inv_inertia * (m + (self.params.inertia * w).cross(&w));
+        let w_dot = self.params.inv_inertia * (m_b + (self.params.inertia * w_b).cross(&w_b));
 
-        dstate.pos_mut().set_column(0, &vel);
-        dstate.vel_mut().set_column(0, &acc_n);
-        dstate.quat_vec_mut().set_column(0, qdot.as_vector());
-        dstate.angvel_mut().set_column(0, &w_dot);
+        dstate.pos_n_mut().set_column(0, &state.vel_n().clone_owned());
+        dstate.vel_n_mut().set_column(0, &acc_n);
+        dstate.quat_nb_vec_mut().set_column(0, qdot.as_vector());
+        dstate.angvel_b_mut().set_column(0, &w_dot);
 
         dstate.0
     }
@@ -211,8 +242,13 @@ impl Node for Rocket {
 
         // First step, just propagate the initial conditions
         if dt.is_none() {
-            self.senders
-                .send(t, &self.state, &*self.engine, &self.params);
+            self.senders.send(
+                t,
+                &self.state,
+                &*self.engine,
+                &self.params,
+                &self.coefficients,
+            );
             return Ok(StepResult::Continue);
         }
 
@@ -226,11 +262,18 @@ impl Node for Rocket {
         self.state.0 = next;
         self.state.normalize_quat();
 
-        self.senders
-            .send(t, &self.state, &*self.engine, &self.params);
+        self.senders.send(
+            t,
+            &self.state,
+            &*self.engine,
+            &self.params,
+            &self.coefficients,
+        );
 
         // Stop conditions
-        if (self.state.pos()[2] > 0.0 && t.elapsed_seconds() > 1.0)
+        if (self.state.pos_n()[2]
+            > 0.0
+            && t.elapsed_seconds() > 1.0)
             || t.elapsed_seconds() > self.params.max_t
         {
             Ok(StepResult::Stop)
@@ -267,32 +310,39 @@ impl Senders {
         })
     }
 
-    fn send(&self, t: Instant, state: &State, engine: &dyn RocketEngine, params: &Params) {
+    fn send(
+        &self,
+        t: Instant,
+        state: &State,
+        engine: &dyn RocketEngine,
+        params: &Params,
+        coeffs: &Coefficients,
+    ) {
         let timestamp = t.elapsed().num_nanoseconds().unwrap();
+
+        let q_nb = state.quat_nb();
 
         self.snd_pos.send(Position {
             timestamp,
-            pos: Vec3::from(state.pos()),
+            pos: Vec3::from(state.pos_n()),
         });
 
         self.snd_vel_ned.send(Velocity {
             timestamp,
-            vel: Vec3::from(state.vel()),
+            vel: Vec3::from(state.vel_n()),
         });
-
-        let quat = state.quat();
 
         self.snd_vel_body.send(Velocity {
             timestamp,
-            vel: Vec3::from(quat.inverse_transform_vector(&state.vel().clone_owned())),
+            vel: Vec3::from(q_nb.inverse_transform_vector(&state.vel_n().clone_owned())),
         });
 
         self.snd_quat.send(OrientationQuat {
             timestamp,
-            quat: crate::crater_messages::basic::Quaternion::from(state.quat_vec()),
+            quat: crate::crater_messages::basic::Quaternion::from(state.quat_nb_vec()),
         });
 
-        let (roll, pitch, yaw) = state.quat().euler_angles();
+        let (roll, pitch, yaw) = q_nb.euler_angles();
 
         self.snd_euler.send(EulerAngles {
             timestamp,
@@ -301,20 +351,25 @@ impl Senders {
             roll: roll.to_degrees(),
         });
 
+        let angvel = state.angvel_b();
         self.snd_angvel.send(AngularVelocity {
             timestamp,
-            ang_vel: Vec3::from(state.angvel()),
+            ang_vel: Vec3::from(vector![
+                angvel[0].to_degrees(),
+                angvel[1].to_degrees(),
+                angvel[2].to_degrees()
+            ]),
         });
 
         self.snd_thrust.send(Thrust {
             timestamp,
-            thrust: Vec3::from(engine.thrust(t.elapsed_seconds())),
+            thrust: Vec3::from(engine.thrust_b(t.elapsed_seconds())),
         });
 
         let aero = Aerodynamics::new(
-            state.vel().clone_owned(),
+            q_nb.inverse_transform_vector(&state.vel_n().clone_owned()),
             Vector3::zeros(),
-            state.angvel().clone_owned(),
+            state.angvel_b().clone_owned(),
             params.diameter,
             params.surface,
         );
@@ -325,7 +380,7 @@ impl Senders {
             beta: aero.beta().to_degrees(),
         });
 
-        let (af, at) = aero.actions(&Coefficients::default());
+        let (af, at) = aero.actions(coeffs);
 
         self.snd_aeroforces.send(AeroForces {
             timestamp,
@@ -338,7 +393,7 @@ impl Senders {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nalgebra::{matrix, vector, Matrix, Matrix3, RawStorage, U1, U3};
+    use nalgebra::{matrix, vector, Matrix, Matrix3, RawStorage, Unit, UnitVector3, U1, U3};
 
     #[allow(dead_code)]
     fn cross_product_matrix<S: RawStorage<f64, U3, U1>>(x: Matrix<f64, U3, U1, S>) -> Matrix3<f64> {
@@ -351,12 +406,16 @@ mod tests {
 
     #[test]
     fn test_quaternion() {
-        let q_nb =
-            UnitQuaternion::from_euler_angles(0.0, 45.0f64.to_radians(), 45.0f64.to_radians());
+        let (yaw, pitch, roll) = (45.0f64, 45.0f64, 0.0f64);
 
-        let x0 = vector![1.0, 0.0, 0.0];
+        let q_nb = UnitQuaternion::from_euler_angles(
+            roll.to_radians(),
+            pitch.to_radians(),
+            yaw.to_radians(),
+        );
 
-        println!("{}", q_nb.transform_vector(&x0));
+        println!("{}", q_nb.as_vector().clone_owned());
+        println!("{}", q_nb.transform_vector(&vector![1.0, 0.0, 0.0]));
     }
 }
 
