@@ -6,10 +6,13 @@ use std::{
 
 use thiserror::Error;
 
-use crate::utils::{capacity::Capacity, ringchannel::{
-    channel,
-    Channel, ChannelError, Receiver, SelectToken, Selectable, Sender,
-}};
+use crate::{
+    core::time::Timestamp,
+    utils::{
+        capacity::Capacity,
+        ringchannel::{channel, Channel, ChannelError, Receiver, SelectToken, Selectable, Sender},
+    },
+};
 
 #[derive(PartialEq, Eq, Error, Debug)]
 pub enum TelemetryError {
@@ -29,41 +32,37 @@ pub enum TelemetryError {
     InvalidChannelName,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Timestamped<T>(pub Timestamp, pub T);
+
 #[derive(Debug)]
 pub struct TelemetrySender<T> {
-    sender: Sender<T>,
+    sender: Sender<Timestamped<T>>,
 }
 
 impl<T: 'static + Clone> TelemetrySender<T> {
-    pub fn send(&self, t: T) {
-        self.sender.send(t);
+    pub fn send(&self, timestamp: Timestamp, value: T) {
+        self.sender.send(Timestamped(timestamp, value));
     }
 }
 
 #[derive(Debug)]
 pub struct TelemetryReceiver<T> {
-    receiver: Receiver<T>,
+    receiver: Receiver<Timestamped<T>>,
 }
 
 impl<T> TelemetryReceiver<T> {
-    pub fn recv(&self) -> Result<T, TelemetryError> {
+    pub fn recv(&self) -> Result<Timestamped<T>, TelemetryError> {
         self.receiver.recv().map_err(|e| match e {
             ChannelError::Closed => TelemetryError::ClosedChannel,
             ChannelError::Empty => TelemetryError::EmptyChannel,
         })
     }
 
-    pub fn try_recv(&self) -> Result<T, TelemetryError> {
+    pub fn try_recv(&self) -> Result<Timestamped<T>, TelemetryError> {
         self.receiver.try_recv().map_err(|e| match e {
             ChannelError::Closed => TelemetryError::ClosedChannel,
             ChannelError::Empty => TelemetryError::EmptyChannel,
-        })
-    }
-
-    pub fn recv_default(&self, default: T) -> Result<T, TelemetryError> {
-        self.receiver.try_recv().or_else(|e| match e {
-            ChannelError::Closed => Err(TelemetryError::ClosedChannel),
-            ChannelError::Empty => Ok(default),
         })
     }
 }
@@ -79,13 +78,13 @@ struct TelemetryChannel {
 }
 
 struct TelemetryChannelTransport<T> {
-    channel: Weak<Channel<T>>,
-    sender: Option<Sender<T>>,
+    channel: Weak<Channel<Timestamped<T>>>,
+    sender: Option<Sender<Timestamped<T>>>,
 }
 
 impl TelemetryChannel {
     fn new<T: 'static + Send>(name: &str) -> Self {
-        let (sender, _) = channel::<T>(Capacity::Unbounded);
+        let (sender, _) = channel::<Timestamped<T>>(Capacity::Unbounded);
 
         let transport = TelemetryChannelTransport::<T> {
             channel: Arc::downgrade(&sender.get_channel()),
@@ -119,7 +118,7 @@ impl TelemetryChannel {
         let ch = Weak::upgrade(&channel.channel).ok_or(TelemetryError::ClosedChannel)?;
 
         Ok(TelemetryReceiver {
-            receiver: Channel::<T>::add_receiver(capacity, &ch),
+            receiver: Channel::<Timestamped<T>>::add_receiver(capacity, &ch),
         })
     }
 
@@ -168,8 +167,10 @@ impl TelemetryService {
 }
 
 pub trait TelemetryDispatcher {
-    fn publish<T: 'static + Send>(&self, channel_name: &str)
-        -> Result<TelemetrySender<T>, TelemetryError>;
+    fn publish<T: 'static + Send>(
+        &self,
+        channel_name: &str,
+    ) -> Result<TelemetrySender<T>, TelemetryError>;
 
     fn subcribe<T: 'static + Send>(
         &self,
@@ -210,7 +211,10 @@ impl TelemetryDispatcher for TelemetryService {
 }
 
 impl TelemetryServiceInner {
-    fn get_channel<'a, T: 'static + Send>(&'a mut self, channel_name: &str) -> &'a mut TelemetryChannel {
+    fn get_channel<'a, T: 'static + Send>(
+        &'a mut self,
+        channel_name: &str,
+    ) -> &'a mut TelemetryChannel {
         if !self.channels.contains_key(channel_name) {
             self.channels.insert(
                 channel_name.to_string(),
@@ -234,7 +238,7 @@ impl<T> Selectable for TelemetryReceiver<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::ringchannel::Select;
+    use crate::{core::time::SystemClock, utils::ringchannel::Select};
 
     use super::*;
 
@@ -269,10 +273,12 @@ mod tests {
 
         let prod = telem_service.publish::<f64>("/test/channel/1")?;
 
-        prod.send(1.234);
+        let ts = Timestamp::now(&SystemClock::default());
 
-        assert_eq!(sub1.try_recv(), Ok(1.234));
-        assert_eq!(sub2.try_recv(), Ok(1.234));
+        prod.send(ts, 1.234);
+
+        assert_eq!(sub1.try_recv(), Ok(Timestamped(ts, 1.234)));
+        assert_eq!(sub2.try_recv(), Ok(Timestamped(ts, 1.234)));
 
         assert_eq!(sub1.try_recv(), Err(TelemetryError::EmptyChannel));
         assert_eq!(sub2.try_recv(), Err(TelemetryError::EmptyChannel));
@@ -298,13 +304,15 @@ mod tests {
         // Ch1 was remapped to 2, so publishing 2 again fails
         assert!(telem_service.publish::<f64>("/test/channel/2").is_err());
 
-        p_ch1.send(1.0);
+        let ts = Timestamp::now(&SystemClock::default());
+
+        p_ch1.send(ts, 1.0);
         assert_eq!(s_ch1.try_recv(), Err(TelemetryError::EmptyChannel));
-        assert_eq!(s_ch2.try_recv(), Ok(1.0));
+        assert_eq!(s_ch2.try_recv(), Ok(Timestamped(ts, 1.0)));
         assert_eq!(s_ch3.try_recv(), Err(TelemetryError::EmptyChannel));
 
-        p_ch3.send(1.0);
-        assert_eq!(s_ch1.try_recv(), Ok(1.0));
+        p_ch3.send(ts, 1.0);
+        assert_eq!(s_ch1.try_recv(), Ok(Timestamped(ts, 1.0)));
         assert_eq!(s_ch2.try_recv(), Err(TelemetryError::EmptyChannel));
         assert_eq!(s_ch3.try_recv(), Err(TelemetryError::EmptyChannel));
 
@@ -318,23 +326,27 @@ mod tests {
         let sub = telem_service.subcribe::<f64>("/test/channel/1", 3usize.into())?;
         let prod = telem_service.publish::<f64>("/test/channel/1")?;
 
-        prod.send(1.0);
-        prod.send(2.0);
-        prod.send(3.0);
+        let ts = Timestamp::now(&SystemClock::default());
 
-        assert_eq!(sub.try_recv(), Ok(1.0));
-        assert_eq!(sub.try_recv(), Ok(2.0));
-        assert_eq!(sub.try_recv(), Ok(3.0));
+        prod.send(ts, 1.0);
+        prod.send(ts, 2.0);
+        prod.send(ts, 3.0);
+
+        assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 1.0)));
+        assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 2.0)));
+        assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 3.0)));
         assert_eq!(sub.try_recv(), Err(TelemetryError::EmptyChannel));
 
-        prod.send(1.0);
-        prod.send(2.0);
-        prod.send(3.0);
-        prod.send(4.0);
+        let ts = Timestamp::now(&SystemClock::default());
 
-        assert_eq!(sub.try_recv(), Ok(2.0));
-        assert_eq!(sub.try_recv(), Ok(3.0));
-        assert_eq!(sub.try_recv(), Ok(4.0));
+        prod.send(ts, 1.0);
+        prod.send(ts, 2.0);
+        prod.send(ts, 3.0);
+        prod.send(ts, 4.0);
+
+        assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 2.0)));
+        assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 3.0)));
+        assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 4.0)));
         assert_eq!(sub.try_recv(), Err(TelemetryError::EmptyChannel));
 
         Ok(())
@@ -388,20 +400,22 @@ mod tests {
         select.add(&sub1);
         select.add(&sub2);
 
-        prod1.send(1.1);
+        let ts = Timestamp::now(&SystemClock::default());
+
+        prod1.send(ts, 1.1);
         assert_eq!(select.ready(), 0);
         sub1.recv()?;
 
-        prod1.send(1.1);
+        prod1.send(ts, 1.1);
         assert_eq!(select.ready(), 0);
         sub1.recv()?;
 
-        prod2.send(1);
+        prod2.send(ts, 1);
         assert_eq!(select.ready(), 1);
         sub2.recv()?;
 
-        prod1.send(1.1);
-        prod2.send(1);
+        prod1.send(ts, 1.1);
+        prod2.send(ts, 1);
 
         let r1 = select.ready();
         assert!([0usize, 1usize].contains(&r1));

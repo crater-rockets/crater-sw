@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 use crate::{
+    core::{path::Path, time::Clock},
     parameters::ParameterService,
     telemetry::{
         TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetrySender, TelemetryService,
     },
-    utils::{capacity::Capacity, path::Path, time::Clock},
+    utils::capacity::Capacity,
 };
 
 #[derive(Debug, Error)]
@@ -167,7 +168,10 @@ mod tests {
         Arc,
     };
 
-    use crate::utils::time::WallClock;
+    use crate::{
+        core::time::{SystemClock, Timestamp},
+        telemetry::Timestamped,
+    };
 
     use super::*;
     use anyhow::Result;
@@ -197,12 +201,14 @@ mod tests {
         let p1 = nt.publish::<i32>("/a/b/i1")?;
         let p2 = nt.publish::<i32>("/a/b/i2")?;
 
-        p1.send(1);
-        assert_eq!(r1.try_recv(), Ok(1));
-        assert_eq!(r1_2.try_recv(), Ok(1));
+        let ts = Timestamp::now(&SystemClock::default());
 
-        p2.send(1);
-        assert_eq!(r2.try_recv(), Ok(1));
+        p1.send(ts, 1);
+        assert_eq!(r1.try_recv(), Ok(Timestamped(ts, 1)));
+        assert_eq!(r1_2.try_recv(), Ok(Timestamped(ts, 1)));
+
+        p2.send(ts, 1);
+        assert_eq!(r2.try_recv(), Ok(Timestamped(ts, 1)));
         Ok(())
     }
 
@@ -229,11 +235,12 @@ mod tests {
         let p1 = nt.publish::<i32>("o1")?;
         let p2 = nt.publish::<i32>("/a/b/i2")?;
 
-        p1.send(1);
-        assert_eq!(r1.try_recv(), Ok(1));
+        let ts = Timestamp::now(&SystemClock::default());
+        p1.send(ts, 1);
+        assert_eq!(r1.try_recv(), Ok(Timestamped(ts, 1)));
 
-        p2.send(1);
-        assert_eq!(r2.try_recv(), Ok(1));
+        p2.send(ts, 1);
+        assert_eq!(r2.try_recv(), Ok(Timestamped(ts, 1)));
         Ok(())
     }
 
@@ -249,8 +256,8 @@ mod tests {
         }
     }
     impl Node for MockNodeS {
-        fn step(&mut self, _: &dyn Clock) -> Result<StepResult> {
-            self.sender.send(self.cnt);
+        fn step(&mut self, clock: &dyn Clock) -> Result<StepResult> {
+            self.sender.send(Timestamp::now(clock), self.cnt);
             self.cnt += 1;
 
             Ok(StepResult::Continue)
@@ -275,7 +282,7 @@ mod tests {
     }
     impl Node for MockNodeR {
         fn step(&mut self, _: &dyn Clock) -> Result<StepResult> {
-            self.cnt = self.receiver.recv().unwrap();
+            self.cnt = self.receiver.recv().unwrap().1;
             self.feedback.send(self.cnt).unwrap();
 
             Ok(StepResult::Continue)
@@ -328,7 +335,7 @@ mod tests {
 
         assert_eq!(nm.nodes.len(), 2);
 
-        let clock = Arc::new(WallClock {});
+        let clock = Arc::new(SystemClock {});
 
         nm.nodes[0].1.step(clock.as_ref()).unwrap();
         nm.nodes[1].1.step(clock.as_ref()).unwrap();

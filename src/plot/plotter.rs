@@ -5,7 +5,7 @@ use rust_data_inspector::{
     PlotSampleSender, PlotSignalError, PlotSignalSample, PlotSignalSendError, PlotSignals,
 };
 
-use crate::utils::time::nsec_to_sec_f64;
+use crate::core::time::nsec_to_sec_f64;
 
 use super::PlotterError;
 
@@ -38,19 +38,11 @@ impl Plotter {
         Ok(())
     }
 
-    pub fn plot(&mut self, channel: &str, msg: DynamicMessage) -> Result<(), PlotterError> {
+    pub fn plot(&mut self, channel: &str, ts: f64, msg: DynamicMessage) -> Result<(), PlotterError> {
         let senders = self
             .senders
             .get_mut(channel)
             .ok_or(PlotterError::UnregisteredChannel)?;
-
-        // TODO: Timestamp first class citizen
-        let ts = nsec_to_sec_f64(
-            msg.get_field_by_name("timestamp")
-                .unwrap()
-                .as_i64()
-                .unwrap(),
-        );
 
         plot_message(ts, &msg, senders).map_err(|_| PlotterError::Closed)?;
 

@@ -84,7 +84,7 @@ impl fmt::Display for Path {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::path::{validate_path, Path, PathError};
+    use crate::core::path::{validate_path, Path, PathError};
 
     #[test]
     fn test_validate_path() {

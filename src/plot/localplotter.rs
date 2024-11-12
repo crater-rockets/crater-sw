@@ -8,7 +8,7 @@ use prost_reflect::{DynamicMessage, ReflectMessage};
 use rust_data_inspector::PlotSignals;
 
 use crate::{
-    telemetry::{TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetryService},
+    telemetry::{TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetryService, Timestamped},
     utils::{
         capacity::Capacity,
         ringchannel::{Select, Selectable},
@@ -34,7 +34,7 @@ impl<T: 'static> SelectableDowncastable for TelemetryReceiver<T> {
 }
 
 type DynamicRecvFn =
-    Box<dyn Fn(&dyn SelectableDowncastable) -> Result<DynamicMessage, TelemetryError> + Send>;
+    Box<dyn Fn(&dyn SelectableDowncastable) -> Result<Timestamped<DynamicMessage>, TelemetryError> + Send>;
 
 pub struct LocalPlotter {
     plotter: Plotter,
@@ -94,8 +94,8 @@ impl LocalPlotter {
             let (channel, r, recv_fn) = receivers.get(index).unwrap();
 
             match recv_fn(r.as_ref()) {
-                Ok(msg) => {
-                    plotter.plot(channel.as_str(), msg)?;
+                Ok(Timestamped(ts, msg)) => {
+                    plotter.plot(channel.as_str(), ts.monotonic.elapsed_seconds_f64(), msg)?;
                 }
                 Err(TelemetryError::ClosedChannel) => {}
                 Err(e) => {
@@ -107,13 +107,14 @@ impl LocalPlotter {
 
     fn recv_dynamic<T: ReflectMessage + 'static>(
         receiver: &dyn SelectableDowncastable,
-    ) -> Result<DynamicMessage, TelemetryError> {
+    ) -> Result<Timestamped<DynamicMessage>, TelemetryError> {
         let receiver = receiver
             .as_any()
             .downcast_ref::<TelemetryReceiver<T>>()
             .expect("Error downcast receiver to TelemetryReceiver<T>");
-
-        Ok(receiver.try_recv()?.transcode_to_dynamic())
+        
+        let v = receiver.try_recv()?;
+        Ok(Timestamped(v.0, v.1.transcode_to_dynamic()))
     }
 
     pub fn run(self) -> JoinHandle<Result<(), PlotterError>> {

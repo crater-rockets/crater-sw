@@ -11,6 +11,7 @@ pub mod parameters;
 pub mod plot;
 pub mod telemetry;
 pub mod utils;
+pub mod core;
 
 pub mod crater_messages {
     pub mod basic {

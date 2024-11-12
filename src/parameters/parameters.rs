@@ -1,7 +1,7 @@
 use super::deser::{self};
 use crate::{
     parameters::deser::parse_str,
-    utils::path::{Path, PathError},
+    core::path::{Path, PathError},
 };
 use itertools::join;
 use std::{

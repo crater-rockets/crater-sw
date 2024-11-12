@@ -1,6 +1,7 @@
 use core::f64;
 
 use crate::{
+    core::time::{Clock, Instant, Timestamp, TD},
     crater::sim::engine::SimpleRocketEngine,
     crater_messages::{
         basic::Vec3,
@@ -13,7 +14,6 @@ use crate::{
     nodes::{Node, NodeContext, NodeTelemetry, StepResult},
     parameters::ParameterService,
     telemetry::{TelemetryDispatcher, TelemetrySender},
-    utils::time::{Clock, Instant, TD},
 };
 use anyhow::{anyhow, Result};
 use chrono::TimeDelta;
@@ -226,7 +226,9 @@ impl OdeProblem<f64, 13> for Rocket {
 
         let w_dot = self.params.inv_inertia * (m_b + (self.params.inertia * w_b).cross(&w_b));
 
-        dstate.pos_n_mut().set_column(0, &state.vel_n().clone_owned());
+        dstate
+            .pos_n_mut()
+            .set_column(0, &state.vel_n().clone_owned());
         dstate.vel_n_mut().set_column(0, &acc_n);
         dstate.quat_nb_vec_mut().set_column(0, qdot.as_vector());
         dstate.angvel_b_mut().set_column(0, &w_dot);
@@ -237,8 +239,9 @@ impl OdeProblem<f64, 13> for Rocket {
 
 impl Node for Rocket {
     fn step(&mut self, clock: &dyn Clock) -> Result<StepResult> {
-        let t = clock.monotonic();
-        let dt = self.dt.calc_dt(t);
+        let t = Timestamp::now(clock);
+
+        let dt = self.dt.calc_dt(t.monotonic);
 
         // First step, just propagate the initial conditions
         if dt.is_none() {
@@ -254,7 +257,7 @@ impl Node for Rocket {
 
         let next = RungeKutta4.solve(
             self,
-            t.elapsed_seconds(),
+            t.monotonic.elapsed_seconds_f64(),
             TD(dt.unwrap()).seconds(),
             self.state.0,
         );
@@ -271,10 +274,8 @@ impl Node for Rocket {
         );
 
         // Stop conditions
-        if (self.state.pos_n()[2]
-            > 0.0
-            && t.elapsed_seconds() > 1.0)
-            || t.elapsed_seconds() > self.params.max_t
+        if (self.state.pos_n()[2] > 0.0 && t.monotonic.elapsed_seconds_f64() > 1.0)
+            || t.monotonic.elapsed_seconds_f64() > self.params.max_t
         {
             Ok(StepResult::Stop)
         } else {
@@ -312,59 +313,80 @@ impl Senders {
 
     fn send(
         &self,
-        t: Instant,
+        t: Timestamp,
         state: &State,
         engine: &dyn RocketEngine,
         params: &Params,
         coeffs: &Coefficients,
     ) {
-        let timestamp = t.elapsed().num_nanoseconds().unwrap();
+        let ts = t.monotonic.elapsed().num_nanoseconds().unwrap();
 
         let q_nb = state.quat_nb();
 
-        self.snd_pos.send(Position {
-            timestamp,
-            pos: Vec3::from(state.pos_n()),
-        });
+        self.snd_pos.send(
+            t,
+            Position {
+                timestamp: ts,
+                pos: Vec3::from(state.pos_n()),
+            },
+        );
 
-        self.snd_vel_ned.send(Velocity {
-            timestamp,
-            vel: Vec3::from(state.vel_n()),
-        });
+        self.snd_vel_ned.send(
+            t,
+            Velocity {
+                timestamp: ts,
+                vel: Vec3::from(state.vel_n()),
+            },
+        );
 
-        self.snd_vel_body.send(Velocity {
-            timestamp,
-            vel: Vec3::from(q_nb.inverse_transform_vector(&state.vel_n().clone_owned())),
-        });
+        self.snd_vel_body.send(
+            t,
+            Velocity {
+                timestamp: ts,
+                vel: Vec3::from(q_nb.inverse_transform_vector(&state.vel_n().clone_owned())),
+            },
+        );
 
-        self.snd_quat.send(OrientationQuat {
-            timestamp,
-            quat: crate::crater_messages::basic::Quaternion::from(state.quat_nb_vec()),
-        });
+        self.snd_quat.send(
+            t,
+            OrientationQuat {
+                timestamp: ts,
+                quat: crate::crater_messages::basic::Quaternion::from(state.quat_nb_vec()),
+            },
+        );
 
         let (roll, pitch, yaw) = q_nb.euler_angles();
 
-        self.snd_euler.send(EulerAngles {
-            timestamp,
-            yaw: yaw.to_degrees(),
-            pitch: pitch.to_degrees(),
-            roll: roll.to_degrees(),
-        });
+        self.snd_euler.send(
+            t,
+            EulerAngles {
+                timestamp: ts,
+                yaw: yaw.to_degrees(),
+                pitch: pitch.to_degrees(),
+                roll: roll.to_degrees(),
+            },
+        );
 
         let angvel = state.angvel_b();
-        self.snd_angvel.send(AngularVelocity {
-            timestamp,
-            ang_vel: Vec3::from(vector![
-                angvel[0].to_degrees(),
-                angvel[1].to_degrees(),
-                angvel[2].to_degrees()
-            ]),
-        });
+        self.snd_angvel.send(
+            t,
+            AngularVelocity {
+                timestamp: ts,
+                ang_vel: Vec3::from(vector![
+                    angvel[0].to_degrees(),
+                    angvel[1].to_degrees(),
+                    angvel[2].to_degrees()
+                ]),
+            },
+        );
 
-        self.snd_thrust.send(Thrust {
-            timestamp,
-            thrust: Vec3::from(engine.thrust_b(t.elapsed_seconds())),
-        });
+        self.snd_thrust.send(
+            t,
+            Thrust {
+                timestamp: ts,
+                thrust: Vec3::from(engine.thrust_b(t.monotonic.elapsed_seconds_f64())),
+            },
+        );
 
         let aero = Aerodynamics::new(
             q_nb.inverse_transform_vector(&state.vel_n().clone_owned()),
@@ -374,19 +396,25 @@ impl Senders {
             params.surface,
         );
 
-        self.snd_aerostate.send(AeroState {
-            timestamp,
-            alpha: aero.alpha().to_degrees(),
-            beta: aero.beta().to_degrees(),
-        });
+        self.snd_aerostate.send(
+            t,
+            AeroState {
+                timestamp: ts,
+                alpha: aero.alpha().to_degrees(),
+                beta: aero.beta().to_degrees(),
+            },
+        );
 
         let (af, at) = aero.actions(coeffs);
 
-        self.snd_aeroforces.send(AeroForces {
-            timestamp,
-            force: Vec3::from(af),
-            torque: Vec3::from(at),
-        });
+        self.snd_aeroforces.send(
+            t,
+            AeroForces {
+                timestamp: ts,
+                force: Vec3::from(af),
+                torque: Vec3::from(at),
+            },
+        );
     }
 }
 

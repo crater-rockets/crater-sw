@@ -1,4 +1,4 @@
-use crate::utils::time::{Clock, SimulatedClock, WallClock};
+use crate::core::time::{Clock, SimulatedClock, SystemClock};
 
 use super::{Node, NodeManager, StepResult};
 use anyhow::{Context, Result};
@@ -11,7 +11,7 @@ use std::{
 
 pub struct ThreadedExecutor {
     node_join_handles: HashMap<String, JoinHandle<Result<()>>>,
-    clock: Arc<WallClock>,
+    clock: Arc<SystemClock>,
 }
 
 impl ThreadedExecutor {
@@ -20,7 +20,7 @@ impl ThreadedExecutor {
 
         let mut exec = ThreadedExecutor {
             node_join_handles: HashMap::new(),
-            clock: Arc::new(WallClock {}),
+            clock: Arc::new(SystemClock {}),
         };
 
         for (name, node) in node_mgr.nodes.into_iter() {

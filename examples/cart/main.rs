@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::{fs, thread};
 
+use ::quadcopter::core::time::{Clock, Instant, Timestamp};
 use ::quadcopter::nodes::{FtlOrderedExecutor, NodeConfig, NodeContext, NodeManager, StepResult};
 use ::quadcopter::parameters::ParameterService;
 use ::quadcopter::plot::localplotter::LocalPlotter;
 use ::quadcopter::telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetryService};
-use ::quadcopter::utils::time::{Clock, Instant};
 use ::quadcopter::DESCRIPTOR_POOL;
 use ::quadcopter::{nodes::Node, telemetry::TelemetrySender};
 use anyhow::Result;
@@ -58,8 +58,10 @@ impl Cart {
 
 impl Node for Cart {
     fn step(&mut self, clock: &dyn Clock) -> Result<StepResult> {
+        let ts = Timestamp::now(clock);
+
         let f = if self.start_t.get().is_some() {
-            self.rcv_force.recv()?
+            self.rcv_force.recv()?.1
         } else {
             Force {
                 timestamp: 0,
@@ -67,16 +69,16 @@ impl Node for Cart {
             }
         };
 
-        let _ = self.start_t.set(clock.monotonic());
+        let _ = self.start_t.set(ts.monotonic);
 
         let acc = self.m * f.f - self.state.vel;
         self.state.vel = self.state.vel + acc * self.dt;
         self.state.pos = self.state.pos + self.state.vel * self.dt;
-        self.state.timestamp = clock.monotonic().elapsed().num_nanoseconds().unwrap();
+        self.state.timestamp = ts.monotonic.elapsed().num_nanoseconds().unwrap();
 
-        self.snd_state.send(self.state);
+        self.snd_state.send(ts, self.state);
 
-        if (clock.monotonic() - self.start_t.get().unwrap().elapsed()).elapsed()
+        if (ts.monotonic - self.start_t.get().unwrap().elapsed()).elapsed()
             > TimeDelta::milliseconds(self.duration)
         {
             Ok(StepResult::Stop)
@@ -109,14 +111,17 @@ impl PositionControl {
 }
 impl Node for PositionControl {
     fn step(&mut self, clock: &dyn Clock) -> anyhow::Result<StepResult> {
-        let state = self.rcv_state.recv()?;
+        let state = self.rcv_state.recv()?.1;
 
         let f = -(state.pos - self.target_pos) * self.kp;
 
-        self.snd_force.send(Force {
-            timestamp: clock.monotonic().elapsed().num_nanoseconds().unwrap(),
-            f,
-        });
+        self.snd_force.send(
+            Timestamp::now(clock),
+            Force {
+                timestamp: clock.monotonic().elapsed().num_nanoseconds().unwrap(),
+                f,
+            },
+        );
 
         Ok(StepResult::Continue)
     }

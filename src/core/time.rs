@@ -3,8 +3,23 @@ use std::ops::{Add, AddAssign, Sub, SubAssign};
 use chrono::{DateTime, TimeDelta, Utc};
 
 pub trait Clock {
-    fn realtime(&self) -> SystemClock;
+    fn utc(&self) -> UtcInstant;
     fn monotonic(&self) -> Instant;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Timestamp {
+    pub utc: UtcInstant,
+    pub monotonic: Instant,
+}
+
+impl Timestamp {
+    pub fn now(clock: &dyn Clock) -> Timestamp {
+        Timestamp {
+            utc: clock.utc(),
+            monotonic: clock.monotonic(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
@@ -17,7 +32,7 @@ impl Instant {
         self.delta
     }
 
-    pub fn elapsed_seconds(&self) -> f64 {
+    pub fn elapsed_seconds_f64(&self) -> f64 {
         TD(self.elapsed()).seconds()
     }
 
@@ -77,24 +92,24 @@ impl SubAssign<TimeDelta> for Instant {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq, Hash)]
-pub struct SystemClock {
+pub struct UtcInstant {
     utc: DateTime<Utc>,
 }
 
-impl SystemClock {
-    pub fn checked_add(&self, rhs: TimeDelta) -> Option<SystemClock> {
-        Some(SystemClock {
+impl UtcInstant {
+    pub fn checked_add(&self, rhs: TimeDelta) -> Option<UtcInstant> {
+        Some(UtcInstant {
             utc: self.utc.checked_add_signed(rhs)?,
         })
     }
 
-    pub fn checked_sub(&self, rhs: TimeDelta) -> Option<SystemClock> {
-        Some(SystemClock {
+    pub fn checked_sub(&self, rhs: TimeDelta) -> Option<UtcInstant> {
+        Some(UtcInstant {
             utc: self.utc.checked_sub_signed(rhs)?,
         })
     }
 
-    pub fn duration_since(&self, other: SystemClock) -> TimeDelta {
+    pub fn duration_since(&self, other: UtcInstant) -> TimeDelta {
         self.utc - other.utc
     }
 
@@ -103,43 +118,43 @@ impl SystemClock {
     }
 }
 
-impl Add<TimeDelta> for SystemClock {
-    type Output = SystemClock;
+impl Add<TimeDelta> for UtcInstant {
+    type Output = UtcInstant;
 
     fn add(self, rhs: TimeDelta) -> Self::Output {
-        SystemClock {
+        UtcInstant {
             utc: self.utc + rhs,
         }
     }
 }
 
-impl AddAssign<TimeDelta> for SystemClock {
+impl AddAssign<TimeDelta> for UtcInstant {
     fn add_assign(&mut self, rhs: TimeDelta) {
         self.utc += rhs;
     }
 }
 
-impl Sub<TimeDelta> for SystemClock {
-    type Output = SystemClock;
+impl Sub<TimeDelta> for UtcInstant {
+    type Output = UtcInstant;
     fn sub(self, rhs: TimeDelta) -> Self::Output {
-        SystemClock {
+        UtcInstant {
             utc: self.utc - rhs,
         }
     }
 }
 
-impl SubAssign<TimeDelta> for SystemClock {
+impl SubAssign<TimeDelta> for UtcInstant {
     fn sub_assign(&mut self, rhs: TimeDelta) {
         self.utc -= rhs
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct WallClock;
+#[derive(Debug, Clone, Default)]
+pub struct SystemClock;
 
-impl Clock for WallClock {
-    fn realtime(&self) -> SystemClock {
-        SystemClock { utc: Utc::now() }
+impl Clock for SystemClock {
+    fn utc(&self) -> UtcInstant {
+        UtcInstant { utc: Utc::now() }
     }
 
     fn monotonic(&self) -> Instant {
@@ -166,8 +181,8 @@ impl SimulatedClock {
 }
 
 impl Clock for SimulatedClock {
-    fn realtime(&self) -> SystemClock {
-        SystemClock {
+    fn utc(&self) -> UtcInstant {
+        UtcInstant {
             utc: self.utc_epoch + self.elapsed,
         }
     }
