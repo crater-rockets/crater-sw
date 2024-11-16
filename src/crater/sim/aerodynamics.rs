@@ -1,10 +1,11 @@
 use core::f64;
-
 use anyhow::Result;
 use nalgebra::{vector, Vector3};
 use num_traits::Pow;
 
 use crate::parameters::ParameterService;
+
+use super::atmosphere::Atmosphere;
 
 #[allow(nonstandard_style)]
 pub struct Coefficients {
@@ -44,85 +45,142 @@ impl Coefficients {
 }
 
 const V_SMALL: f64 = 1.0e-5;
+
+pub struct AeroState {
+    pub v_air_b: Vector3<f64>,
+    pub v_norm: f64,
+    pub w: Vector3<f64>,
+    pub h: f64,
+}
+
+impl AeroState {
+    pub fn new(v_b: Vector3<f64>, v_wind_b: Vector3<f64>, w: Vector3<f64>, h: f64) -> AeroState {
+        let v_air_b = v_b - v_wind_b;
+        let v_norm = v_air_b.norm();
+
+        AeroState {
+            v_air_b,
+            v_norm,
+            w,
+            h,
+        }
+    }
+}
+
+pub struct AerodynamicsResult {
+    pub alpha: f64,
+    pub beta: f64,
+    pub forces: Vector3<f64>,
+    pub moments: Vector3<f64>,
+}
+
 pub struct Aerodynamics {
-    v_air_b: Vector3<f64>,
-    v_norm: f64,
-    w: Vector3<f64>,
-    rho: f64,
+    atmosphere: Box<dyn Atmosphere + Send>,
     diameter: f64,
     surface: f64,
+    coefficients: Coefficients,
 }
 
 impl Aerodynamics {
     pub fn new(
-        v_b: Vector3<f64>,
-        v_wind_b: Vector3<f64>,
-        w: Vector3<f64>,
         diameter: f64,
         surface: f64,
+        atmosphere: Box<dyn Atmosphere + Send>,
+        coefficients: Coefficients,
     ) -> Self {
-        let v_air_b = v_b - v_wind_b;
-        let v_norm = v_air_b.norm();
-
         Aerodynamics {
-            v_air_b,
-            v_norm,
-            w,
-            rho: 1.0,
+            atmosphere,
             diameter,
             surface,
+            coefficients,
         }
     }
 
-    pub fn alpha(&self) -> f64 {
-        if self.v_air_b[0].abs() >= V_SMALL {
-            f64::atan(self.v_air_b[2] / self.v_air_b[0])
-        } else if self.v_air_b[2].abs() >= V_SMALL {
-            f64::consts::FRAC_PI_2 * self.v_air_b[2].signum()
+    pub fn calc(&self, state: &AeroState) -> AerodynamicsResult {
+        let alpha = self.alpha(state);
+        let beta = self.beta(state);
+
+        let (forces, moments) = self.actions(alpha, beta, state);
+
+        AerodynamicsResult {
+            alpha,
+            beta,
+            forces,
+            moments,
+        }
+    }
+
+    pub fn alpha(&self, state: &AeroState) -> f64 {
+        if state.v_air_b[0].abs() >= V_SMALL {
+            f64::atan(state.v_air_b[2] / state.v_air_b[0])
+        } else if state.v_air_b[2].abs() >= V_SMALL {
+            f64::consts::FRAC_PI_2 * state.v_air_b[2].signum()
         } else {
             0.0
         }
     }
 
-    pub fn beta(&self) -> f64 {
-        if self.v_norm >= V_SMALL {
-            f64::asin(self.v_air_b[1] / self.v_norm)
-        } else if self.v_air_b[1].abs() >= V_SMALL {
-            f64::consts::FRAC_PI_2 * self.v_air_b[1].signum()
+    pub fn beta(&self, state: &AeroState) -> f64 {
+        if state.v_norm >= V_SMALL {
+            f64::asin(state.v_air_b[1] / state.v_norm)
+        } else if state.v_air_b[1].abs() >= V_SMALL {
+            f64::consts::FRAC_PI_2 * state.v_air_b[1].signum()
         } else {
             0.0
         }
     }
 
-    pub fn actions(&self, c: &Coefficients) -> (Vector3<f64>, Vector3<f64>) {
-        let alpha = self.alpha();
-        let beta = self.beta();
+    #[allow(non_snake_case)]
+    pub fn actions(
+        &self,
+        alpha: f64,
+        beta: f64,
+        state: &AeroState,
+    ) -> (Vector3<f64>, Vector3<f64>) {
+        let cA = (self.coefficients.cA_0
+            + self.coefficients.cA_a * alpha.pow(2.0)
+            + self.coefficients.cA_b * beta.pow(2.0))
+            * state.v_air_b[0].signum();
+        let cY = (self.coefficients.cY_b * beta) * state.v_air_b[0].signum();
+        let cN = (self.coefficients.cN_a * alpha) * state.v_air_b[0].signum();
 
-        let cA =
-            (c.cA_0 + c.cA_a * alpha.pow(2.0) + c.cA_b * beta.pow(2.0)) * self.v_air_b[0].signum();
-        let cY = (c.cY_b * beta) * self.v_air_b[0].signum();
-        let cN = (c.cN_a * alpha) * self.v_air_b[0].signum();
+        let cl = self.coefficients.cl_0 * state.v_air_b[0].signum();
+        let cm = self.coefficients.cm_a * alpha * state.v_air_b[0].signum();
+        let cn = self.coefficients.cn_b * beta * state.v_air_b[0].signum();
 
-        let cl = c.cl_0 * self.v_air_b[0].signum();
-        let cm = c.cm_a * alpha * self.v_air_b[0].signum();
-        let cn = c.cn_b * beta * self.v_air_b[0].signum();
-
-        let q_v = 0.5 * self.rho * self.v_norm;
-        let q = q_v * self.v_norm;
+        let q_v = 0.5 * self.atmosphere.density(state.h) * state.v_norm;
+        let q = q_v * state.v_norm;
 
         let f = vector![
             -q * self.surface * cA,
-            q * self.surface * cY + q_v * self.surface * self.diameter * c.cY_r * self.w[2],
-            -q * self.surface * cN - q_v * self.surface * self.diameter * c.cN_q * self.w[1],
+            q * self.surface * cY
+                + q_v * self.surface * self.diameter * self.coefficients.cY_r * state.w[2],
+            -q * self.surface * cN
+                - q_v * self.surface * self.diameter * self.coefficients.cN_q * state.w[1],
         ];
 
         let t = vector![
             q * self.surface * cl * self.diameter
-                + 0.5 * q_v * self.surface * self.diameter.pow(2.0) * c.cl_p * self.w[0],
+                + 0.5
+                    * q_v
+                    * self.surface
+                    * self.diameter.pow(2.0)
+                    * self.coefficients.cl_p
+                    * state.w[0],
             q * self.surface * cm * self.diameter
-                + 0.5 * q_v * self.surface * self.diameter.pow(2.0) * c.cm_q * self.w[1],
+                + 0.5
+                    * q_v
+                    * self.surface
+                    * self.diameter.pow(2.0)
+                    * self.coefficients.cm_q
+                    * state.w[1],
             q * self.surface * cn * self.diameter
-                + 0.5 * q_v * self.surface * self.diameter.pow(2.0) * c.cn_r * self.w[2],
+                + 0.5
+                    * q_v
+                    * self.surface
+                    * self.diameter.pow(2.0)
+                    * self.coefficients.cn_r
+                    * state.w[2],
         ];
 
         (f, t)

@@ -1,3 +1,4 @@
+use chrono::TimeDelta;
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -25,7 +26,7 @@ pub enum StepResult {
 }
 
 pub trait Node {
-    fn step(&mut self, clock: &dyn Clock) -> anyhow::Result<StepResult>;
+    fn step(&mut self, i: usize, dt: TimeDelta, clock: &dyn Clock) -> anyhow::Result<StepResult>;
 }
 
 #[derive(Default)]
@@ -256,7 +257,7 @@ mod tests {
         }
     }
     impl Node for MockNodeS {
-        fn step(&mut self, clock: &dyn Clock) -> Result<StepResult> {
+        fn step(&mut self, _: usize, _: TimeDelta, clock: &dyn Clock) -> Result<StepResult> {
             self.sender.send(Timestamp::now(clock), self.cnt);
             self.cnt += 1;
 
@@ -281,7 +282,7 @@ mod tests {
         }
     }
     impl Node for MockNodeR {
-        fn step(&mut self, _: &dyn Clock) -> Result<StepResult> {
+        fn step(&mut self, _: usize, _: TimeDelta, _: &dyn Clock) -> Result<StepResult> {
             self.cnt = self.receiver.recv().unwrap().1;
             self.feedback.send(self.cnt).unwrap();
 
@@ -336,14 +337,15 @@ mod tests {
         assert_eq!(nm.nodes.len(), 2);
 
         let clock = Arc::new(SystemClock {});
+        let dt = TimeDelta::milliseconds(5);
 
-        nm.nodes[0].1.step(clock.as_ref()).unwrap();
-        nm.nodes[1].1.step(clock.as_ref()).unwrap();
+        nm.nodes[0].1.step(0, dt, clock.as_ref()).unwrap();
+        nm.nodes[1].1.step(1, dt, clock.as_ref()).unwrap();
 
         assert_eq!(fb_receiver.try_recv(), Ok(0));
 
-        nm.nodes[0].1.step(clock.as_ref()).unwrap();
-        nm.nodes[1].1.step(clock.as_ref()).unwrap();
+        nm.nodes[0].1.step(2, dt, clock.as_ref()).unwrap();
+        nm.nodes[1].1.step(99, dt, clock.as_ref()).unwrap();
 
         assert_eq!(fb_receiver.try_recv(), Ok(1));
 
