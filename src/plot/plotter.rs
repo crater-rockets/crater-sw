@@ -5,15 +5,15 @@ use rust_data_inspector::{
     PlotSampleSender, PlotSignalError, PlotSignalSample, PlotSignalSendError, PlotSignals,
 };
 
-use crate::core::time::nsec_to_sec_f64;
-
 use super::PlotterError;
 
+#[derive(Debug, Clone)]
 enum FieldSender {
     Sender(PlotSampleSender),
     Nested(HashMap<u32, FieldSender>),
 }
 
+#[derive(Debug, Default, Clone)]
 pub struct Plotter {
     senders: HashMap<String, HashMap<u32, FieldSender>>,
 }

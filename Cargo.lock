@@ -1738,6 +1738,7 @@ dependencies = [
  "approx",
  "bytes",
  "chrono",
+ "egui",
  "itertools",
  "nalgebra",
  "num-traits",
@@ -1923,7 +1924,7 @@ dependencies = [
 [[package]]
 name = "rust_data_inspector"
 version = "0.1.0"
-source = "git+https://github.com/Hixos/rust-data-inspector.git#c926e513c314ad6e70ecddc2ee18d99e93dd41b8"
+source = "git+https://github.com/Hixos/rust-data-inspector.git#09fded0c042da81ca06be53c8347b32f19d9d4d0"
 dependencies = [
  "console_error_panic_hook",
  "downsample_rs",
@@ -1943,7 +1944,7 @@ dependencies = [
 [[package]]
 name = "rust_data_inspector_signals"
 version = "0.1.0"
-source = "git+https://github.com/Hixos/rust-data-inspector.git#c926e513c314ad6e70ecddc2ee18d99e93dd41b8"
+source = "git+https://github.com/Hixos/rust-data-inspector.git#09fded0c042da81ca06be53c8347b32f19d9d4d0"
 dependencies = [
  "regex",
  "serde",

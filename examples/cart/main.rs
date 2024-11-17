@@ -38,7 +38,7 @@ impl Cart {
         let snd_state = ctx.telemetry().publish::<CartState>("/cart/state")?;
         let rcv_force = ctx
             .telemetry()
-            .subcribe::<Force>("/cart/force", 1usize.into())?;
+            .subscribe::<Force>("/cart/force", 1usize.into())?;
 
         Ok(Cart {
             m: ctx.parameters().get_f32("/example/cart/mass")?,
@@ -98,7 +98,7 @@ struct PositionControl {
 
 impl PositionControl {
     fn new(ctx: NodeContext) -> Result<Self> {
-        let rcv_state = ctx.telemetry().subcribe("/cart/state", 1usize.into())?;
+        let rcv_state = ctx.telemetry().subscribe("/cart/state", 1usize.into())?;
         let snd_force = ctx.telemetry().publish("/cart/force")?;
 
         Ok(Self {

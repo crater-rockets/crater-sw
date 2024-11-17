@@ -172,7 +172,7 @@ pub trait TelemetryDispatcher {
         channel_name: &str,
     ) -> Result<TelemetrySender<T>, TelemetryError>;
 
-    fn subcribe<T: 'static + Send>(
+    fn subscribe<T: 'static + Send>(
         &self,
         channel_name: &str,
         capacity: Capacity,
@@ -198,7 +198,7 @@ impl TelemetryDispatcher for TelemetryService {
         channel.take_producer()
     }
 
-    fn subcribe<T: 'static + Send>(
+    fn subscribe<T: 'static + Send>(
         &self,
         channel_name: &str,
         capacity: Capacity,
@@ -246,7 +246,7 @@ mod tests {
     fn test_empty_chan() -> Result<(), TelemetryError> {
         let telem_service = TelemetryService::default();
 
-        let sub1 = telem_service.subcribe::<f64>("/test/channel/1", 1usize.into())?;
+        let sub1 = telem_service.subscribe::<f64>("/test/channel/1", 1usize.into())?;
 
         assert_eq!(sub1.try_recv(), Err(TelemetryError::EmptyChannel));
 
@@ -268,8 +268,8 @@ mod tests {
     fn test_pub_sub() -> Result<(), TelemetryError> {
         let telem_service = TelemetryService::default();
 
-        let sub1 = telem_service.subcribe::<f64>("/test/channel/1", 1usize.into())?;
-        let sub2 = telem_service.subcribe::<f64>("/test/channel/1", 1usize.into())?;
+        let sub1 = telem_service.subscribe::<f64>("/test/channel/1", 1usize.into())?;
+        let sub2 = telem_service.subscribe::<f64>("/test/channel/1", 1usize.into())?;
 
         let prod = telem_service.publish::<f64>("/test/channel/1")?;
 
@@ -294,9 +294,9 @@ mod tests {
         ]);
 
         let telem_service = TelemetryService::new(remap);
-        let s_ch1 = telem_service.subcribe::<f64>("/test/channel/1", 1usize.into())?;
-        let s_ch2 = telem_service.subcribe::<f64>("/test/channel/2", 1usize.into())?;
-        let s_ch3 = telem_service.subcribe::<f64>("/test/channel/3", 1usize.into())?;
+        let s_ch1 = telem_service.subscribe::<f64>("/test/channel/1", 1usize.into())?;
+        let s_ch2 = telem_service.subscribe::<f64>("/test/channel/2", 1usize.into())?;
+        let s_ch3 = telem_service.subscribe::<f64>("/test/channel/3", 1usize.into())?;
 
         let p_ch1 = telem_service.publish::<f64>("/test/channel/1")?;
         let p_ch3 = telem_service.publish::<f64>("/test/channel/3")?;
@@ -323,7 +323,7 @@ mod tests {
     fn test_ring_buf() -> Result<(), TelemetryError> {
         let telem_service = TelemetryService::default();
 
-        let sub = telem_service.subcribe::<f64>("/test/channel/1", 3usize.into())?;
+        let sub = telem_service.subscribe::<f64>("/test/channel/1", 3usize.into())?;
         let prod = telem_service.publish::<f64>("/test/channel/1")?;
 
         let ts = Timestamp::now(&SystemClock::default());
@@ -356,7 +356,7 @@ mod tests {
     fn test_bad_channel_type() -> Result<(), TelemetryError> {
         let telem_service = TelemetryService::default();
 
-        telem_service.subcribe::<f64>("/test/channel/1", 1usize.into())?;
+        telem_service.subscribe::<f64>("/test/channel/1", 1usize.into())?;
 
         let pub1 = telem_service.publish::<f32>("/test/channel/1");
 
@@ -370,7 +370,7 @@ mod tests {
         );
 
         telem_service.publish::<f32>("/test/channel/2")?;
-        let sub2 = telem_service.subcribe::<f64>("/test/channel/2", 1usize.into());
+        let sub2 = telem_service.subscribe::<f64>("/test/channel/2", 1usize.into());
 
         assert!(sub2.is_err());
         assert_eq!(
@@ -393,8 +393,8 @@ mod tests {
         let prod1 = telem_service.publish::<f64>("/test/channel/1")?;
         let prod2 = telem_service.publish::<i32>("/test/channel/2")?;
 
-        let sub1 = telem_service.subcribe::<f64>("/test/channel/1", 1usize.into())?;
-        let sub2 = telem_service.subcribe::<i32>("/test/channel/2", 1usize.into())?;
+        let sub1 = telem_service.subscribe::<f64>("/test/channel/1", 1usize.into())?;
+        let sub2 = telem_service.subscribe::<i32>("/test/channel/2", 1usize.into())?;
 
         let mut select = Select::default();
         select.add(&sub1);

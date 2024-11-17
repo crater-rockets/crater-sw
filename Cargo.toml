@@ -14,6 +14,7 @@ ringbuffer = "0.15.0"
 serde = { version = "1.0.210", features = ["derive"] }
 thiserror = "1.0.64"
 toml = "0.8.19"
+egui = "0.25.0"
 
 rust_data_inspector = { git = "https://github.com/Hixos/rust-data-inspector.git"}
 rust_data_inspector_signals = { git = "https://github.com/Hixos/rust-data-inspector.git"}

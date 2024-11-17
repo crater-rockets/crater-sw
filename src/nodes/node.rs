@@ -147,7 +147,7 @@ impl TelemetryDispatcher for NodeTelemetry {
         self.telemetry.publish::<T>(path.as_str())
     }
 
-    fn subcribe<T: 'static + Send>(
+    fn subscribe<T: 'static + Send>(
         &self,
         channel_name: &str,
         capacity: Capacity,
@@ -158,7 +158,7 @@ impl TelemetryDispatcher for NodeTelemetry {
             Path::from_str(channel_name).map_err(|_| TelemetryError::InvalidChannelName)?
         };
 
-        self.telemetry.subcribe::<T>(path.as_str(), capacity)
+        self.telemetry.subscribe::<T>(path.as_str(), capacity)
     }
 }
 
@@ -191,13 +191,13 @@ mod tests {
             ]),
         );
 
-        let r1 = nt.subcribe::<i32>("i1", 1usize.into())?;
-        let r1_2 = nt.subcribe::<i32>("/a/b/i1", 1usize.into())?;
+        let r1 = nt.subscribe::<i32>("i1", 1usize.into())?;
+        let r1_2 = nt.subscribe::<i32>("/a/b/i1", 1usize.into())?;
 
-        assert!(nt.subcribe::<i32>("o2", 1usize.into()).is_err());
-        assert!(nt.subcribe::<i32>("no_remap", 1usize.into()).is_err());
+        assert!(nt.subscribe::<i32>("o2", 1usize.into()).is_err());
+        assert!(nt.subscribe::<i32>("no_remap", 1usize.into()).is_err());
 
-        let r2 = nt.subcribe::<i32>("i2", 1usize.into())?;
+        let r2 = nt.subscribe::<i32>("i2", 1usize.into())?;
 
         let p1 = nt.publish::<i32>("/a/b/i1")?;
         let p2 = nt.publish::<i32>("/a/b/i2")?;
@@ -227,8 +227,8 @@ mod tests {
             ]),
         );
 
-        let r1 = nt.subcribe::<i32>("/a/b/i1", 1usize.into())?;
-        let r2 = nt.subcribe::<i32>("/a/b/i2", 1usize.into())?;
+        let r1 = nt.subscribe::<i32>("/a/b/i1", 1usize.into())?;
+        let r2 = nt.subscribe::<i32>("/a/b/i2", 1usize.into())?;
 
         assert!(nt.publish::<i32>("i1").is_err());
         assert!(nt.publish::<i32>("no_remap").is_err());
@@ -273,7 +273,7 @@ mod tests {
 
     impl MockNodeR {
         fn new(ctx: NodeContext, feedback: Sender<i32>) -> Result<Self> {
-            let receiver = ctx.telemetry().subcribe::<i32>("i1", 1usize.into())?;
+            let receiver = ctx.telemetry().subscribe::<i32>("i1", 1usize.into())?;
             Ok(MockNodeR {
                 receiver,
                 cnt: 0,

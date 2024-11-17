@@ -1,5 +1,9 @@
 use std::{
     any::Any,
+    sync::{
+        mpsc::{Receiver, TryRecvError},
+        Arc, Mutex,
+    },
     thread::{self, JoinHandle},
 };
 
@@ -8,14 +12,19 @@ use prost_reflect::{DynamicMessage, ReflectMessage};
 use rust_data_inspector::PlotSignals;
 
 use crate::{
-    telemetry::{TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetryService, Timestamped},
+    telemetry::{
+        TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetryService, Timestamped,
+    },
     utils::{
         capacity::Capacity,
         ringchannel::{Select, Selectable},
     },
 };
 
-use super::{plotter::Plotter, PlotterError};
+use super::{
+    plotter::{self, Plotter},
+    PlotterError,
+};
 
 trait SelectableDowncastable: Selectable {
     fn as_any(&self) -> &dyn Any;
@@ -34,25 +43,21 @@ impl<T: 'static> SelectableDowncastable for TelemetryReceiver<T> {
 }
 
 type DynamicRecvFn =
-    Box<dyn Fn(&dyn SelectableDowncastable) -> Result<Timestamped<DynamicMessage>, TelemetryError> + Send>;
+    fn(&dyn SelectableDowncastable) -> Result<Timestamped<DynamicMessage>, TelemetryError>;
+
+type TelemetrySubscriptionFn = dyn Fn(&TelemetryService) -> Result<Box<dyn SelectableDowncastable + Send>, TelemetryError>
+    + Send;
 
 pub struct LocalPlotter {
-    plotter: Plotter,
-    receivers: Vec<(
-        String,
-        Box<dyn SelectableDowncastable + Send>,
-        DynamicRecvFn,
-    )>,
-
-    ts: TelemetryService,
+    plotter: Arc<Mutex<Plotter>>,
+    channels: Vec<(String, Box<TelemetrySubscriptionFn>, DynamicRecvFn)>,
 }
 
 impl LocalPlotter {
-    pub fn new(ts: TelemetryService) -> Self {
+    pub fn new() -> Self {
         LocalPlotter {
-            plotter: Plotter::new(),
-            receivers: Vec::default(),
-            ts,
+            plotter: Arc::new(Mutex::new(Plotter::new())),
+            channels: Vec::default(),
         }
     }
 
@@ -63,25 +68,36 @@ impl LocalPlotter {
     ) -> Result<(), PlotterError> {
         let desc = T::default().descriptor();
 
-        let telem_receiver = self.ts.subcribe::<T>(channel, Capacity::Unbounded)?;
+        let channel_owned = channel.to_string();
+        let sub_fn = move |ts: &TelemetryService|  -> Result<
+            Box<dyn SelectableDowncastable + Send>,
+            TelemetryError,
+        > {
+            let receiver = ts.subscribe::<T>(channel_owned.as_str(), Capacity::Unbounded)?;
+            Ok(Box::new(receiver))
+        };
 
-        self.plotter.register(signals, channel, desc)?;
-        self.receivers.push((
+        self.plotter
+            .lock()
+            .unwrap()
+            .register(signals, channel, desc)?;
+        self.channels.push((
             channel.to_string(),
-            Box::new(telem_receiver),
-            Box::new(Self::recv_dynamic::<T>),
+            Box::new(sub_fn),
+            Self::recv_dynamic::<T>,
         ));
 
         Ok(())
     }
 
     fn receive_telemetry(
-        mut plotter: Plotter,
+        plotter: Arc<Mutex<Plotter>>,
         receivers: Vec<(
             String,
             Box<dyn SelectableDowncastable + Send>,
             DynamicRecvFn,
         )>,
+        stop: Receiver<()>,
     ) -> Result<(), PlotterError> {
         let mut select = Select::default();
 
@@ -89,7 +105,9 @@ impl LocalPlotter {
             select.add(r.upcast());
         }
 
-        loop {
+        // There's only one thread at a time, so we can keep this locked for the whole duration
+        let mut plotter = plotter.lock().unwrap();
+        while let Err(TryRecvError::Empty) = stop.try_recv() {
             let index = select.ready();
             let (channel, r, recv_fn) = receivers.get(index).unwrap();
 
@@ -103,6 +121,29 @@ impl LocalPlotter {
                 }
             }
         }
+
+        Ok(())
+    }
+
+    pub fn run(
+        &self,
+        ts: &TelemetryService,
+        stop: Receiver<()>,
+    ) -> Result<JoinHandle<Result<(), PlotterError>>> {
+        let mut receivers: Vec<(
+            String,
+            Box<dyn SelectableDowncastable + Send>,
+            DynamicRecvFn,
+        )> = vec![];
+
+        for (ch, sub_fn, recv_fn) in self.channels.iter() {
+            receivers.push((ch.clone(), sub_fn(ts)?, recv_fn.clone()));
+        }
+
+        let plotter = self.plotter.clone();
+        Ok(thread::spawn(move || -> Result<(), PlotterError> {
+            Self::receive_telemetry(plotter, receivers, stop)
+        }))
     }
 
     fn recv_dynamic<T: ReflectMessage + 'static>(
@@ -112,14 +153,8 @@ impl LocalPlotter {
             .as_any()
             .downcast_ref::<TelemetryReceiver<T>>()
             .expect("Error downcast receiver to TelemetryReceiver<T>");
-        
+
         let v = receiver.try_recv()?;
         Ok(Timestamped(v.0, v.1.transcode_to_dynamic()))
-    }
-
-    pub fn run(self) -> JoinHandle<Result<(), PlotterError>> {
-        thread::spawn(|| -> Result<(), PlotterError> {
-            Self::receive_telemetry(self.plotter, self.receivers)
-        })
     }
 }

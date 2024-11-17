@@ -1,7 +1,7 @@
 use core::f64;
 
 use crate::{
-    core::time::{Clock, Instant, Timestamp, TD},
+    core::time::{Clock, Timestamp, TD},
     crater::sim::engine::SimpleRocketEngine,
     crater_messages::{
         basic::Vec3,
