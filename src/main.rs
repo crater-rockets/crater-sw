@@ -23,7 +23,6 @@ use rust_data_inspector::{DataInspector, PlotSignals};
 #[derive(Debug, Default, Clone)]
 struct SimState {
     running: bool,
-    restarting: bool
 }
 
 fn main() -> Result<()> {
@@ -43,7 +42,7 @@ fn main() -> Result<()> {
         local_plotter.plot_channel::<AeroForces>(&mut signals, "/rocket/aero/actions")?;
     }
 
-    let (runsim_sender, runsim_receiver) = channel();
+    let (runsim_sender, runsim_receiver) = channel::<bool>();
     let simstate = Arc::new(Mutex::new(SimState::default()));
 
     let crater = {
@@ -51,52 +50,71 @@ fn main() -> Result<()> {
         let simstate = simstate.clone();
 
         thread::spawn(move || -> Result<()> {
-            while let Ok(_) = runsim_receiver.recv() {
-                simstate.lock().unwrap().running = true;
+            loop {
+                let plot_handle = {
+                    simstate.lock().unwrap().running = true;
 
-                let ts = TelemetryService::default();
-                let params_toml = fs::read_to_string("config/crater/params.toml")?;
-                let params = ParameterService::from_toml(&params_toml)?;
+                    let ts = TelemetryService::default();
+                    let params_toml = fs::read_to_string("config/crater/params.toml")?;
+                    let params = ParameterService::from_toml(&params_toml)?;
 
-                let mut nm = NodeManager::new(
-                    ts.clone(),
-                    params.clone(),
-                    HashMap::from([("rocket".to_string(), NodeConfig::default())]),
-                );
+                    let mut nm = NodeManager::new(
+                        ts.clone(),
+                        params.clone(),
+                        HashMap::from([("rocket".to_string(), NodeConfig::default())]),
+                    );
 
-                nm.add_node("rocket", |ctx| Ok(Box::new(Rocket::new("crater", ctx)?)))?;
+                    nm.add_node("rocket", |ctx| Ok(Box::new(Rocket::new("crater", ctx)?)))?;
 
-                let (stop_sender, stop_receiver) = channel();
-                let plot_handle = local_plotter.lock().unwrap().run(&ts, stop_receiver)?;
+                    let plot_handle = local_plotter.lock().unwrap().run(&ts)?;
 
-                let dt = (params.get_f64("/sim/dt")? * 1000000.0) as i64;
+                    let dt = (params.get_f64("/sim/dt")? * 1000000.0) as i64;
 
-                FtlOrderedExecutor::run_blocking(nm, TimeDelta::microseconds(dt))?;
-                let _ = stop_sender.send(());
+                    FtlOrderedExecutor::run_blocking(nm, TimeDelta::microseconds(dt))?;
+
+                    plot_handle
+                };
+
                 plot_handle.join().unwrap()?;
 
                 simstate.lock().unwrap().running = false;
+
+                // Wait for the next iteration
+                if let Ok(restart) = runsim_receiver.recv() {
+                    if !restart {
+                        break;
+                    }
+                } else {
+                    break;
+                }
             }
 
             Ok(())
         })
     };
 
-    runsim_sender.send(())?;
+    {
+        let runsim_sender = runsim_sender.clone();
+        DataInspector::run_native(
+            "plotter",
+            signals,
+            Some(
+                move |ui: &mut egui::Ui, api: &mut rust_data_inspector::DataInspectorAPI| {
+                    let enabled = !simstate.lock().unwrap().running;
+                    if ui
+                        .add_enabled(enabled, egui::Button::new("↻ Restart"))
+                        .clicked()
+                    {
+                        api.clear_timeseries();
+                        runsim_sender.send(true).unwrap();
+                    }
+                },
+            ),
+        )
+        .unwrap();
+    }
 
-    DataInspector::run_native(
-        "plotter",
-        signals,
-        Some(move |ui: &mut egui::Ui, api: &mut rust_data_inspector::DataInspectorAPI| {
-            let enabled = !simstate.lock().unwrap().running;
-            if ui.add_enabled(enabled, egui::Button::new("↻ Restart")).clicked() {
-                api.clear_timeseries();
-                runsim_sender.send(()).unwrap();
-            }
-        }),
-    )
-    .unwrap();
-
+    runsim_sender.send(false)?;
     crater.join().unwrap()?;
 
     Ok(())
