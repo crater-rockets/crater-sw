@@ -26,13 +26,13 @@ use super::{
     PlotterError,
 };
 
-trait SelectableDowncastable: Selectable {
+trait SelectableAndAny: Selectable {
     fn as_any(&self) -> &dyn Any;
 
     fn upcast(&self) -> &dyn Selectable;
 }
 
-impl<T: 'static> SelectableDowncastable for TelemetryReceiver<T> {
+impl<T: 'static> SelectableAndAny for TelemetryReceiver<T> {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -43,10 +43,10 @@ impl<T: 'static> SelectableDowncastable for TelemetryReceiver<T> {
 }
 
 type DynamicRecvFn =
-    fn(&dyn SelectableDowncastable) -> Result<Timestamped<DynamicMessage>, TelemetryError>;
+    fn(&dyn SelectableAndAny) -> Result<Timestamped<DynamicMessage>, TelemetryError>;
 
-type TelemetrySubscriptionFn = dyn Fn(&TelemetryService) -> Result<Box<dyn SelectableDowncastable + Send>, TelemetryError>
-    + Send;
+type TelemetrySubscriptionFn =
+    dyn Fn(&TelemetryService) -> Result<Box<dyn SelectableAndAny + Send>, TelemetryError> + Send;
 
 pub struct LocalPlotter {
     plotter: Arc<Mutex<Plotter>>,
@@ -70,7 +70,7 @@ impl LocalPlotter {
 
         let channel_owned = channel.to_string();
         let sub_fn = move |ts: &TelemetryService|  -> Result<
-            Box<dyn SelectableDowncastable + Send>,
+            Box<dyn SelectableAndAny + Send>,
             TelemetryError,
         > {
             let receiver = ts.subscribe::<T>(channel_owned.as_str(), Capacity::Unbounded)?;
@@ -92,11 +92,7 @@ impl LocalPlotter {
 
     fn receive_telemetry(
         plotter: Arc<Mutex<Plotter>>,
-        receivers: Vec<(
-            String,
-            Box<dyn SelectableDowncastable + Send>,
-            DynamicRecvFn,
-        )>,
+        receivers: Vec<(String, Box<dyn SelectableAndAny + Send>, DynamicRecvFn)>,
     ) -> Result<(), PlotterError> {
         let mut select = Select::default();
 
@@ -106,6 +102,7 @@ impl LocalPlotter {
 
         // There's only one thread at a time, so we can keep this locked for the whole duration
         let mut plotter = plotter.lock().unwrap();
+        let mut num_closed = 0usize;
         loop {
             let index = select.ready();
             let (channel, r, recv_fn) = receivers.get(index).unwrap();
@@ -115,7 +112,10 @@ impl LocalPlotter {
                     plotter.plot(channel.as_str(), ts.monotonic.elapsed_seconds_f64(), msg)?;
                 }
                 Err(TelemetryError::ClosedChannel) => {
-                    break;
+                    num_closed += 1;
+                    if num_closed == receivers.len() {
+                        break;
+                    }
                 }
                 Err(e) => {
                     panic!("Unexpected error when reading from telemetry: {:#?}", e);
@@ -127,11 +127,7 @@ impl LocalPlotter {
     }
 
     pub fn run(&self, ts: &TelemetryService) -> Result<JoinHandle<Result<(), PlotterError>>> {
-        let mut receivers: Vec<(
-            String,
-            Box<dyn SelectableDowncastable + Send>,
-            DynamicRecvFn,
-        )> = vec![];
+        let mut receivers: Vec<(String, Box<dyn SelectableAndAny + Send>, DynamicRecvFn)> = vec![];
 
         for (ch, sub_fn, recv_fn) in self.channels.iter() {
             receivers.push((ch.clone(), sub_fn(ts)?, recv_fn.clone()));
@@ -144,7 +140,7 @@ impl LocalPlotter {
     }
 
     fn recv_dynamic<T: ReflectMessage + 'static>(
-        receiver: &dyn SelectableDowncastable,
+        receiver: &dyn SelectableAndAny,
     ) -> Result<Timestamped<DynamicMessage>, TelemetryError> {
         let receiver = receiver
             .as_any()
