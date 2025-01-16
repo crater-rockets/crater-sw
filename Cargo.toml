@@ -16,8 +16,8 @@ thiserror = "2.0.10"
 toml = "0.8.19"
 egui = "0.30.0"
 
-rust_data_inspector = { path = "../rust-data-inspector" }
-rust_data_inspector_signals = { path = "../rust-data-inspector/rust_data_inspector_signals" }
+rust_data_inspector = { git = "https://github.com/Hixos/rust-data-inspector.git"}
+rust_data_inspector_signals = { git = "https://github.com/Hixos/rust-data-inspector.git"}
 itertools = "0.14.0"
 chrono = "0.4.38"
 nalgebra = { version = "0.33.1", features = ["macros"] }
