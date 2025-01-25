@@ -218,10 +218,10 @@ impl OdeProblem<f64, 13> for Rocket {
         ));
 
         let f_n =
-            q_nb.transform_vector(&(self.engine.thrust_b(t) + &aero.forces)) + self.params.g_n;
+            q_nb.transform_vector(&(self.engine.thrust_b(t) + &aero.forces));
         let m_b = aero.moments;
 
-        let acc_n = f_n / self.params.mass;
+        let acc_n = f_n / self.params.mass  + self.params.g_n;
 
         let qw =
             Quaternion::from_vector(Vector4::new(w_b[0] / 2.0, w_b[1] / 2.0, w_b[2] / 2.0, 0.0));
