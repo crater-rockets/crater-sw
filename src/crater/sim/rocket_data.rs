@@ -2,8 +2,8 @@ use core::f64;
 
 use anyhow::{anyhow, Result};
 use nalgebra::{
-    Matrix3, Quaternion, SVector, UnitQuaternion, Vector3, VectorView, VectorViewMut, U1, U13, U3,
-    U4,
+    Matrix3, Quaternion, SVector, UnitQuaternion, Vector3, Vector4, VectorView, VectorViewMut, U1,
+    U13, U3, U4,
 };
 
 use crate::parameters::ParameterService;
@@ -32,35 +32,41 @@ impl RocketState {
         Self(state)
     }
 
-    pub fn pos_n(&self) -> VectorView<'_, f64, U3, U1, U13> {
-        self.0.fixed_rows::<3>(0)
+    pub fn pos_n(&self) -> Vector3<f64> {
+        self.0.fixed_rows::<3>(0).clone_owned()
     }
 
-    pub fn vel_n(&self) -> VectorView<'_, f64, U3, U1, U13> {
-        self.0.fixed_rows::<3>(3)
+    pub fn vel_n(&self) -> Vector3<f64> {
+        self.0.fixed_rows::<3>(3).clone_owned()
     }
 
-    pub fn quat_nb_vec(&self) -> VectorView<'_, f64, U4, U1, U13> {
-        self.0.fixed_rows::<4>(6)
+    pub fn vel_b(&self) -> Vector3<f64> {
+        self.quat_nb()
+            .inverse_transform_vector(&self.vel_n().clone_owned())
     }
 
-    pub fn angvel_b(&self) -> VectorView<'_, f64, U3, U1, U13> {
-        self.0.fixed_rows::<3>(10)
+    pub fn quat_nb_vec(&self) -> Vector4<f64> {
+        self.0.fixed_rows::<4>(6).clone_owned()
     }
 
-    pub fn pos_n_mut(&mut self) -> VectorViewMut<'_, f64, U3, U1, U13> {
-        self.0.fixed_rows_mut::<3>(0)
-    }
-    pub fn vel_n_mut(&mut self) -> VectorViewMut<'_, f64, U3, U1, U13> {
-        self.0.fixed_rows_mut::<3>(3)
+    pub fn angvel_b(&self) -> Vector3<f64> {
+        self.0.fixed_rows::<3>(10).clone_owned()
     }
 
-    pub fn quat_nb_vec_mut(&mut self) -> VectorViewMut<'_, f64, U4, U1, U13> {
-        self.0.fixed_rows_mut::<4>(6)
+    pub fn set_pos_n(&mut self, pos_n: &Vector3<f64>) {
+        self.0.fixed_rows_mut::<3>(0).set_column(0, pos_n);
     }
 
-    pub fn angvel_b_mut(&mut self) -> VectorViewMut<'_, f64, U3, U1, U13> {
-        self.0.fixed_rows_mut::<3>(10)
+    pub fn set_vel_n(&mut self, vel_n: &Vector3<f64>) {
+        self.0.fixed_rows_mut::<3>(3).set_column(0, vel_n);
+    }
+
+    pub fn set_quat_nb_vec(&mut self, quat_nb: &Vector4<f64>) {
+        self.0.fixed_rows_mut::<4>(6).set_column(0, quat_nb);
+    }
+
+    pub fn set_angvel_b(&mut self, angvel_b: &Vector3<f64>) {
+        self.0.fixed_rows_mut::<3>(10).set_column(0, angvel_b);
     }
 
     pub fn quat_nb(&self) -> UnitQuaternion<f64> {
@@ -69,7 +75,7 @@ impl RocketState {
 
     pub fn normalize_quat(&mut self) {
         let n = self.quat_nb_vec().normalize();
-        self.quat_nb_vec_mut().set_column(0, &n);
+        self.set_quat_nb_vec(&n);
     }
 }
 

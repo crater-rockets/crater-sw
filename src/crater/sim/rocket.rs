@@ -106,12 +106,10 @@ impl OdeProblem<f64, 13> for Rocket {
 
         let w_dot = self.params.inv_inertia * (m_b + (self.params.inertia * w_b).cross(&w_b));
 
-        dstate
-            .pos_n_mut()
-            .set_column(0, &state.vel_n().clone_owned());
-        dstate.vel_n_mut().set_column(0, &acc_n);
-        dstate.quat_nb_vec_mut().set_column(0, qdot.as_vector());
-        dstate.angvel_b_mut().set_column(0, &w_dot);
+        dstate.set_pos_n(&state.vel_n());
+        dstate.set_vel_n(&acc_n);
+        dstate.set_quat_nb_vec(qdot.as_vector());
+        dstate.set_angvel_b(&w_dot);
 
         dstate.0
     }
