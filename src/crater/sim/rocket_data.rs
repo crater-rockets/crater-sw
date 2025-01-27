@@ -75,9 +75,9 @@ impl RocketState {
 
 #[derive(Debug, Clone)]
 pub struct RocketActions {
-    pub thrust: Vector3<f64>,
-    pub aero_force: Vector3<f64>,
-    pub aero_torque: Vector3<f64>,
+    pub thrust_b: Vector3<f64>,
+    pub aero_force_b: Vector3<f64>,
+    pub aero_torque_b: Vector3<f64>,
 }
 
 #[derive(Debug, Clone)]

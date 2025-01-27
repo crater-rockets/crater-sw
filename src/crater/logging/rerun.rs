@@ -1,6 +1,9 @@
 use crate::{
     core::time::Timestamp,
-    crater::sim::rocket_data::{AeroAngles, RocketActions, RocketState},
+    crater::sim::{
+        rocket::Rocket,
+        rocket_data::{AeroAngles, RocketActions, RocketState},
+    },
     telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetryService, Timestamped},
     utils::{capacity::Capacity, ringchannel::Select},
 };
@@ -80,8 +83,8 @@ impl RerunLoggerConnection {
         let mut select = Select::default();
 
         let i_rocket_state = select.add(&self.rcv_rocket_state);
-        let i_rcv_rocket_actions =  select.add(&self.rcv_rocket_actions);
-        let i_rcv_aero_angles =  select.add(&self.rcv_aero_angles);
+        let i_rcv_rocket_actions = select.add(&self.rcv_rocket_actions);
+        let i_rcv_aero_angles = select.add(&self.rcv_aero_angles);
 
         let mut open_channels = 3;
 
@@ -102,7 +105,7 @@ impl RerunLoggerConnection {
                     if let Ok(Timestamped::<RocketActions>(ts, state)) =
                         self.rcv_rocket_actions.recv()
                     {
-                        // Self::log_rocket_state(&mut self.rec, &mut self.memory, ts, state)?;
+                        Self::log_rocket_actions(&mut self.rec, &mut self.memory, ts, state)?;
                     } else {
                         select.remove(i);
                         open_channels -= 1;
@@ -110,7 +113,7 @@ impl RerunLoggerConnection {
                 }
                 i if i == i_rcv_aero_angles => {
                     if let Ok(Timestamped::<AeroAngles>(ts, state)) = self.rcv_aero_angles.recv() {
-                        // Self::log_rocket_state(&mut self.rec, &mut self.memory, ts, state)?;
+                        Self::log_aero_angles(&mut self.rec, &mut self.memory, ts, state)?;
                     } else {
                         select.remove(i);
                         open_channels -= 1;
@@ -223,6 +226,77 @@ impl RerunLoggerConnection {
                     quat.w as f32,
                 ]))),
             ),
+        )?;
+
+        Ok(())
+    }
+
+    fn log_aero_angles(
+        rec: &mut RecordingStream,
+        _: &mut Memory,
+        ts: Timestamp,
+        angles: AeroAngles,
+    ) -> Result<()> {
+        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+
+        rec.log(
+            "timeseries/aero/alpha",
+            &rerun::Scalar::new(angles.alpha.to_degrees()),
+        )?;
+
+        rec.log(
+            "timeseries/aero/beta",
+            &rerun::Scalar::new(angles.beta.to_degrees()),
+        )?;
+
+        Ok(())
+    }
+
+    fn log_rocket_actions(
+        rec: &mut RecordingStream,
+        _: &mut Memory,
+        ts: Timestamp,
+        actions: RocketActions,
+    ) -> Result<()> {
+        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+
+        rec.log(
+            "timeseries/actions/body/thrust/x",
+            &rerun::Scalar::new(actions.thrust_b[0]),
+        )?;
+        rec.log(
+            "timeseries/actions/body/thrust/y",
+            &rerun::Scalar::new(actions.thrust_b[1]),
+        )?;
+        rec.log(
+            "timeseries/actions/body/thrust/z",
+            &rerun::Scalar::new(actions.thrust_b[2]),
+        )?;
+
+        rec.log(
+            "timeseries/actions/body/aero_force/x",
+            &rerun::Scalar::new(actions.aero_force_b[0]),
+        )?;
+        rec.log(
+            "timeseries/actions/body/aero_force/y",
+            &rerun::Scalar::new(actions.aero_force_b[1]),
+        )?;
+        rec.log(
+            "timeseries/actions/body/aero_force/z",
+            &rerun::Scalar::new(actions.aero_force_b[2]),
+        )?;
+
+        rec.log(
+            "timeseries/actions/body/aero_torque/x",
+            &rerun::Scalar::new(actions.aero_torque_b[0]),
+        )?;
+        rec.log(
+            "timeseries/actions/body/aero_torque/y",
+            &rerun::Scalar::new(actions.aero_torque_b[1]),
+        )?;
+        rec.log(
+            "timeseries/actions/body/aero_torque/z",
+            &rerun::Scalar::new(actions.aero_torque_b[2]),
         )?;
 
         Ok(())

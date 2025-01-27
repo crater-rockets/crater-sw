@@ -49,9 +49,9 @@ impl RocketOutput {
         ));
 
         let actions = RocketActions {
-            thrust: engine.thrust_b(t.monotonic.elapsed_seconds_f64()),
-            aero_force: aero.forces,
-            aero_torque: aero.moments,
+            thrust_b: engine.thrust_b(t.monotonic.elapsed_seconds_f64()),
+            aero_force_b: aero.forces,
+            aero_torque_b: aero.moments,
         };
 
         self.snd_actions.send(t, actions);
