@@ -9,7 +9,7 @@ use crate::utils::capacity::Capacity;
 
 use super::{
     buffer::Buffer,
-    select::{SelectGroup, SelectToken, Selectable},
+    select::{ReadyList, SelectToken, Selectable},
 };
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -29,7 +29,7 @@ pub struct Channel<T> {
 #[derive(Debug)]
 struct ChannelInner<T> {
     receivers: Vec<(usize, Arc<ReceiverShared<T>>)>,
-    counter: usize,
+    num_receivers: usize,
     is_closed: bool,
 }
 
@@ -48,7 +48,7 @@ impl<T> Default for Channel<T> {
         Self {
             inner: Mutex::new(ChannelInner {
                 receivers: vec![],
-                counter: 0usize,
+                num_receivers: 0usize,
                 is_closed: false,
             }),
         }
@@ -59,8 +59,8 @@ impl<T> Channel<T> {
     pub fn add_receiver(capacity: Capacity, this: &Arc<Channel<T>>) -> Receiver<T> {
         let mut inner = this.inner.lock().unwrap();
 
-        let index = inner.counter;
-        inner.counter += 1;
+        let index = inner.num_receivers;
+        inner.num_receivers += 1;
 
         let shared = Arc::new(ReceiverShared::<T>::new(capacity, inner.is_closed));
 
@@ -134,7 +134,7 @@ impl<T> ReceiverShared<T> {
 struct ReceiverInner<T> {
     buf: Buffer<T>,
     closed: bool,
-    select_handle: Option<(SelectToken, SelectGroup)>,
+    select_handle: Option<(SelectToken, Arc<ReadyList>)>, // Only populated when the receiver is being selected
 }
 
 impl<T> ReceiverShared<T> {
@@ -178,10 +178,6 @@ impl<T> Receiver<T> {
             .unwrap();
 
         if inner.closed && inner.buf.is_empty() {
-            if let Some((tk, handle)) = &inner.select_handle {
-                handle.ack_close(*tk);
-            }
-
             Err(ChannelError::Closed)
         } else {
             if let Some((tk, handle)) = &inner.select_handle {
@@ -197,9 +193,6 @@ impl<T> Receiver<T> {
         let mut inner = self.shared.inner.lock().unwrap();
 
         if inner.closed && inner.buf.is_empty() {
-            if let Some((tk, handle)) = &inner.select_handle {
-                handle.ack_close(*tk);
-            }
             Err(ChannelError::Closed)
         } else if inner.buf.is_empty() {
             Err(ChannelError::Empty)
@@ -218,10 +211,14 @@ impl<T> Receiver<T> {
     pub fn capacity(&self) -> Capacity {
         self.capacity
     }
+
+    pub fn is_closed(&self) -> bool {
+        self.shared.inner.lock().unwrap().closed
+    }
 }
 
 impl<T> Selectable for Receiver<T> {
-    fn register(&self, token: SelectToken, handle: SelectGroup) {
+    fn register(&self, token: SelectToken, handle: Arc<ReadyList>) {
         let mut inner = self.shared.inner.lock().unwrap();
 
         debug_assert!(inner.select_handle.is_none());

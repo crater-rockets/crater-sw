@@ -12,57 +12,46 @@ pub struct SelectToken {
     index: usize,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct SelectGroup {
-    inner: Arc<SelectGroupInner>,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum CloseState {
+enum SelectedReceiverState {
     Open,
-    CloseSignaled,
-    CloseAcknowldged,
+    Closed,
+    Removed,
 }
 
 #[derive(Debug, Default)]
-struct SelectGroupInner {
-    ready_list: Mutex<Vec<(usize, CloseState)>>,
+pub struct ReadyList {
+    receivers_state: Mutex<Vec<(usize, SelectedReceiverState)>>,
     cv: Condvar,
 }
 
-impl SelectGroup {
+impl ReadyList {
     pub fn update(&self, token: SelectToken, nelem: usize) {
-        let mut ready_list = self.inner.ready_list.lock().unwrap();
+        let mut receivers_state = self.receivers_state.lock().unwrap();
 
-        ready_list.get_mut(token.index).unwrap().0 = nelem;
+        receivers_state.get_mut(token.index).unwrap().0 = nelem;
 
-        self.inner.cv.notify_one();
+        self.cv.notify_one();
     }
 
     pub fn close(&self, token: SelectToken) {
-        let mut ready_list = self.inner.ready_list.lock().unwrap();
+        let mut receivers_state = self.receivers_state.lock().unwrap();
 
-        ready_list.get_mut(token.index).unwrap().1 = CloseState::CloseSignaled;
+        receivers_state.get_mut(token.index).unwrap().1 = SelectedReceiverState::Closed;
 
-        self.inner.cv.notify_one();
-    }
-
-    pub fn ack_close(&self, token: SelectToken) {
-        let mut ready_list = self.inner.ready_list.lock().unwrap();
-
-        ready_list.get_mut(token.index).unwrap().1 = CloseState::CloseAcknowldged;
+        self.cv.notify_one();
     }
 }
 
 pub trait Selectable {
-    fn register(&self, token: SelectToken, handle: SelectGroup);
+    fn register(&self, token: SelectToken, ready_list: Arc<ReadyList>);
 
     fn unregister(&self);
 }
 
 pub struct Select<'a> {
-    handle: SelectGroup,
-    subscribers: Vec<(&'a dyn Selectable, SelectToken)>,
+    ready_list: Arc<ReadyList>,
+    subscribers: Vec<Option<(&'a dyn Selectable, SelectToken)>>,
     rng: ThreadRng,
 
     /// Make sure we are not "Send", as we are using our thread's ThreadId as a key to a map
@@ -72,7 +61,7 @@ pub struct Select<'a> {
 impl<'a> Default for Select<'a> {
     fn default() -> Self {
         Self {
-            handle: SelectGroup::default(),
+            ready_list: Arc::default(),
             subscribers: vec![],
             rng: ThreadRng::default(),
             not_send: PhantomData::default(),
@@ -82,72 +71,100 @@ impl<'a> Default for Select<'a> {
 
 impl<'a> Drop for Select<'a> {
     fn drop(&mut self) {
-        for (s, _) in self.subscribers.iter() {
-            s.unregister();
+        for s in self.subscribers.iter() {
+            if let Some((s, _)) = s {
+                s.unregister();
+            }
         }
     }
 }
 
 impl<'a> Select<'a> {
-    pub fn new(items: &[&'a dyn Selectable]) -> Self {
-        let mut select = Select::default();
-        for &s in items {
-            select.add(s);
-        }
-
-        select
-    }
-
+    /// Adds a selectable receiver to the Select object. The index of the selectable is returned:
+    /// a call to ready() will return the same index if this receiver is ready
     pub fn add(&mut self, selectable: &'a dyn Selectable) -> usize {
         let index = self.subscribers.len();
         let tk = SelectToken { index };
 
-        self.subscribers.push((selectable, tk));
+        self.subscribers.push(Some((selectable, tk)));
 
         {
-            let mut ready_list = self.handle.inner.ready_list.lock().unwrap();
-            ready_list.push((0, CloseState::Open));
+            let mut ready_list = self.ready_list.receivers_state.lock().unwrap();
+            ready_list.push((0, SelectedReceiverState::Open));
         }
 
-        selectable.register(tk, self.handle.clone());
+        selectable.register(tk, self.ready_list.clone());
 
         index
     }
 
-    pub fn ready(&mut self) -> usize {
-        let handle = self.handle.inner.as_ref();
+    /// Removes an existing receiver
+    /// Index of existing receivers will remain unchanged, and the index of the removed receiver will not be reused.
+    /// 
+    /// # Panics
+    /// Panics if the index does not correspond to any receiver
+    pub fn remove(&mut self, index: usize) {
+        if let Some(Some((s, _))) = self.subscribers.get(index) {
 
-        let ready_list = handle
+            let mut ready_list = self.ready_list.receivers_state.lock().unwrap();
+            let state = ready_list.get_mut(index).expect("ready_list and subscribers list mismatch!");
+            state.0 = 0;
+            state.1 = SelectedReceiverState::Removed;
+
+            s.unregister();
+            *self.subscribers.get_mut(index).unwrap() = None;
+        }else{
+            panic!("No receiver with index {index} is being selected!");
+        }
+    }
+
+    /// Blocks until one or more of the receivers is ready, returning its index.
+    /// A receiver is "ready" if a call to recv() on that receiver does not black:
+    /// that can be either because the channel is empty, or because the channel has been closed.
+    /// If multiple receivers are ready, a random one among them is returned.
+    ///
+    /// # Panics
+    /// If no receiver have been added to the Select object
+    pub fn ready(&mut self) -> usize {
+        if self.subscribers.is_empty() {
+            panic!("ready() called on an empty Select object");
+        }
+
+        let ready_list = self.ready_list.as_ref();
+
+        let ready_list = ready_list
             .cv
-            .wait_while(handle.ready_list.lock().unwrap(), |r| {
-                r.iter().all(|(n, close_state)| {
-                    *n == 0usize && !(*close_state == CloseState::CloseSignaled)
-                })
+            .wait_while(ready_list.receivers_state.lock().unwrap(), |r| {
+                r.iter()
+                    .all(|(n, close_state)| *n == 0usize && !(*close_state == SelectedReceiverState::Closed))
             })
             .unwrap();
 
         ready_list
             .iter()
             .enumerate()
-            .filter(|(_, (n, close_state))| {
-                *n > 0usize || (*close_state == CloseState::CloseSignaled)
-            })
+            .filter(|(_, (n, close_state))| *n > 0usize || (*close_state == SelectedReceiverState::Closed))
             .map(|(i, _)| i)
             .choose(&mut self.rng)
             .unwrap()
     }
 
+    /// Attempts to find a ready receiver.
+    /// If one receiver is ready, its index is returned. If more receivers are ready, a random one among them is returned.
+    /// If none are ready, an error is returned.
     pub fn try_ready(&mut self) -> Result<usize, ChannelError> {
-        let handle = self.handle.inner.as_ref();
+        if self.subscribers.is_empty() {
+            return Err(ChannelError::Empty);
+        }
 
-        let ready_list = handle.ready_list.lock().unwrap();
+        let handle = self.ready_list.as_ref();
+
+        let ready_list = handle.receivers_state.lock().unwrap();
 
         ready_list
             .iter()
             .enumerate()
-            .filter(|(_, (n, close_state))| {
-                *n > 0usize || (*close_state == CloseState::CloseSignaled)
-            })
+            .filter(|(_, (n, close_state))| *n > 0usize || (*close_state == SelectedReceiverState::Closed))
             .map(|(i, _)| i)
             .choose(&mut self.rng)
             .ok_or(ChannelError::Empty)
@@ -206,22 +223,74 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn test_select_no_receivers() {
+        let mut select = Select::default();
+
+        select.ready();
+    }
+
+    #[test]
+    fn test_select_remove_while_ready() -> Result<()>{
+        let (s1, r1) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
+        let (s2, r2) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
+
+        let mut select = Select::default();
+
+        assert_eq!(select.add(&r1), 0);
+        assert_eq!(select.add(&r2), 1);
+
+        s1.send(1);
+        s1.send(2);
+
+        assert_eq!(select.try_ready(), Ok(0));
+
+        select.remove(0);
+        assert_eq!(select.try_ready(), Err(ChannelError::Empty));
+
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_try_select_no_receivers() {
+        let mut select = Select::default();
+
+        assert_eq!(select.try_ready(), Err(ChannelError::Empty));
+    }
+
+    #[test]
     fn test_select_closed() -> Result<()> {
         let (s1, r1) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
-        let (_, r2) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
+        let (s2, r2) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
 
         let mut select = Select::default();
         select.add(&r1);
         select.add(&r2);
 
+        // No channels ready
+        assert_eq!(select.try_ready(), Err(ChannelError::Empty));
+
+        // Test reception on the second channel
+        s2.send(123);
+        assert_eq!(select.ready(), 1);
+        let _ = r2.recv();
+
+        // No channels ready again
+        assert_eq!(select.try_ready(), Err(ChannelError::Empty));
+
+        // Close the first channel
         drop(s1);
+
+        // First channel should become ready, as it is closed
         assert_eq!(select.ready(), 0);
         assert_eq!(select.try_ready(), Ok(0));
 
         assert_eq!(r1.recv(), Err(ChannelError::Closed));
 
-        // Channel being closed is not reported anymore after the channel has been read
-        assert_eq!(select.try_ready(), Err(ChannelError::Empty));
+        // A channel being closed means that it's always "ready"
+        assert_eq!(select.ready(), 0);
+        assert_eq!(select.try_ready(), Ok(0));
 
         Ok(())
     }

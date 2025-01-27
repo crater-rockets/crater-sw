@@ -10,7 +10,9 @@ use crate::{
     core::time::Timestamp,
     utils::{
         capacity::Capacity,
-        ringchannel::{channel, Channel, ChannelError, Receiver, SelectToken, Selectable, Sender},
+        ringchannel::{
+            channel, Channel, ChannelError, ReadyList, Receiver, SelectToken, Selectable, Sender,
+        },
     },
 };
 
@@ -227,8 +229,8 @@ impl TelemetryServiceInner {
 }
 
 impl<T> Selectable for TelemetryReceiver<T> {
-    fn register(&self, token: SelectToken, handle: crate::utils::ringchannel::SelectGroup) {
-        self.receiver.register(token, handle)
+    fn register(&self, token: SelectToken, ready_list: Arc<ReadyList>) {
+        self.receiver.register(token, ready_list)
     }
 
     fn unregister(&self) {
