@@ -18,7 +18,7 @@ fn main() -> Result<()> {
     let logger = RerunLogger::new(&ts)?;
 
     let simulation = thread::spawn(move || -> Result<()> {
-        let params_toml = fs::read_to_string("config/crater/params.toml")?;
+        let params_toml = fs::read_to_string("config/params.toml")?;
         let params = ParameterService::from_toml(&params_toml)?;
 
         let mut nm = NodeManager::new(
@@ -38,7 +38,7 @@ fn main() -> Result<()> {
 
     let mut log_conn = logger.connect()?;
 
-    // while let Ok(_) = log_conn.log() {}
+    log_conn.log_blocking()?;
 
     simulation.join().unwrap()?;
 

@@ -76,40 +76,43 @@ impl RerunLogger {
 }
 
 impl RerunLoggerConnection {
-    pub fn log(&mut self) -> Result<()> {
+    pub fn log_blocking(&mut self) -> Result<()> {
         let mut select = Select::default();
 
-        select.add(&self.rcv_rocket_state);
-        select.add(&self.rcv_rocket_actions);
-        select.add(&self.rcv_aero_angles);
+        let i_rocket_state = select.add(&self.rcv_rocket_state);
+        let i_rcv_rocket_actions =  select.add(&self.rcv_rocket_actions);
+        let i_rcv_aero_angles =  select.add(&self.rcv_aero_angles);
 
         let mut open_channels = 3;
 
         while open_channels > 0 {
-            let ix = select.ready();
+            let i = select.ready();
 
-            match ix {
-                0 => {
+            match i {
+                i if i == i_rocket_state => {
                     if let Ok(Timestamped::<RocketState>(ts, state)) = self.rcv_rocket_state.recv()
                     {
                         Self::log_rocket_state(&mut self.rec, &mut self.memory, ts, state)?;
                     } else {
+                        select.remove(i);
                         open_channels -= 1;
                     }
                 }
-                1 => {
+                i if i == i_rcv_rocket_actions => {
                     if let Ok(Timestamped::<RocketActions>(ts, state)) =
                         self.rcv_rocket_actions.recv()
                     {
                         // Self::log_rocket_state(&mut self.rec, &mut self.memory, ts, state)?;
                     } else {
+                        select.remove(i);
                         open_channels -= 1;
                     }
                 }
-                2 => {
+                i if i == i_rcv_aero_angles => {
                     if let Ok(Timestamped::<AeroAngles>(ts, state)) = self.rcv_aero_angles.recv() {
                         // Self::log_rocket_state(&mut self.rec, &mut self.memory, ts, state)?;
                     } else {
+                        select.remove(i);
                         open_channels -= 1;
                     }
                 }
@@ -222,6 +225,6 @@ impl RerunLoggerConnection {
             ),
         )?;
 
-        todo!()
+        Ok(())
     }
 }
