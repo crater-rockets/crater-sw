@@ -11,7 +11,7 @@ g_n = { val = [0, 0, 9.81], dtype = "f64" }
 
 [sim.rocket.crater.init]
 azimuth = { val = 170, dtype = "f64" }
-elevation = { val = 70, dtype = "f64" }
+elevation = { val = 89.9, dtype = "f64" }
 p0_n = { val = [0, 0, 0], dtype = "f64" }
 v0_b = { val = [0, 0, 0], dtype = "f64" }
 w0_b_deg = { val = [0, 0, 0], dtype = "f64" }
@@ -30,7 +30,7 @@ cY_b = { val = -24.0744, dtype = "f64" }
 cY_r = { val = 154.0, dtype = "f64" }
 cN_a = { val = 24.0744, dtype = "f64" }
 cN_q = { val = 154.0, dtype = "f64" }
-cl_0 = { val = 0, dtype = "f64" }
+cl_0 = { val = 0.03, dtype = "f64" }
 cl_p = { val = -19.0, dtype = "f64" }
 cm_a = { val = -37.2959, dtype = "f64" }
 cm_q = { val = -1813.0, dtype = "f64" }

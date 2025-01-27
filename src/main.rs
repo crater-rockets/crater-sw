@@ -1,121 +1,46 @@
+use anyhow::Result;
+use chrono::TimeDelta;
+use crater::{
+    crater::{logging::RerunLogger, sim::rocket::Rocket},
+    nodes::{FtlOrderedExecutor, NodeConfig, NodeManager},
+    parameters::ParameterService,
+    telemetry::TelemetryService,
+};
 use std::{
     collections::HashMap,
     fs,
-    sync::{atomic::AtomicBool, mpsc::channel, Arc, Mutex},
-    thread,
+    thread::{self},
 };
-
-use anyhow::Result;
-use chrono::TimeDelta;
-use quadcopter::{
-    crater::sim::rocket::Rocket,
-    crater_messages::sensors::{
-        AeroAngles, AeroForces, AngularVelocity, EulerAngles, OrientationQuat, Position, Thrust,
-        Velocity,
-    },
-    nodes::{FtlOrderedExecutor, NodeConfig, NodeManager},
-    parameters::ParameterService,
-    plot::localplotter::LocalPlotter,
-    telemetry::TelemetryService,
-};
-use rust_data_inspector::{DataInspector, PlotSignals};
-
-#[derive(Debug, Default, Clone)]
-struct SimState {
-    running: bool,
-}
 
 fn main() -> Result<()> {
-    let mut signals = PlotSignals::default();
-    let local_plotter = Arc::new(Mutex::new(LocalPlotter::new()));
+    let ts = TelemetryService::default();
 
-    {
-        let mut local_plotter = local_plotter.lock().unwrap();
-        local_plotter.plot_channel::<Position>(&mut signals, "/rocket/position")?;
-        local_plotter.plot_channel::<Velocity>(&mut signals, "/rocket/velocity_ned")?;
-        local_plotter.plot_channel::<Velocity>(&mut signals, "/rocket/velocity_body")?;
-        local_plotter.plot_channel::<AngularVelocity>(&mut signals, "/rocket/angular_vel")?;
-        local_plotter.plot_channel::<Thrust>(&mut signals, "/rocket/thrust")?;
-        local_plotter.plot_channel::<OrientationQuat>(&mut signals, "/rocket/orientation/quat")?;
-        local_plotter.plot_channel::<EulerAngles>(&mut signals, "/rocket/orientation/euler")?;
-        local_plotter.plot_channel::<AeroAngles>(&mut signals, "/rocket/aero/angles")?;
-        local_plotter.plot_channel::<AeroForces>(&mut signals, "/rocket/aero/actions")?;
-    }
+    let logger = RerunLogger::new(&ts)?;
 
-    let (runsim_sender, runsim_receiver) = channel::<bool>();
-    let simstate = Arc::new(Mutex::new(SimState::default()));
+    let simulation = thread::spawn(move || -> Result<()> {
+        let params_toml = fs::read_to_string("config/crater/params.toml")?;
+        let params = ParameterService::from_toml(&params_toml)?;
 
-    let crater = {
-        let local_plotter: Arc<Mutex<LocalPlotter>> = local_plotter.clone();
-        let simstate = simstate.clone();
+        let mut nm = NodeManager::new(
+            ts.clone(),
+            params.clone(),
+            HashMap::from([("rocket".to_string(), NodeConfig::default())]),
+        );
 
-        thread::spawn(move || -> Result<()> {
-            loop {
-                let plot_handle = {
-                    simstate.lock().unwrap().running = true;
+        nm.add_node("rocket", |ctx| Ok(Box::new(Rocket::new("crater", ctx)?)))?;
 
-                    let ts = TelemetryService::default();
-                    let params_toml = fs::read_to_string("config/crater/params.toml")?;
-                    let params = ParameterService::from_toml(&params_toml)?;
+        let dt = (params.get_f64("/sim/dt")? * 1000000.0) as i64;
 
-                    let mut nm = NodeManager::new(
-                        ts.clone(),
-                        params.clone(),
-                        HashMap::from([("rocket".to_string(), NodeConfig::default())]),
-                    );
+        FtlOrderedExecutor::run_blocking(nm, TimeDelta::microseconds(dt))?;
 
-                    nm.add_node("rocket", |ctx| Ok(Box::new(Rocket::new("crater", ctx)?)))?;
+        Ok(())
+    });
 
-                    let plot_handle = local_plotter.lock().unwrap().run(&ts)?;
+    let mut log_conn = logger.connect()?;
 
-                    let dt = (params.get_f64("/sim/dt")? * 1000000.0) as i64;
+    // while let Ok(_) = log_conn.log() {}
 
-                    FtlOrderedExecutor::run_blocking(nm, TimeDelta::microseconds(dt))?;
-
-                    plot_handle
-                };
-
-                plot_handle.join().unwrap()?;
-
-                simstate.lock().unwrap().running = false;
-
-                // Wait for the next iteration
-                if let Ok(restart) = runsim_receiver.recv() {
-                    if !restart {
-                        break;
-                    }
-                } else {
-                    break;
-                }
-            }
-
-            Ok(())
-        })
-    };
-
-    {
-        let runsim_sender = runsim_sender.clone();
-        DataInspector::run_native(
-            "plotter",
-            signals,
-            Some(
-                move |ui: &mut egui::Ui, api: &mut rust_data_inspector::DataInspectorAPI| {
-                    let enabled = !simstate.lock().unwrap().running;
-                    if ui
-                        .add_enabled(enabled, egui::Button::new("↻ Restart"))
-                        .clicked()
-                    {
-                        api.clear_timeseries();
-                        runsim_sender.send(true).unwrap();
-                    }
-                },
-            ),
-        )
-        .unwrap();
-    }
-
-    runsim_sender.send(false)?;
-    crater.join().unwrap()?;
+    simulation.join().unwrap()?;
 
     Ok(())
 }

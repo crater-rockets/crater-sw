@@ -8,7 +8,7 @@ use crate::parameters::ParameterService;
 use super::atmosphere::Atmosphere;
 
 #[allow(nonstandard_style)]
-pub struct Coefficients {
+pub struct AeroCoefficients {
     cA_0: f64,
     cA_a: f64,
     cA_b: f64,
@@ -24,7 +24,7 @@ pub struct Coefficients {
     cn_r: f64,
 }
 
-impl Coefficients {
+impl AeroCoefficients {
     pub fn from_params(basepath: &str, params: &ParameterService) -> Result<Self> {
         Ok(Self {
             cA_0: params.get_f64(format!("{basepath}/aero/cA_0").as_str())?,
@@ -50,11 +50,11 @@ pub struct AeroState {
     pub v_air_b: Vector3<f64>,
     pub v_norm: f64,
     pub w: Vector3<f64>,
-    pub h: f64,
+    pub alt: f64,
 }
 
 impl AeroState {
-    pub fn new(v_b: Vector3<f64>, v_wind_b: Vector3<f64>, w: Vector3<f64>, h: f64) -> AeroState {
+    pub fn new(v_b: Vector3<f64>, v_wind_b: Vector3<f64>, w: Vector3<f64>, alt: f64) -> AeroState {
         let v_air_b = v_b - v_wind_b;
         let v_norm = v_air_b.norm();
 
@@ -62,7 +62,7 @@ impl AeroState {
             v_air_b,
             v_norm,
             w,
-            h,
+            alt,
         }
     }
 }
@@ -78,7 +78,7 @@ pub struct Aerodynamics {
     atmosphere: Box<dyn Atmosphere + Send>,
     diameter: f64,
     surface: f64,
-    coefficients: Coefficients,
+    coefficients: AeroCoefficients,
 }
 
 impl Aerodynamics {
@@ -86,7 +86,7 @@ impl Aerodynamics {
         diameter: f64,
         surface: f64,
         atmosphere: Box<dyn Atmosphere + Send>,
-        coefficients: Coefficients,
+        coefficients: AeroCoefficients,
     ) -> Self {
         Aerodynamics {
             atmosphere,
@@ -148,7 +148,7 @@ impl Aerodynamics {
         let cm = self.coefficients.cm_a * alpha * state.v_air_b[0].signum();
         let cn = self.coefficients.cn_b * beta * state.v_air_b[0].signum();
 
-        let q_v = 0.5 * self.atmosphere.density(state.h) * state.v_norm;
+        let q_v = 0.5 * self.atmosphere.density(state.alt) * state.v_norm;
         let q = q_v * state.v_norm;
 
         let f = vector![

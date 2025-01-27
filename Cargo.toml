@@ -1,5 +1,5 @@
 [package]
-name = "quadcopter"
+name = "crater"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,8 +7,6 @@ edition = "2021"
 anyhow = "1.0.89"
 bytes = "1.7.2"
 once_cell = "1.19.0"
-prost = "0.13.3"
-prost-reflect = { version = "0.14.2", features = ["derive"] }
 rand = "0.8.5"
 ringbuffer = "0.15.0"
 serde = { version = "1.0.210", features = ["derive"] }
@@ -16,14 +14,10 @@ thiserror = "2.0.10"
 toml = "0.8.19"
 egui = "0.30.0"
 
-rust_data_inspector = { git = "https://github.com/Hixos/rust-data-inspector.git"}
-rust_data_inspector_signals = { git = "https://github.com/Hixos/rust-data-inspector.git"}
 itertools = "0.14.0"
 chrono = "0.4.38"
 nalgebra = { version = "0.33.1", features = ["macros"] }
 num-traits = "0.2.19"
 approx = "0.5.1"
-
-[build-dependencies]
-prost-build = "0.13.3"
-prost-reflect-build = "0.14.0"
+rerun = "0.21.0"
+map_3d = "0.1.5"

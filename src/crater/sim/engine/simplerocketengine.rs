@@ -1,9 +1,5 @@
 use nalgebra::Vector3;
-
-pub trait RocketEngine {
-    /// Thrust of the rocket at time tburn, in the body frame
-    fn thrust_b(&self, t: f64) -> Vector3<f64>;
-}
+use super::engine::RocketEngine;
 
 pub struct SimpleRocketEngine {
     duration: f64,
@@ -27,7 +23,7 @@ impl RocketEngine for SimpleRocketEngine {
     fn thrust_b(&self, t: f64) -> Vector3<f64> {
         if t >= 0.0 && t <= self.duration {
             Vector3::new(self.thrust, 0.0, 0.0)
-        }else{
+        } else {
             Vector3::zeros()
         }
     }

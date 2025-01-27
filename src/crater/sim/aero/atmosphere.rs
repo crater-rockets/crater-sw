@@ -1,14 +1,14 @@
 pub trait Atmosphere {
-    fn pressure(&self, h: f64) -> f64;
-    fn density(&self, h: f64) -> f64;
-    fn temperature(&self, h: f64) -> f64;
+    fn pressure(&self, alt: f64) -> f64;
+    fn density(&self, alt: f64) -> f64;
+    fn temperature(&self, alt: f64) -> f64;
 }
 
 pub struct AtmosphereIsa {
     pressure_0: f64,
     temperature_0: f64,
     density_0: f64,
-    h_0: f64,
+    alt_0: f64,
     g_0: f64,
     specific_gas_constant: f64,
     a: f64,
@@ -20,7 +20,7 @@ impl Default for AtmosphereIsa {
             pressure_0: 101325.0,
             temperature_0: 288.15,
             density_0: 1.2250,
-            h_0: 0.0,
+            alt_0: 0.0,
             g_0: 9.80665,
             specific_gas_constant: 287.052874,
             a: -0.0065,
@@ -33,7 +33,7 @@ impl AtmosphereIsa {
         pressure_0: f64,
         temperature_0: f64,
         density_0: f64,
-        h_0: f64,
+        alt_0: f64,
         g_0: f64,
         molar_gas_constant: f64,
         a: f64,
@@ -42,7 +42,7 @@ impl AtmosphereIsa {
             pressure_0,
             temperature_0,
             density_0,
-            h_0,
+            alt_0,
             g_0,
             specific_gas_constant: molar_gas_constant,
             a,
@@ -51,28 +51,27 @@ impl AtmosphereIsa {
 }
 
 impl Atmosphere for AtmosphereIsa {
-    fn pressure(&self, h: f64) -> f64 {
+    fn pressure(&self, alt: f64) -> f64 {
         let exponent = -self.g_0 / (self.a * self.specific_gas_constant);
-        let t = self.temperature(h);
+        let t = self.temperature(alt);
         (t / self.temperature_0).powf(exponent) * self.pressure_0
     }
 
-    fn temperature(&self, h: f64) -> f64 {
-        self.temperature_0 + self.a * (h - self.h_0)
+    fn temperature(&self, alt: f64) -> f64 {
+        self.temperature_0 + self.a * (alt - self.alt_0)
     }
 
-    fn density(&self, h: f64) -> f64 {
+    fn density(&self, alt: f64) -> f64 {
         let exponent = -(self.g_0 / (self.a * self.specific_gas_constant) + 1.0);
-        let t = self.temperature(h);
+        let t = self.temperature(alt);
         (t / self.temperature_0).powf(exponent) * self.density_0
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::AtmosphereIsa;
-    use crate::crater::sim::atmosphere::Atmosphere;
     use approx::assert_relative_eq;
+    use super::*;
 
     #[test]
     fn test_default_isa_temperature() {

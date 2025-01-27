@@ -98,7 +98,7 @@ impl<'a> Select<'a> {
         select
     }
 
-    pub fn add(&mut self, selectable: &'a dyn Selectable) {
+    pub fn add(&mut self, selectable: &'a dyn Selectable) -> usize {
         let index = self.subscribers.len();
         let tk = SelectToken { index };
 
@@ -110,6 +110,8 @@ impl<'a> Select<'a> {
         }
 
         selectable.register(tk, self.handle.clone());
+
+        index
     }
 
     pub fn ready(&mut self) -> usize {
