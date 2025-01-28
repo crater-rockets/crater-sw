@@ -59,8 +59,8 @@ impl RocketOutput {
         self.snd_aeroangles.send(
             t,
             AeroAngles {
-                alpha: aero.alpha.to_degrees(),
-                beta: aero.beta.to_degrees(),
+                alpha: aero.alpha,
+                beta: aero.beta,
             },
         );
     }
