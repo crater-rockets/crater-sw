@@ -314,23 +314,18 @@ impl RerunLoggerConnection {
         let thrust_scaled = actions.thrust_b / 20.0;
         let aero_force_scaled = actions.aero_force_b / 1.0;
 
-        let forces = [
-            vec3_to_slice(&thrust_scaled),
-            vec3_to_slice(&aero_force_scaled),
-        ];
-
-        let colors = [
-            rerun::Color::from_rgb(255, 0, 0),
-            rerun::Color::from_rgb(0, 0, 255),
-        ];
-
-        let origins = [[2.0, 0.0, 0.0], [0.0, 0.0, 0.0]];
+        rec.log(
+            "objects/vectors/thurst",
+            &rerun::Arrows3D::from_vectors([vec3_to_slice(&thrust_scaled)])
+                .with_colors([rerun::Color::from_rgb(255, 0, 0)])
+                .with_origins([[2.0, 0.0, 0.0]]),
+        )?;
 
         rec.log(
-            "objects/vectors/forces",
-            &rerun::Arrows3D::from_vectors(forces)
-                .with_colors(colors)
-                .with_origins(origins),
+            "objects/vectors/aero_forces",
+            &rerun::Arrows3D::from_vectors([vec3_to_slice(&aero_force_scaled)])
+                .with_colors([rerun::Color::from_rgb(0, 0, 255)])
+                .with_origins([[0.0, 0.0, 0.0]]),
         )?;
 
         Ok(())
