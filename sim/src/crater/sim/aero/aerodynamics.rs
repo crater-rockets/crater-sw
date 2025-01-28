@@ -1,9 +1,9 @@
-use core::f64;
 use anyhow::Result;
+use core::f64;
 use nalgebra::{vector, Vector3};
 use num_traits::Pow;
 
-use crate::parameters::ParameterService;
+use crate::{crater::sim::gnc::ServoPosition, parameters::ParameterService};
 
 use super::atmosphere::Atmosphere;
 
@@ -96,11 +96,11 @@ impl Aerodynamics {
         }
     }
 
-    pub fn calc(&self, state: &AeroState) -> AerodynamicsResult {
+    pub fn calc(&self, state: &AeroState, servo_pos: &ServoPosition) -> AerodynamicsResult {
         let alpha = self.alpha(state);
         let beta = self.beta(state);
 
-        let (forces, moments) = self.actions(alpha, beta, state);
+        let (forces, moments) = self.actions(alpha, beta, state, servo_pos);
 
         AerodynamicsResult {
             alpha,
@@ -136,6 +136,7 @@ impl Aerodynamics {
         alpha: f64,
         beta: f64,
         state: &AeroState,
+        _: &ServoPosition,
     ) -> (Vector3<f64>, Vector3<f64>) {
         let cA = (self.coefficients.cA_0
             + self.coefficients.cA_a * alpha.pow(2.0)

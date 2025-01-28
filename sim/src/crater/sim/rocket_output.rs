@@ -7,6 +7,7 @@ use crate::{
 use super::{
     aero::aerodynamics::{AeroState, Aerodynamics},
     engine::engine::RocketEngine,
+    gnc::ServoPosition,
     rocket_data::{AeroAngles, RocketActions, RocketParams, RocketState},
 };
 use anyhow::Result;
@@ -33,25 +34,31 @@ impl RocketOutput {
         &self,
         t: Timestamp,
         state: &RocketState,
+        d_state: &RocketState, // State derivative over time
+        servo_pos: &ServoPosition,
         engine: &dyn RocketEngine,
         _: &RocketParams,
         aerodynamics: &Aerodynamics,
     ) {
         self.snd_state.send(t, state.clone());
 
-        let aero = aerodynamics.calc(&AeroState::new(
-            state
-                .quat_nb()
-                .inverse_transform_vector(&state.vel_n().clone_owned()),
-            Vector3::zeros(),
-            state.angvel_b().clone_owned(),
-            state.pos_n()[2],
-        ));
+        let aero = aerodynamics.calc(
+            &AeroState::new(
+                state
+                    .quat_nb()
+                    .inverse_transform_vector(&state.vel_n().clone_owned()),
+                Vector3::zeros(),
+                state.angvel_b().clone_owned(),
+                state.pos_n()[2],
+            ),
+            servo_pos,
+        );
 
         let actions = RocketActions {
             thrust_b: engine.thrust_b(t.monotonic.elapsed_seconds_f64()),
             aero_force_b: aero.forces,
             aero_torque_b: aero.moments,
+            acc_b: d_state.vel_b(),
         };
 
         self.snd_actions.send(t, actions);

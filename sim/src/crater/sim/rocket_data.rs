@@ -1,10 +1,7 @@
 use core::f64;
 
 use anyhow::{anyhow, Result};
-use nalgebra::{
-    Matrix3, Quaternion, SVector, UnitQuaternion, Vector3, Vector4, VectorView, VectorViewMut, U1,
-    U13, U3, U4,
-};
+use nalgebra::{Matrix3, Quaternion, SVector, UnitQuaternion, Vector3, Vector4};
 
 use crate::parameters::ParameterService;
 
@@ -79,11 +76,13 @@ impl RocketState {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct RocketActions {
     pub thrust_b: Vector3<f64>,
     pub aero_force_b: Vector3<f64>,
     pub aero_torque_b: Vector3<f64>,
+
+    pub acc_b: Vector3<f64>, // Acceleration
 }
 
 #[derive(Debug, Clone)]
@@ -92,6 +91,7 @@ pub struct AeroAngles {
     pub beta: f64,
 }
 
+#[derive(Debug, Clone)]
 pub struct RocketParams {
     pub mass: f64,
     pub inertia: Matrix3<f64>,

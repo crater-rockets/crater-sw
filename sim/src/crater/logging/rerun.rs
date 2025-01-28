@@ -1,6 +1,9 @@
 use crate::{
     core::time::Timestamp,
-    crater::sim::rocket_data::{AeroAngles, RocketActions, RocketState},
+    crater::sim::{
+        gnc::ServoPosition,
+        rocket_data::{AeroAngles, RocketActions, RocketState},
+    },
     telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetryService, Timestamped},
     utils::{capacity::Capacity, ringchannel::Select},
 };
@@ -10,16 +13,18 @@ use nalgebra::Vector3;
 use rerun::{components::RotationQuat, Quaternion, RecordingStream};
 
 pub struct RerunLogger {
+    receivers: Receivers,
+}
+
+struct Receivers {
     rocket_state: TelemetryReceiver<RocketState>,
     rocket_actions: TelemetryReceiver<RocketActions>,
     aero_angles: TelemetryReceiver<AeroAngles>,
+    control_servo_cmd: TelemetryReceiver<ServoPosition>,
+    actuator_servo_pos: TelemetryReceiver<ServoPosition>,
 }
-
 pub struct RerunLoggerConnection {
-    rcv_rocket_state: TelemetryReceiver<RocketState>,
-    rcv_rocket_actions: TelemetryReceiver<RocketActions>,
-    rcv_aero_angles: TelemetryReceiver<AeroAngles>,
-
+    rx: Receivers,
     rec: RecordingStream,
 
     memory: Memory,
@@ -35,16 +40,15 @@ struct Memory {
 
 impl RerunLogger {
     pub fn new(ts: &TelemetryService) -> Result<Self> {
-        let rocket_state = ts.subscribe::<RocketState>("/rocket/state", Capacity::Unbounded)?;
-        let rocket_actions =
-            ts.subscribe::<RocketActions>("/rocket/actions", Capacity::Unbounded)?;
-        let aero_angles = ts.subscribe::<AeroAngles>("/rocket/aero_angles", Capacity::Unbounded)?;
+        let receivers = Receivers {
+            rocket_state: ts.subscribe("/rocket/state", Capacity::Unbounded)?,
+            rocket_actions: ts.subscribe("/rocket/actions", Capacity::Unbounded)?,
+            aero_angles: ts.subscribe("/rocket/aero_angles", Capacity::Unbounded)?,
+            control_servo_cmd: ts.subscribe("/gnc/control/servo_command", Capacity::Unbounded)?,
+            actuator_servo_pos: ts.subscribe("/actuators/servo_position", Capacity::Unbounded)?,
+        };
 
-        Ok(RerunLogger {
-            rocket_state,
-            rocket_actions,
-            aero_angles,
-        })
+        Ok(RerunLogger { receivers })
     }
 
     pub fn connect(self) -> Result<RerunLoggerConnection> {
@@ -61,9 +65,7 @@ impl RerunLogger {
         )?;
 
         let conn = RerunLoggerConnection {
-            rcv_rocket_state: self.rocket_state,
-            rcv_rocket_actions: self.rocket_actions,
-            rcv_aero_angles: self.aero_angles,
+            rx: self.receivers,
             rec,
             memory: Memory::default(),
             origin: [
@@ -81,9 +83,11 @@ impl RerunLoggerConnection {
     pub fn log_blocking(&mut self) -> Result<()> {
         let mut select = Select::default();
 
-        let i_rocket_state = select.add(&self.rcv_rocket_state);
-        let i_rcv_rocket_actions = select.add(&self.rcv_rocket_actions);
-        let i_rcv_aero_angles = select.add(&self.rcv_aero_angles);
+        let i_rocket_state = select.add(&self.rx.rocket_state);
+        let i_rcv_rocket_actions = select.add(&self.rx.rocket_actions);
+        let i_rcv_aero_angles = select.add(&self.rx.aero_angles);
+        let i_control_servo_cmd = select.add(&self.rx.control_servo_cmd);
+        let i_actuator_servo_pos = select.add(&self.rx.actuator_servo_pos);
 
         let mut open_channels = 3;
 
@@ -92,8 +96,7 @@ impl RerunLoggerConnection {
 
             match i {
                 i if i == i_rocket_state => {
-                    if let Ok(Timestamped::<RocketState>(ts, state)) = self.rcv_rocket_state.recv()
-                    {
+                    if let Ok(Timestamped(ts, state)) = self.rx.rocket_state.recv() {
                         Self::log_rocket_state(&mut self.rec, &mut self.memory, ts, state)?;
                     } else {
                         select.remove(i);
@@ -101,9 +104,7 @@ impl RerunLoggerConnection {
                     }
                 }
                 i if i == i_rcv_rocket_actions => {
-                    if let Ok(Timestamped::<RocketActions>(ts, state)) =
-                        self.rcv_rocket_actions.recv()
-                    {
+                    if let Ok(Timestamped(ts, state)) = self.rx.rocket_actions.recv() {
                         Self::log_rocket_actions(&mut self.rec, &mut self.memory, ts, state)?;
                     } else {
                         select.remove(i);
@@ -111,8 +112,36 @@ impl RerunLoggerConnection {
                     }
                 }
                 i if i == i_rcv_aero_angles => {
-                    if let Ok(Timestamped::<AeroAngles>(ts, state)) = self.rcv_aero_angles.recv() {
+                    if let Ok(Timestamped(ts, state)) = self.rx.aero_angles.recv() {
                         Self::log_aero_angles(&mut self.rec, &mut self.memory, ts, state)?;
+                    } else {
+                        select.remove(i);
+                        open_channels -= 1;
+                    }
+                }
+                i if i == i_actuator_servo_pos => {
+                    if let Ok(Timestamped(ts, servo_pos)) = self.rx.actuator_servo_pos.recv() {
+                        Self::log_servo_pos(
+                            "/timeseries/servo_position",
+                            &mut self.rec,
+                            &mut self.memory,
+                            ts,
+                            servo_pos,
+                        )?;
+                    } else {
+                        select.remove(i);
+                        open_channels -= 1;
+                    }
+                }
+                i if i == i_control_servo_cmd => {
+                    if let Ok(Timestamped(ts, servo_pos)) = self.rx.control_servo_cmd.recv() {
+                        Self::log_servo_pos(
+                            "/timeseries/servo_command",
+                            &mut self.rec,
+                            &mut self.memory,
+                            ts,
+                            servo_pos,
+                        )?;
                     } else {
                         select.remove(i);
                         open_channels -= 1;
@@ -326,6 +355,33 @@ impl RerunLoggerConnection {
             &rerun::Arrows3D::from_vectors([vec3_to_slice(&aero_force_scaled)])
                 .with_colors([rerun::Color::from_rgb(0, 0, 255)])
                 .with_origins([[0.0, 0.0, 0.0]]),
+        )?;
+
+        Ok(())
+    }
+
+    fn log_servo_pos(
+        ent_path: &str,
+        rec: &mut RecordingStream,
+        _: &mut Memory,
+        ts: Timestamp,
+        servo_pos: ServoPosition,
+    ) -> Result<()> {
+        rec.log(
+            format!("{}/1", ent_path),
+            &rerun::Scalar::new(servo_pos.servo_positions[0]),
+        )?;
+        rec.log(
+            format!("{}/2", ent_path),
+            &rerun::Scalar::new(servo_pos.servo_positions[1]),
+        )?;
+        rec.log(
+            format!("{}/3", ent_path),
+            &rerun::Scalar::new(servo_pos.servo_positions[2]),
+        )?;
+        rec.log(
+            format!("{}/4", ent_path),
+            &rerun::Scalar::new(servo_pos.servo_positions[3]),
         )?;
 
         Ok(())

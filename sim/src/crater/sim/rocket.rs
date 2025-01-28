@@ -1,5 +1,6 @@
 use super::{
     engine::{engine::RocketEngine, SimpleRocketEngine},
+    gnc::ServoPosition,
     rocket_data::{RocketParams, RocketState},
     rocket_output::RocketOutput,
 };
@@ -11,6 +12,8 @@ use crate::{
     },
     math::ode::{OdeProblem, OdeSolver, RungeKutta4},
     nodes::{Node, NodeContext, StepResult},
+    telemetry::{TelemetryDispatcher, TelemetryReceiver, Timestamped},
+    utils::capacity::Capacity::Unbounded,
 };
 use anyhow::{anyhow, Result};
 use chrono::TimeDelta;
@@ -20,11 +23,19 @@ use nalgebra::{Quaternion, SVector, Vector3, Vector4};
 pub struct Rocket {
     params: RocketParams,
     state: RocketState,
+    step_state: StepState,
 
     engine: Box<dyn RocketEngine + Send>,
     aerodynamics: Aerodynamics,
 
+    rx_servo_pos: TelemetryReceiver<ServoPosition>,
     output: RocketOutput,
+}
+
+/// Variables allowed to change between steps, but not within a step (more precisely, during integration of a single step)
+#[derive(Debug, Clone, Default)]
+struct StepState {
+    servo_pos: ServoPosition,
 }
 
 impl Rocket {
@@ -65,6 +76,9 @@ impl Rocket {
             aero_coefficients,
         );
 
+        let rx_servo_pos = ctx
+            .telemetry()
+            .subscribe("/actuators/servo_position", Unbounded)?;
         let output = RocketOutput::new(ctx.telemetry())?;
 
         Ok(Rocket {
@@ -72,7 +86,9 @@ impl Rocket {
             params,
             aerodynamics,
             state,
+            rx_servo_pos,
             output,
+            step_state: StepState::default(),
         })
     }
 }
@@ -88,12 +104,15 @@ impl OdeProblem<f64, 13> for Rocket {
         let vel_b = q_nb.inverse_transform_vector(&state.vel_n().clone_owned());
         let w_b = state.angvel_b();
 
-        let aero = self.aerodynamics.calc(&AeroState::new(
-            vel_b,
-            Vector3::zeros(),
-            w_b.clone_owned(),
-            -state.pos_n()[2],
-        ));
+        let aero = self.aerodynamics.calc(
+            &AeroState::new(
+                vel_b,
+                Vector3::zeros(),
+                w_b.clone_owned(),
+                -state.pos_n()[2],
+            ),
+            &self.step_state.servo_pos,
+        );
 
         let f_n = q_nb.transform_vector(&(self.engine.thrust_b(t) + &aero.forces));
         let m_b = aero.moments;
@@ -124,12 +143,17 @@ impl Node for Rocket {
             self.output.update(
                 t,
                 &self.state,
+                &RocketState::default(),
+                &ServoPosition::default(),
                 &*self.engine,
                 &self.params,
                 &self.aerodynamics,
             );
             return Ok(StepResult::Continue);
         }
+
+        let Timestamped(_, servo_pos) = self.rx_servo_pos.recv()?;
+        self.step_state.servo_pos = servo_pos.clone();
 
         let next = RungeKutta4.solve(
             self,
@@ -139,11 +163,18 @@ impl Node for Rocket {
         );
 
         self.state.0 = next;
+
+        // Normalize quaternion agains numerical errors
         self.state.normalize_quat();
 
         self.output.update(
             t,
             &self.state,
+            &RocketState(self.odefun(
+                t.monotonic.elapsed_seconds_f64(),
+                self.state.0.clone_owned(),
+            )),
+            &servo_pos,
             &*self.engine,
             &self.params,
             &self.aerodynamics,

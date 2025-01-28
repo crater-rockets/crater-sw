@@ -1,15 +1,31 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::TimeDelta;
 use crater::{
-    crater::{logging::RerunLogger, sim::rocket::Rocket},
+    crater::{
+        logging::RerunLogger,
+        sim::{actuators::ideal::IdealServo, gnc::openloop::OpenloopControl, rocket::Rocket},
+    },
     nodes::{FtlOrderedExecutor, NodeConfig, NodeManager},
     parameters::ParameterService,
     telemetry::TelemetryService,
 };
 use log::{debug, info};
 use std::{
-    collections::HashMap, env, fs, thread::{self}, time::Instant
+    collections::HashMap,
+    env, fs,
+    thread::{self},
+    time::Instant,
 };
+
+fn build_model(nm: &mut NodeManager) -> Result<()> {
+    nm.add_node("rocket", |ctx| Ok(Box::new(Rocket::new("crater", ctx)?)))?;
+    nm.add_node("openloop_control", |ctx| {
+        Ok(Box::new(OpenloopControl::new(ctx)?))
+    })?;
+    nm.add_node("ideal_servo", |ctx| Ok(Box::new(IdealServo::new(ctx)?)))?;
+
+    Ok(())
+}
 
 fn main() -> Result<()> {
     // Default log level to "info"
@@ -37,10 +53,13 @@ fn main() -> Result<()> {
         let mut nm = NodeManager::new(
             ts.clone(),
             params.clone(),
-            HashMap::from([("rocket".to_string(), NodeConfig::default())]),
+            HashMap::from([
+                ("rocket".to_string(), NodeConfig::default()),
+                ("openloop_control".to_string(), NodeConfig::default()),
+                ("ideal_servo".to_string(), NodeConfig::default()),
+            ]),
         );
-
-        nm.add_node("rocket", |ctx| Ok(Box::new(Rocket::new("crater", ctx)?)))?;
+        build_model(&mut nm)?;
 
         let dt_sec = params.get_f64("/sim/dt")?;
         let dt = (dt_sec * 1000000.0) as i64;
@@ -65,6 +84,7 @@ fn main() -> Result<()> {
     info!("Rerun connected!");
 
     log_conn.log_blocking()?;
+
 
     info!("Rerun log completed");
     simulation.join().unwrap()?;
