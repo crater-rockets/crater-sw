@@ -1,14 +1,12 @@
 use crate::{
     core::time::Timestamp,
-    crater::sim::{
-        rocket::Rocket,
-        rocket_data::{AeroAngles, RocketActions, RocketState},
-    },
+    crater::sim::rocket_data::{AeroAngles, RocketActions, RocketState},
     telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetryService, Timestamped},
     utils::{capacity::Capacity, ringchannel::Select},
 };
 use anyhow::Result;
 use map_3d::ned2geodetic;
+use nalgebra::Vector3;
 use rerun::{components::RotationQuat, Quaternion, RecordingStream};
 
 pub struct RerunLogger {
@@ -32,6 +30,7 @@ pub struct RerunLoggerConnection {
 struct Memory {
     trajectory_ned_3d: Vec<[f32; 3]>,
     trajectory_geodetic: Vec<[f64; 2]>,
+    ts_last_element: f64,
 }
 
 impl RerunLogger {
@@ -140,13 +139,7 @@ impl RerunLoggerConnection {
             1411.211,
         ];
         let pos = state.pos_n();
-
-        // Keep history of 3D position to display a 3D trajectory in Rerun
-        memory
-            .trajectory_ned_3d
-            .push([pos[0] as f32, pos[1] as f32, pos[2] as f32]);
-
-        // Keep history of latitude and longitude to display trajectory over a map
+        let pos_f32 = vec3_to_slice(&pos.clone_owned());
         let (lat, lon, _) = ned2geodetic(
             pos[0],
             pos[1],
@@ -157,15 +150,12 @@ impl RerunLoggerConnection {
             map_3d::Ellipsoid::WGS84,
         );
 
-        memory
-            .trajectory_geodetic
-            .push([lat.to_degrees(), lon.to_degrees()]);
-
-        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+        let ts_seconds = ts.monotonic.elapsed_seconds_f64();
+        rec.set_time_seconds("sim_time", ts_seconds);
 
         rec.log(
             "/frame/body_centered",
-            &rerun::Transform3D::from_translation(memory.trajectory_ned_3d.last().unwrap()),
+            &rerun::Transform3D::from_translation(pos_f32),
         )?;
 
         // Position
@@ -194,39 +184,61 @@ impl RerunLoggerConnection {
             &rerun::Scalar::new(euler.0.to_degrees()),
         )?;
 
-        // Trajectory lines
-        rec.log(
-            "trajectory/ned_3d",
-            &rerun::LineStrips3D::new([memory.trajectory_ned_3d.as_slice()]),
-        )?;
+        // Log trajectory less frequently, as every log contains the full position history, making logs huge
+        if memory.ts_last_element == 0.0 || ts_seconds - memory.ts_last_element >= 0.1 {
+            memory.ts_last_element = ts_seconds;
 
-        rec.log(
-            "trajectory/geodetic",
-            &rerun::GeoLineStrings::from_lat_lon([memory.trajectory_geodetic.as_slice()]),
-        )?;
+            // Keep history of 3D position to display a 3D trajectory in Rerun
+            memory
+                .trajectory_ned_3d
+                .push([pos[0] as f32, pos[1] as f32, pos[2] as f32]);
+
+            // Keep history of latitude and longitude to display trajectory over a map
+            memory
+                .trajectory_geodetic
+                .push([lat.to_degrees(), lon.to_degrees()]);
+
+            // Trajectory lines
+            rec.log(
+                "trajectory/ned_3d",
+                &rerun::LineStrips3D::new([memory.trajectory_ned_3d.as_slice()]),
+            )?;
+
+            rec.log(
+                "trajectory/geodetic",
+                &rerun::GeoLineStrings::from_lat_lon([memory.trajectory_geodetic.as_slice()]),
+            )?;
+        }
 
         // Current location point for map plot
-        let last_pos_geo = memory.trajectory_geodetic.last().unwrap();
         rec.log(
             "objects/position_geodetic",
-            &rerun::GeoPoints::from_lat_lon([(last_pos_geo[0], last_pos_geo[1])])
+            &rerun::GeoPoints::from_lat_lon([(lat, lon)])
                 .with_radii([rerun::Radius::new_ui_points(10.0)])
                 .with_colors([rerun::Color::from_rgb(255, 0, 0)]),
         )?;
 
-        // Transform
+        // Velocity vector
         rec.log(
-            "rocket",
-            &rerun::Transform3D::from_translation_rotation(
-                memory.trajectory_ned_3d.last().unwrap(),
-                rerun::Rotation3D::Quaternion(RotationQuat(Quaternion([
-                    quat.i as f32,
-                    quat.j as f32,
-                    quat.k as f32,
-                    quat.w as f32,
-                ]))),
-            ),
+            "objects/vectors/velocity",
+            &rerun::Arrows3D::from_vectors([vec3_to_slice(&(state.vel_b() / 10.0))])
+                .with_colors([rerun::Color::from_rgb(0, 255, 0)])
+                .with_origins([[0.0, 0.0, 0.0]]),
         )?;
+
+        // Transform
+        let body_transform = rerun::Transform3D::from_translation_rotation(
+            pos_f32,
+            rerun::Rotation3D::Quaternion(RotationQuat(Quaternion([
+                quat.i as f32,
+                quat.j as f32,
+                quat.k as f32,
+                quat.w as f32,
+            ]))),
+        );
+
+        rec.log("rocket", &body_transform)?;
+        rec.log("objects/vectors", &body_transform)?;
 
         Ok(())
     }
@@ -299,6 +311,32 @@ impl RerunLoggerConnection {
             &rerun::Scalar::new(actions.aero_torque_b[2]),
         )?;
 
+        let thrust_scaled = actions.thrust_b / 20.0;
+        let aero_force_scaled = actions.aero_force_b / 1.0;
+
+        let forces = [
+            vec3_to_slice(&thrust_scaled),
+            vec3_to_slice(&aero_force_scaled),
+        ];
+
+        let colors = [
+            rerun::Color::from_rgb(255, 0, 0),
+            rerun::Color::from_rgb(0, 0, 255),
+        ];
+
+        let origins = [[2.0, 0.0, 0.0], [0.0, 0.0, 0.0]];
+
+        rec.log(
+            "objects/vectors/forces",
+            &rerun::Arrows3D::from_vectors(forces)
+                .with_colors(colors)
+                .with_origins(origins),
+        )?;
+
         Ok(())
     }
+}
+
+fn vec3_to_slice(vec: &Vector3<f64>) -> [f32; 3] {
+    [vec[0] as f32, vec[1] as f32, vec[2] as f32]
 }
