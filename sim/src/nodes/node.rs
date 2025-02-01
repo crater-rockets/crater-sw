@@ -16,8 +16,8 @@ pub enum Error {
     #[error("Missing configuration for node {0}")]
     MissingConfig(String),
 
-    #[error("Error instantiating node: {0}")]
-    NodeInstantiation(Box<dyn std::error::Error + Send + Sync>),
+    #[error(transparent)]
+    NodeInstantiation(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 pub enum StepResult {
@@ -76,7 +76,7 @@ impl NodeManager {
 
         self.nodes.push((
             name.to_string(),
-            creator(context).map_err(|e| Error::NodeInstantiation(e))?,
+            creator(context).expect(format!("Error creating node '{name}'").as_str()),
         ));
 
         Ok(())

@@ -1,0 +1,7 @@
+[[actuations]]
+time = 5
+control_pos_mixed = [0, 10, 0, 0]
+
+[[actuations]]
+time = 10
+control_pos_mixed = [0, 0, 0, 0]

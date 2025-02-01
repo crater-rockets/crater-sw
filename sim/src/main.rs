@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use chrono::TimeDelta;
 use crater::{
     crater::{
@@ -9,7 +9,7 @@ use crater::{
     parameters::ParameterService,
     telemetry::TelemetryService,
 };
-use log::{debug, info};
+use log::info;
 use std::{
     collections::HashMap,
     env, fs,
@@ -59,7 +59,7 @@ fn main() -> Result<()> {
                 ("ideal_servo".to_string(), NodeConfig::default()),
             ]),
         );
-        build_model(&mut nm)?;
+        build_model(&mut nm).expect("Error building model");
 
         let dt_sec = params.get_f64("/sim/dt")?;
         let dt = (dt_sec * 1000000.0) as i64;
@@ -84,7 +84,6 @@ fn main() -> Result<()> {
     info!("Rerun connected!");
 
     log_conn.log_blocking()?;
-
 
     info!("Rerun log completed");
     simulation.join().unwrap()?;

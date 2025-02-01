@@ -333,6 +333,19 @@ impl RerunLoggerConnection {
             &rerun::Scalar::new(actions.aero_torque_b[2]),
         )?;
 
+        rec.log(
+            "timeseries/actions/body/acc/x",
+            &rerun::Scalar::new(actions.acc_b[0]),
+        )?;
+        rec.log(
+            "timeseries/actions/body/acc/y",
+            &rerun::Scalar::new(actions.acc_b[1]),
+        )?;
+        rec.log(
+            "timeseries/actions/body/acc/z",
+            &rerun::Scalar::new(actions.acc_b[2]),
+        )?;
+
         let thrust_scaled = actions.thrust_b / 20.0;
         let aero_force_scaled = actions.aero_force_b / 1.0;
 
@@ -360,40 +373,42 @@ impl RerunLoggerConnection {
         ts: Timestamp,
         servo_pos: ServoPosition,
     ) -> Result<()> {
+        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+
         rec.log(
             format!("{}/raw/1", ent_path),
-            &rerun::Scalar::new(servo_pos.0[0]),
+            &rerun::Scalar::new(servo_pos.0[0].to_degrees()),
         )?;
         rec.log(
             format!("{}/raw/2", ent_path),
-            &rerun::Scalar::new(servo_pos.0[1]),
+            &rerun::Scalar::new(servo_pos.0[1].to_degrees()),
         )?;
         rec.log(
             format!("{}/raw/3", ent_path),
-            &rerun::Scalar::new(servo_pos.0[2]),
+            &rerun::Scalar::new(servo_pos.0[2].to_degrees()),
         )?;
         rec.log(
             format!("{}/raw/4", ent_path),
-            &rerun::Scalar::new(servo_pos.0[3]),
+            &rerun::Scalar::new(servo_pos.0[3].to_degrees()),
         )?;
 
         let mixed = servo_pos.mix();
 
         rec.log(
             format!("{}/mixed/yaw", ent_path),
-            &rerun::Scalar::new(mixed.yaw()),
+            &rerun::Scalar::new(mixed.yaw().to_degrees()),
         )?;
         rec.log(
             format!("{}/mixed/pitch", ent_path),
-            &rerun::Scalar::new(mixed.pitch()),
+            &rerun::Scalar::new(mixed.pitch().to_degrees()),
         )?;
         rec.log(
             format!("{}/mixed/roll", ent_path),
-            &rerun::Scalar::new(mixed.roll()),
+            &rerun::Scalar::new(mixed.roll().to_degrees()),
         )?;
         rec.log(
             format!("{}/mixed/squeeze", ent_path),
-            &rerun::Scalar::new(mixed.squeeze()),
+            &rerun::Scalar::new(mixed.squeeze().to_degrees()),
         )?;
 
         Ok(())

@@ -38,6 +38,12 @@ impl From<Vector4<f64>> for ServoPosition {
     }
 }
 
+impl From<[f64; 4]> for ServoPosition {
+    fn from(value: [f64; 4]) -> Self {
+        ServoPosition(value.into())
+    }
+}
+
 /// Fin mixing
 /// ```txt
 ///      Yaw                   Pitch                   Roll                 Squeeze          
@@ -90,6 +96,12 @@ impl MixedServoPosition {
 impl From<Vector4<f64>> for MixedServoPosition {
     fn from(value: Vector4<f64>) -> Self {
         MixedServoPosition(value)
+    }
+}
+
+impl From<[f64; 4]> for MixedServoPosition {
+    fn from(value: [f64; 4]) -> Self {
+        MixedServoPosition(value.into())
     }
 }
 
