@@ -1,0 +1,3 @@
+[submodule "fsw/miosix-kernel"]
+	path = fsw/miosix-kernel
+	url = https://git.skywarder.eu/avn/swd/miosix-kernel.git
