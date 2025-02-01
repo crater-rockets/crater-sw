@@ -54,6 +54,8 @@ pub struct Select<'a> {
     subscribers: Vec<Option<(&'a dyn Selectable, SelectToken)>>,
     rng: ThreadRng,
 
+    num_active_subs: usize,
+
     /// Make sure we are not "Send", as we are using our thread's ThreadId as a key to a map
     not_send: PhantomData<*const ()>,
 }
@@ -63,6 +65,7 @@ impl<'a> Default for Select<'a> {
         Self {
             ready_list: Arc::default(),
             subscribers: vec![],
+            num_active_subs: 0usize,
             rng: ThreadRng::default(),
             not_send: PhantomData::default(),
         }
@@ -95,27 +98,35 @@ impl<'a> Select<'a> {
 
         selectable.register(tk, self.ready_list.clone());
 
+        self.num_active_subs += 1;
         index
     }
 
     /// Removes an existing receiver
     /// Index of existing receivers will remain unchanged, and the index of the removed receiver will not be reused.
-    /// 
+    ///
     /// # Panics
     /// Panics if the index does not correspond to any receiver
     pub fn remove(&mut self, index: usize) {
         if let Some(Some((s, _))) = self.subscribers.get(index) {
-
             let mut ready_list = self.ready_list.receivers_state.lock().unwrap();
-            let state = ready_list.get_mut(index).expect("ready_list and subscribers list mismatch!");
+            let state = ready_list
+                .get_mut(index)
+                .expect("ready_list and subscribers list mismatch!");
             state.0 = 0;
             state.1 = SelectedReceiverState::Removed;
 
             s.unregister();
             *self.subscribers.get_mut(index).unwrap() = None;
-        }else{
+
+            self.num_active_subs -= 1;
+        } else {
             panic!("No receiver with index {index} is being selected!");
         }
+    }
+
+    pub fn num_active_subs(&self) -> usize {
+        self.num_active_subs
     }
 
     /// Blocks until one or more of the receivers is ready, returning its index.
@@ -135,15 +146,18 @@ impl<'a> Select<'a> {
         let ready_list = ready_list
             .cv
             .wait_while(ready_list.receivers_state.lock().unwrap(), |r| {
-                r.iter()
-                    .all(|(n, close_state)| *n == 0usize && !(*close_state == SelectedReceiverState::Closed))
+                r.iter().all(|(n, close_state)| {
+                    *n == 0usize && !(*close_state == SelectedReceiverState::Closed)
+                })
             })
             .unwrap();
 
         ready_list
             .iter()
             .enumerate()
-            .filter(|(_, (n, close_state))| *n > 0usize || (*close_state == SelectedReceiverState::Closed))
+            .filter(|(_, (n, close_state))| {
+                *n > 0usize || (*close_state == SelectedReceiverState::Closed)
+            })
             .map(|(i, _)| i)
             .choose(&mut self.rng)
             .unwrap()
@@ -164,7 +178,9 @@ impl<'a> Select<'a> {
         ready_list
             .iter()
             .enumerate()
-            .filter(|(_, (n, close_state))| *n > 0usize || (*close_state == SelectedReceiverState::Closed))
+            .filter(|(_, (n, close_state))| {
+                *n > 0usize || (*close_state == SelectedReceiverState::Closed)
+            })
             .map(|(i, _)| i)
             .choose(&mut self.rng)
             .ok_or(ChannelError::Empty)
@@ -231,7 +247,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_remove_while_ready() -> Result<()>{
+    fn test_select_remove_while_ready() -> Result<()> {
         let (s1, r1) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
         let (s2, r2) = channel::<i32>(Capacity::Bounded(NonZero::new(1).unwrap()));
 
@@ -247,7 +263,6 @@ mod tests {
 
         select.remove(0);
         assert_eq!(select.try_ready(), Err(ChannelError::Empty));
-
 
         Ok(())
     }

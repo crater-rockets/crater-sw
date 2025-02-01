@@ -89,9 +89,7 @@ impl RerunLoggerConnection {
         let i_control_servo_cmd = select.add(&self.rx.control_servo_cmd);
         let i_actuator_servo_pos = select.add(&self.rx.actuator_servo_pos);
 
-        let mut open_channels = 3;
-
-        while open_channels > 0 {
+        while select.num_active_subs() > 0 {
             let i = select.ready();
 
             match i {
@@ -100,7 +98,6 @@ impl RerunLoggerConnection {
                         Self::log_rocket_state(&mut self.rec, &mut self.memory, ts, state)?;
                     } else {
                         select.remove(i);
-                        open_channels -= 1;
                     }
                 }
                 i if i == i_rcv_rocket_actions => {
@@ -108,7 +105,6 @@ impl RerunLoggerConnection {
                         Self::log_rocket_actions(&mut self.rec, &mut self.memory, ts, state)?;
                     } else {
                         select.remove(i);
-                        open_channels -= 1;
                     }
                 }
                 i if i == i_rcv_aero_angles => {
@@ -116,7 +112,6 @@ impl RerunLoggerConnection {
                         Self::log_aero_angles(&mut self.rec, &mut self.memory, ts, state)?;
                     } else {
                         select.remove(i);
-                        open_channels -= 1;
                     }
                 }
                 i if i == i_actuator_servo_pos => {
@@ -130,7 +125,6 @@ impl RerunLoggerConnection {
                         )?;
                     } else {
                         select.remove(i);
-                        open_channels -= 1;
                     }
                 }
                 i if i == i_control_servo_cmd => {
@@ -144,7 +138,6 @@ impl RerunLoggerConnection {
                         )?;
                     } else {
                         select.remove(i);
-                        open_channels -= 1;
                     }
                 }
                 _ => {
