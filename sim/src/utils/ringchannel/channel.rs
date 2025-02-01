@@ -359,11 +359,19 @@ mod tests {
 
         assert_eq!(r.recv(), Ok(1.2));
         assert_eq!(r.recv(), Ok(1.3));
-
         assert_eq!(r2.recv(), Ok(1.2));
         assert_eq!(r2.recv(), Ok(1.3));
 
+        s.send(1.4);
+        s.send(1.5);
+
         drop(s);
+
+        assert_eq!(r.recv(), Ok(1.4));
+        assert_eq!(r.recv(), Ok(1.5));
+        assert_eq!(r2.recv(), Ok(1.4));
+        assert_eq!(r2.recv(), Ok(1.5));
+
         assert_eq!(r.recv(), Err(ChannelError::Closed));
         assert_eq!(r2.recv(), Err(ChannelError::Closed));
     }
