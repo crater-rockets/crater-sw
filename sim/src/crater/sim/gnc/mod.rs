@@ -2,4 +2,4 @@ pub mod openloop;
 
 mod datatypes;
 
-pub use datatypes::ServoPosition;
+pub use datatypes::{ServoPosition, MixedServoPosition};

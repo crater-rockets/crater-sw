@@ -104,15 +104,13 @@ impl OdeProblem<f64, 13> for Rocket {
         let vel_b = q_nb.inverse_transform_vector(&state.vel_n().clone_owned());
         let w_b = state.angvel_b();
 
-        let aero = self.aerodynamics.calc(
-            &AeroState::new(
-                vel_b,
-                Vector3::zeros(),
-                w_b.clone_owned(),
-                -state.pos_n()[2],
-            ),
-            &self.step_state.servo_pos,
-        );
+        let aero = self.aerodynamics.calc(&AeroState::new(
+            self.step_state.servo_pos.mix(),
+            vel_b,
+            Vector3::zeros(),
+            w_b.clone_owned(),
+            -state.pos_n()[2],
+        ));
 
         let f_n = q_nb.transform_vector(&(self.engine.thrust_b(t) + &aero.forces));
         let m_b = aero.moments;

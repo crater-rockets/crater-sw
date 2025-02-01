@@ -361,20 +361,39 @@ impl RerunLoggerConnection {
         servo_pos: ServoPosition,
     ) -> Result<()> {
         rec.log(
-            format!("{}/1", ent_path),
-            &rerun::Scalar::new(servo_pos.servo_positions[0]),
+            format!("{}/raw/1", ent_path),
+            &rerun::Scalar::new(servo_pos.0[0]),
         )?;
         rec.log(
-            format!("{}/2", ent_path),
-            &rerun::Scalar::new(servo_pos.servo_positions[1]),
+            format!("{}/raw/2", ent_path),
+            &rerun::Scalar::new(servo_pos.0[1]),
         )?;
         rec.log(
-            format!("{}/3", ent_path),
-            &rerun::Scalar::new(servo_pos.servo_positions[2]),
+            format!("{}/raw/3", ent_path),
+            &rerun::Scalar::new(servo_pos.0[2]),
         )?;
         rec.log(
-            format!("{}/4", ent_path),
-            &rerun::Scalar::new(servo_pos.servo_positions[3]),
+            format!("{}/raw/4", ent_path),
+            &rerun::Scalar::new(servo_pos.0[3]),
+        )?;
+
+        let mixed = servo_pos.mix();
+
+        rec.log(
+            format!("{}/mixed/yaw", ent_path),
+            &rerun::Scalar::new(mixed.yaw()),
+        )?;
+        rec.log(
+            format!("{}/mixed/pitch", ent_path),
+            &rerun::Scalar::new(mixed.pitch()),
+        )?;
+        rec.log(
+            format!("{}/mixed/roll", ent_path),
+            &rerun::Scalar::new(mixed.roll()),
+        )?;
+        rec.log(
+            format!("{}/mixed/squeeze", ent_path),
+            &rerun::Scalar::new(mixed.squeeze()),
         )?;
 
         Ok(())

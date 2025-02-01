@@ -26,13 +26,28 @@ simple.thrust_duration = { val = 6, dtype = "f64" }
 cA_0 = { val = 0.3200, dtype = "f64" }
 cA_a = { val = -0.1725, dtype = "f64" }
 cA_b = { val = -0.1725, dtype = "f64" }
+
+cA_dy = { val = 0.4001, dtype = "f64" }
+cA_dp = { val = 0.4001, dtype = "f64" }
+cA_dr = { val = 0.5739, dtype = "f64" }
+cA_ds = { val = 0.8899, dtype = "f64" }
+
 cY_b = { val = -24.0744, dtype = "f64" }
 cY_r = { val = 154.0, dtype = "f64" }
+cY_dy = { val = 3.4045, dtype = "f64" }
+
 cN_a = { val = 24.0744, dtype = "f64" }
 cN_q = { val = 154.0, dtype = "f64" }
+cN_dp = { val = 3.4045, dtype = "f64" }
+
 cl_0 = { val = 0.03, dtype = "f64" }
 cl_p = { val = -19.0, dtype = "f64" }
+cl_dr = { val = 2.3963, dtype = "f64" }
+
 cm_a = { val = -37.2959, dtype = "f64" }
 cm_q = { val = -1813.0, dtype = "f64" }
+cm_dp = { val = 21.8445, dtype = "f64" }
+
 cn_b = { val = 37.2959, dtype = "f64" }
 cn_r = { val = -1813.0, dtype = "f64" }
+cn_dy = { val = 21.8445, dtype = "f64" }

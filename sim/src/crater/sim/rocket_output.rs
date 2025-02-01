@@ -42,17 +42,15 @@ impl RocketOutput {
     ) {
         self.snd_state.send(t, state.clone());
 
-        let aero = aerodynamics.calc(
-            &AeroState::new(
-                state
-                    .quat_nb()
-                    .inverse_transform_vector(&state.vel_n().clone_owned()),
-                Vector3::zeros(),
-                state.angvel_b().clone_owned(),
-                state.pos_n()[2],
-            ),
-            servo_pos,
-        );
+        let aero = aerodynamics.calc(&AeroState::new(
+            servo_pos.mix(),
+            state
+                .quat_nb()
+                .inverse_transform_vector(&state.vel_n().clone_owned()),
+            Vector3::zeros(),
+            state.angvel_b().clone_owned(),
+            state.pos_n()[2],
+        ));
 
         let actions = RocketActions {
             thrust_b: engine.thrust_b(t.monotonic.elapsed_seconds_f64()),

@@ -23,9 +23,7 @@ impl OpenloopControl {
 
 impl Node for OpenloopControl {
     fn step(&mut self, _: usize, _: TimeDelta, clock: &dyn Clock) -> Result<StepResult> {
-        let cmd = ServoPosition {
-            servo_positions: Vector4::<f64>::zeros(),
-        };
+        let cmd = ServoPosition(Vector4::<f64>::zeros());
 
         self.tx_servo_cmd.send(Timestamp::now(clock), cmd);
 
