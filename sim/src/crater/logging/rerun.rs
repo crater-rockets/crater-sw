@@ -185,6 +185,31 @@ impl RerunLoggerConnection {
         rec.log("timeseries/position/y", &rerun::Scalar::new(pos[1]))?;
         rec.log("timeseries/position/z", &rerun::Scalar::new(pos[2]))?;
 
+        // Velocity
+        let vel_b = state.vel_b();
+        let vnorm = vel_b.norm();
+
+        rec.log("timeseries/velocity/body/x", &rerun::Scalar::new(vel_b[0]))?;
+        rec.log("timeseries/velocity/body/y", &rerun::Scalar::new(vel_b[1]))?;
+        rec.log("timeseries/velocity/body/z", &rerun::Scalar::new(vel_b[2]))?;
+
+        rec.log("timeseries/velocity/norm", &rerun::Scalar::new(vnorm))?;
+
+        // Angular speed
+        let angvel = state.angvel_b();
+        rec.log(
+            "timeseries/angular_speed/x",
+            &rerun::Scalar::new(angvel[0].to_degrees()),
+        )?;
+        rec.log(
+            "timeseries/angular_speed/y",
+            &rerun::Scalar::new(angvel[1].to_degrees()),
+        )?;
+        rec.log(
+            "timeseries/angular_speed/z",
+            &rerun::Scalar::new(angvel[2].to_degrees()),
+        )?;
+
         // Orientation
         let quat = state.quat_nb();
         rec.log("timeseries/orientation/quat/x", &rerun::Scalar::new(quat.i))?;
