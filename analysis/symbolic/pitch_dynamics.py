@@ -37,7 +37,7 @@ pprint(lin_acc, "lin_acc")
 lin_acc = lin_acc.dot(rocket.B.z)
 ang_acc = ang_acc.dot(rocket.B.y)
 
-# alpha
+# alpha symbol
 alpha = dynamicsymbols("a")
 
 # alpha = atan(w/u) --> atan(w/u) - alpha = 0
@@ -58,8 +58,8 @@ pprint(lin_acc, "lin_acc")
 pprint(ang_acc, "ang_acc")
 
 # Equation of motion in terms of alpha_d, q_d
-alpha_d = solve(lin_acc, dynamicsymbols("a", 1))[0]
-q_d = solve(ang_acc, dynamicsymbols("q", 1))[0]
+alpha_d = solve(lin_acc, dynamicsymbols("a", 1))[0].simplify()
+q_d = solve(ang_acc, dynamicsymbols("q", 1))[0].simplify()
 
 pprint(alpha_d, "alpha_d")
 pprint(q_d, "q_d")
