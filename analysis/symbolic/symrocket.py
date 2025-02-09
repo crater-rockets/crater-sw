@@ -6,7 +6,7 @@ from sympy.physics.mechanics import (
     inertia,
     time_derivative,
 )
-from sympy import Symbol
+from sympy import Symbol, sqrt
 
 
 class AeroCoefficients:
@@ -34,7 +34,7 @@ class AeroCoefficients:
     cn_dy = Symbol("cn_dy")
 
 
-class SymRocketTerms:
+class SymRocket:
     # Body frame
     B = ReferenceFrame("B")
 
@@ -137,55 +137,59 @@ class SymRocketTerms:
         if not v_norm:
             v = self.u * self.B.x + self.v * self.B.y + self.w * self.B.z
             v_norm = v.dot(v)
+            v_norm = sqrt(v_norm)
 
-        q_v = 0.5 * self.rho * v_norm
-        q = 0.5 * self.rho * (v_norm**2)
+        pdyn_v = 0.5 * self.rho * v_norm
 
-        self.Fx = -q * self.S * cA
-        self.Fy = q * self.S * cY + q_v * self.S * self.d * self.ac.cY_r * self.r
-        self.Fz = -q * self.S * cN - q_v * self.S * self.d * self.ac.cN_q * self.q
+        pdyn = pdyn_v * v_norm
+
+        self.Fx = -pdyn * self.S * cA
+        self.Fy = pdyn * self.S * cY + pdyn_v * self.S * self.d * self.ac.cY_r * self.r
+        self.Fz = -pdyn * self.S * cN - pdyn_v * self.S * self.d * self.ac.cN_q * self.q
 
         self.Mx = (
-            q * self.S * cl * self.d
-            + 0.5 * q_v * self.S * self.d**2 * self.ac.cl_p * self.p
+            pdyn * self.S * cl * self.d
+            + 0.5 * pdyn_v * self.S * self.d**2 * self.ac.cl_p * self.p
         )
         self.My = (
-            q * self.S * cm * self.d
-            + 0.5 * q_v * self.S * self.d**2 * self.ac.cm_q * self.q
+            pdyn * self.S * cm * self.d
+            + 0.5 * pdyn_v * self.S * self.d**2 * self.ac.cm_q * self.q
         )
         self.Mz = (
-            q * self.S * cn * self.d
-            + 0.5 * q_v * self.S * self.d**2 * self.ac.cn_r * self.r
+            pdyn * self.S * cn * self.d
+            + 0.5 * pdyn_v * self.S * self.d**2 * self.ac.cn_r * self.r
         )
 
+    def eq_motion(self) -> tuple[Vector, Vector]:
+        """Returns the equation of motion for linear and angular accelerations in body frame"""
 
-def rocket_accelerations(terms: SymRocketTerms) -> tuple[Vector, Vector]:
-    # All values in body frame unless otherwise specified
+        # All values in body frame unless otherwise specified
 
-    # Angular rates vector
-    w = terms.p * terms.B.x + terms.q * terms.B.y + terms.r * terms.B.z
+        # Angular rates vector
+        w = self.p * self.B.x + self.q * self.B.y + self.r * self.B.z
 
-    # Velocity vector
-    v = terms.u * terms.B.x + terms.v * terms.B.y + terms.w * terms.B.z
+        # Velocity vector
+        v = self.u * self.B.x + self.v * self.B.y + self.w * self.B.z
 
-    # Linear momentum
-    P = terms.m * v
+        # Linear momentum
+        P = self.m * v
 
-    # Angular momentum
-    I: Inertia = inertia(terms.B, terms.Ix, terms.Iy, terms.Iz)
+        # Angular momentum
+        I: Inertia = inertia(self.B, self.Ix, self.Iy, self.Iz)
 
-    L = I.dot(w)
+        L = I.dot(w)
 
-    # Torque
-    M = terms.Mx * terms.B.x + terms.My * terms.B.y + terms.Mz * terms.B.z
+        # Torque
+        M = self.Mx * self.B.x + self.My * self.B.y + self.Mz * self.B.z
 
-    # Force
-    F = terms.Fx * terms.B.x + terms.Fy * terms.B.y + terms.Fz * terms.B.z
+        # Force
+        F = self.Fx * self.B.x + self.Fy * self.B.y + self.Fz * self.B.z
 
-    # Point of application of force wrt center of mass
-    b = terms.bx * terms.B.x + terms.by * terms.B.y + terms.by * terms.B.y
+        # Point of application of force wrt center of mass
+        b = self.bx * self.B.x + self.by * self.B.y + self.by * self.B.y
 
-    eq_vel = time_derivative(P, terms.B) + w.cross(P) - F
-    eq_rot = time_derivative(L, terms.B) + w.cross(L) - M - b.cross(F)
+        eq_vel = time_derivative(P, self.B) + w.cross(P) - F
 
-    return (eq_vel.simplify(), eq_rot.simplify())
+        eq_rot = time_derivative(L, self.B) + w.cross(L) - M - b.cross(F)
+
+        return (eq_vel.simplify(), eq_rot.simplify())
