@@ -129,12 +129,12 @@ eq_ode_lambda = lambdify(
 
 
 def ode_fn(t, x, u, params):
-    return eq_ode_lambda(x[0], x[1], np.deg2rad(u) * 15)
+    return eq_ode_lambda(x[0], x[1], np.deg2rad(u))
 
 
 ct_nlsys = ct.nlsys(
     ode_fn,
-    lambda t, x, y, params: np.rad2deg(x[0]),
+    lambda t, x, y, params: np.rad2deg(x[1]),
     states=2,
     name="NL",
     inputs=["dp"],
@@ -157,8 +157,8 @@ print(f"B = {B}")
 
 ct_lin = ct.ss(
     A,
-    B * 15,
-    np.array([1, 0]),
+    B,
+    np.array([0, 1]),
     np.array([0]),
     inputs=["dp"],
     outputs=["alpha"],
@@ -174,16 +174,12 @@ tf = ct.ss2tf(ct_lin)
 print(tf)
 
 plt.figure()
-ct.step_response(ct_nlsys, T=np.linspace(0, 2, 10000)).plot(
-    plot_inputs="overlay", overlay_signals=True, overlay_traces=True
-)
-ct.step_response(ct_lin, T=np.linspace(0, 2, 10000)).plot(
-    plot_inputs="overlay", overlay_signals=True, overlay_traces=True
-)
+ct.step_response(ct_nlsys, T=np.linspace(0, 2, 10000)).plot()
+ct.step_response(ct_lin, T=np.linspace(0, 2, 10000)).plot()
 plt.grid()
 
 plt.figure()
-ct.bode_plot(ct_lin, Hz=True)
+ct.bode_plot(ct_lin, Hz=True, dB=True)
 
 
 plt.figure()
@@ -195,4 +191,9 @@ response = ct.pole_zero_map(ct_lin)
 ct.pole_zero_plot(response)
 plt.grid()
 
+
+servo = ct.tf([1], [1 / (100 * math.pi), 1])
+print(servo)
+plt.figure()
+ct.bode_plot(servo, Hz=True, dB=True)
 plt.show()
