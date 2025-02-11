@@ -2,6 +2,11 @@ CompileFlags:
   Add: [
     --target=arm-none-eabi,
     -DMIOSIX_SKIP_SETTINGS_EDIT,
+    -I/opt/arm-miosix-eabi/arm-miosix-eabi/include/c++/9.2.0/arm-miosix-eabi,
+    -I/opt/arm-miosix-eabi/arm-miosix-eabi/include/c++/9.2.0,
+    -I/opt/arm-miosix-eabi/arm-miosix-eabi/include,
+    -I/opt/arm-miosix-eabi/arm-miosix-eabi/lib/thumb/v7e-m+fp/hard,
+    -I/opt/arm-miosix-eabi/lib/gcc/arm-miosix-eabi/9.2.0/thumb/v7e-m+fp/hard,
     -I/home/alberton/Documents/SkyWar/crater-sw/fsw/drivers/.,
     -I/home/alberton/Documents/SkyWar/crater-sw/fsw/miosix-kernel/miosix,
     -I/home/alberton/Documents/SkyWar/crater-sw/fsw/miosix-kernel/miosix/arch/common,
