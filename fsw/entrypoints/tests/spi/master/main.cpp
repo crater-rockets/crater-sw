@@ -8,34 +8,42 @@
 using namespace std;
 using namespace miosix;
 
+chrono::seconds sleep_duration(1);
+
+// SPI1 Master
+GpioPin spi1_sck(GPIOA_BASE, 5);
+GpioPin spi1_miso(GPIOA_BASE, 6);
+GpioPin spi1_mosi(GPIOA_BASE, 7);
+
+void set_spi_pins();
+
 int main()
 {
-    chrono::seconds sleep_duration(1);
+    set_spi_pins();
 
-    GpioPin sckPin(GPIOA_BASE, 5);
-    GpioPin misoPin(GPIOA_BASE, 6);
-    GpioPin mosiPin(GPIOA_BASE, 7);
-
-    sckPin.mode(Mode::ALTERNATE);
-    sckPin.alternateFunction(5);
-    sckPin.speed(Speed::_100MHz);
-    misoPin.mode(Mode::ALTERNATE);
-    misoPin.alternateFunction(5);
-    mosiPin.mode(Mode::ALTERNATE);
-    mosiPin.alternateFunction(5);
+    // Enable SPI peripherals
+    RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
 
     SPI::Config config;
     SPI::Master master(SPI1);
-
-    printf("Configuring...\n");
-    RCC->APB2ENR |= RCC_APB2ENR_SPI1EN;
     master.configure(config);
 
-    printf("Starting the loop...\n");
     while (true)
     {
         uint8_t buffer = master.transfer(0xAB);
         printf("Read: %02X\n", buffer);
         this_thread::sleep_for(sleep_duration);
     }
+}
+
+void set_spi_pins()
+{
+    spi1_sck.mode(Mode::ALTERNATE);
+    spi1_sck.alternateFunction(5);
+    spi1_sck.speed(Speed::_100MHz);
+    spi1_miso.mode(Mode::ALTERNATE);
+    spi1_miso.alternateFunction(5);
+    spi1_mosi.mode(Mode::ALTERNATE);
+    spi1_mosi.alternateFunction(5);
+    spi1_sck.mode(Mode::ALTERNATE);
 }

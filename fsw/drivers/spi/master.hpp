@@ -42,7 +42,7 @@ public:
         // Configure chip select and master mode
         spi->CR1 |= SPI_CR1_SSM;
         spi->CR1 |= SPI_CR1_SSI;
-        spi->CR1 |= SPI_CR1_MSTR;
+        spi->CR1 |= SPI_CR1_MSTR;  // Master mode
 
         /**
          * The SPI peripheral differs on stm32f7 microcontrollers. Refer to

@@ -63,19 +63,10 @@ enum class WriteBit
 
 struct Config
 {
-    ClockDivider clock_divider;
-    Mode mode;
-    Order bit_order;
-    WriteBit write_bit;
-
-    Config(ClockDivider clock_divider = ClockDivider::DIV_256,
-           Mode mode = Mode::MODE_0, Order bit_order = Order::MSB_FIRST,
-           WriteBit write_bit         = WriteBit::NORMAL,
-           unsigned int csSetupTimeUs = 0, unsigned int csHoldTimeUs = 0)
-        : clock_divider(clock_divider), mode(mode), bit_order(bit_order),
-          write_bit(write_bit)
-    {
-    }
+    ClockDivider clock_divider = ClockDivider::DIV_256;
+    Mode mode                  = Mode::MODE_0;
+    Order bit_order            = Order::MSB_FIRST;
+    WriteBit write_bit         = WriteBit::NORMAL;
 
     bool operator==(const Config& other) const
     {
