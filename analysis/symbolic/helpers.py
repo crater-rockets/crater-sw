@@ -40,9 +40,9 @@ def linearize(
         jqd = jqd.subs(q[i], q_val)
         ju = ju.subs(q[i], q_val)
 
-    pprint(jq, "jq")
-    pprint(jqd, "jqd")
-    pprint(ju, "ju")
+    # pprint(jq, "jq")
+    # pprint(jqd, "jqd")
+    # pprint(ju, "ju")
 
     jqd_inv = jqd.inv()
     return jqd_inv * -jq, jqd_inv * -ju
