@@ -1,18 +1,21 @@
 #include <miosix.h>
-#include <test/test.h>
 
 #include <chrono>
+#include <cstdio>
 #include <thread>
 
+
 using namespace std;
+
+#include <nonstd/expected.hpp>
+#include <fmt/core.h>
 
 int main()
 {
     chrono::seconds sleep_duration(1);
-
     while (true)
     {
-        print_salute();
+        fmt::println("Hello world {}", 1);
         this_thread::sleep_for(sleep_duration);
     }
 }

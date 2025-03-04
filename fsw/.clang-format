@@ -11,7 +11,10 @@ RemoveBracesLLVM: true
 AlignConsecutiveAssignments: Consecutive
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
-PackConstructorInitializers: BinPack
+PackConstructorInitializers: Never
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
 IndentCaseLabels: true
 
 # Empty lines behavior
@@ -22,3 +25,5 @@ KeepEmptyLinesAtTheStartOfBlocks: false
 # Align pointers/references to the type, not the variable
 DerivePointerAlignment: false
 PointerAlignment: Left
+
+BracketAlignmentStyle: BlockIndent
