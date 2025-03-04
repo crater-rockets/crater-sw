@@ -1,6 +1,6 @@
 [submodule "fsw/miosix-kernel"]
 	path = fsw/embedded/miosix-kernel
-	url = https://git.skywarder.eu/avn/swd/miosix-kernel.git
+	url = https://github.com/crater-rockets/miosix-kernel.git
 [submodule "fsw/libs/Catch2"]
 	path = fsw/shared/libs/Catch2
 	url = https://github.com/catchorg/Catch2.git
