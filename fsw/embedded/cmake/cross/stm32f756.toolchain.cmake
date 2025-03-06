@@ -8,7 +8,7 @@ set(MIOSIX_BSP_PATH ${CMAKE_CURRENT_SOURCE_DIR}/bsps/${MIOSIX_OPT_BOARD})
 set(MIOSIX_LINKER_SCRIPT ${MIOSIX_BSP_PATH}/stm32_1m+256k_rom.ld)
 
 # Basic flags
-set(FLAGS_BASE "-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -ffunction-sections -D_DEFAULT_SOURCE=1")
+set(FLAGS_BASE "-mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -ffunction-sections -D_DEFAULT_SOURCE=1 -fdata-sections")
 set(LFLAGS_BASE "-Wl,--gc-sections -Wl,-T${MIOSIX_LINKER_SCRIPT} -nostdlib")
 
 # Flags for C/C++
