@@ -1,6 +1,6 @@
 function (miosix_target TARGET)
     target_link_libraries(${TARGET} PUBLIC
-        -Wl,--start-group miosix stdc++ c m gcc atomic -Wl,--end-group
+        miosix stdc++ c m gcc atomic
     )
 
     # Create .map file

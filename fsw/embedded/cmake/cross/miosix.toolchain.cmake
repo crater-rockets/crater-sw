@@ -23,7 +23,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, see <http://www.gnu.org/licenses/>
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/..")
 
 # Tell CMake that we are building for an embedded ARM system
 set(CMAKE_SYSTEM_NAME Miosix)
@@ -41,20 +41,8 @@ set(CMAKE_OBJDUMP      ${MIOSIX_PREFIX}-objdump)
 set(CMAKE_SIZE         ${MIOSIX_PREFIX}-size)
 set(MIOSIX_READELF     ${MIOSIX_PREFIX}-readelf)
 
-# Optimization flags for each language and build configuration
-set(CMAKE_ASM_FLAGS_DEBUG "")
-set(CMAKE_C_FLAGS_DEBUG "-g -O0")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
-set(CMAKE_ASM_FLAGS_RELEASE "")
-set(CMAKE_C_FLAGS_RELEASE "-O2")
-set(CMAKE_CXX_FLAGS_RELEASE "-O2")
-set(CMAKE_ASM_FLAGS_RELWITHDEBINFO "")
-set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -O2")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g -O2")
-set(CMAKE_ASM_FLAGS_MINSIZEREL "")
-set(CMAKE_C_FLAGS_MINSIZEREL "-Os")
-set(CMAKE_CXX_FLAGS_MINSIZEREL "-Os")
-
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+
+
