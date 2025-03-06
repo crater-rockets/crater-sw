@@ -4,6 +4,9 @@ set (CMAKE_CXX_STANDARD 17)
 
 add_subdirectory(libs/expected-lite EXCLUDE_FROM_ALL)
 add_subdirectory(libs/fmt EXCLUDE_FROM_ALL)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/Warnings.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/LinkSystem.cmake)
+include(CMakePrintHelpers)
 
 set(SOURCES
     src/a.cpp
@@ -21,14 +24,14 @@ set(INCLUDE_DIRS
 # FMT compile size optimizations
 target_compile_definitions(fmt-header-only INTERFACE -D_GLIBCXX_USE_WCHAR_T -DFMT_UNICODE=0 -DFMT_STATIC_THOUSANDS_SEPARATOR='.')
 
-add_library(crater_shared STATIC ${SOURCES} )
+add_library(crater_shared STATIC ${SOURCES})
 target_include_directories(crater_shared PUBLIC ${INCLUDE_DIRS})
-target_link_libraries(crater_shared PUBLIC ${LIBRARIES})
-
+target_link_libraries_system(crater_shared PUBLIC ${LIBRARIES})
+target_compile_options(crater_shared PUBLIC "${CRATER_CXX_FLAGS}")
 
 set(TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/tests/test_circular_buffer.cpp
-    )
+)
 
 # Export test sources for builds targeting the embedded device
 add_library(lest INTERFACE)
@@ -40,10 +43,13 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
 
     target_include_directories(crater_shared_tests PUBLIC ${INCLUDE_DIRS})
 
-    target_link_libraries(crater_shared_tests PUBLIC ${LIBRARIES})
-    target_link_libraries(crater_shared_tests PRIVATE lest)
+    target_link_libraries(crater_shared_tests PUBLIC crater_shared)
+    target_link_libraries_system(crater_shared_tests PUBLIC ${LIBRARIES})
+    target_link_libraries_system(crater_shared_tests PRIVATE lest)
 
     set_target_properties(crater_shared_tests PROPERTIES EXPORT_COMPILE_COMMANDS ON)
+
+    add_test (NAME crater_shared_tests COMMAND crater_shared_tests)
 else()
     set(CRATER_SHARED_TEST_SOURCES ${TEST_SOURCES} PARENT_SCOPE)
 endif()
