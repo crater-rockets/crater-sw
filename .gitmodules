@@ -6,7 +6,7 @@
 	url = https://github.com/martinmoene/expected-lite.git
 [submodule "fsw/shared/libs/fmt"]
 	path = fsw/shared/libs/fmt
-	url = https://github.com/fmtlib/fmt.git
+	url = https://github.com/crater-rockets/fmt.git
 [submodule "fsw/shared/libs/lest"]
 	path = fsw/shared/libs/lest
 	url = https://github.com/martinmoene/lest.git
