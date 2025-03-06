@@ -1,30 +1,92 @@
-#include <catch2/catch_test_macros.hpp>
-#include <nonstd/expected.hpp>
-#include <string>
-
-#include "crater/core/collections/CircularBuffer.hpp"
-#include "crater/core/errors/Try.hpp"
 #include <fmt/core.h>
 
-nonstd::expected<int, std::string> test(bool ok)
+#include <catch2/catch_test_macros.hpp>
+
+#include "crater/core/collections/CircularBuffer.hpp"
+
+using namespace crater::collections;
+
+TEST_CASE("Push & pop", "[CircularBuffer]")
 {
-    if (ok)
-        return 1;
-    else
-        return nonstd::make_unexpected("Shit");
+    CircularBuffer<int> cb(3);
+    REQUIRE(cb.size() == 3);
+
+    REQUIRE(cb.empty());
+    REQUIRE(cb.count() == 0);
+
+    REQUIRE(cb.pop() == std::nullopt);
+    REQUIRE(cb.empty());
+    REQUIRE(cb.count() == 0);
+
+    cb.push(1);
+    REQUIRE(cb.empty() == false);
+    REQUIRE(cb.count() == 1);
+
+    cb.push(2);
+    REQUIRE(cb.empty() == false);
+    REQUIRE(cb.count() == 2);
+
+    cb.push(3);
+    REQUIRE(cb.empty() == false);
+    REQUIRE(cb.count() == 3);
+
+    REQUIRE(cb.pop() == 1);
+    REQUIRE(cb.empty() == false);
+    REQUIRE(cb.count() == 2);
+
+    REQUIRE(cb.pop() == 2);
+    REQUIRE(cb.empty() == false);
+    REQUIRE(cb.count() == 1);
+
+    REQUIRE(cb.pop() == 3);
+    REQUIRE(cb.empty() == true);
+    REQUIRE(cb.count() == 0);
+
+    REQUIRE(cb.pop() == std::nullopt);
 }
 
-nonstd::expected<int, std::string> test2(bool ok)
+TEST_CASE("Overflow", "[CircularBuffer]")
 {
-    int val = TRY(test(ok));
-    return val;
+    CircularBuffer<int> cb(3);
+    REQUIRE(cb.pop() == std::nullopt);
+
+    cb.push(1);
+    cb.push(2);
+    cb.push(3);
+    REQUIRE(cb.count() == 3);
+
+    cb.push(4);
+    REQUIRE(cb.count() == 3);
+
+    REQUIRE(cb.pop() == 2);
+    REQUIRE(cb.pop() == 3);
+    REQUIRE(cb.pop() == 4);
+
+    REQUIRE(cb.count() == 0);
+
+    REQUIRE(cb.pop() == std::nullopt);
 }
 
-TEST_CASE("ABCD", "[Abcd]")
+TEST_CASE("Tail after head", "[CircularBuffer]")
 {
-    REQUIRE(true);
+    CircularBuffer<int> cb(5);
+    REQUIRE(cb.pop() == std::nullopt);
 
-    auto v = test(true);
+    cb.push(1);
+    cb.push(2);
+    cb.push(3);
+    cb.push(4);
+    cb.push(5);
 
-    fmt::println("Hello world");
+    REQUIRE(cb.pop());
+    REQUIRE(cb.pop());
+    REQUIRE(cb.pop());
+
+    REQUIRE(cb.count() == 2);
+
+    cb.push(6);
+    REQUIRE(cb.count() == 3);
+    cb.push(7);
+    REQUIRE(cb.count() == 4);
 }
+

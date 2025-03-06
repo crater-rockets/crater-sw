@@ -1,19 +1,25 @@
-/*
- * Copyright (c) 2018-2020, Andreas Kling <kling@serenityos.org>
- *
- * SPDX-License-Identifier: BSD-2-Clause
- */
-
 #pragma once
 
-extern "C" __attribute__((noreturn)) void ak_verification_failed(char const*);
-#    define __stringify_helper(x) #x
-#    define __stringify(x) __stringify_helper(x)
-#    define ASSERT(expr)                                                                  \
-        (__builtin_expect(!(expr), 0)                                                     \
-                ? ak_verification_failed(#expr " at " __FILE__ ":" __stringify(__LINE__)) \
-                : (void)0)
-                
-#    define ASSERT_NOT_REACHED() ASSERT(false) /* NOLINT(cert-dcl03-c,misc-static-assert) No, this can't be static_assert, it's a runtime check */
-static constexpr bool TODO = false;
-#    define TODO() ASSERT(TODO)                /* NOLINT(cert-dcl03-c,misc-static-assert) No, this can't be static_assert, it's a runtime check */
+#include <fmt/core.h>
+
+#include <exception>
+#include <string>
+
+template <typename... Args>
+static void crater_assert(const char* file, int line, const char* assertion,
+                          fmt::format_string<Args...> fmt, Args... args)
+{
+    std::string msg = fmt::format(fmt, std::forward<Args>(args)...);
+
+    fmt::println("{}:{} - Assertion '{}' failed: {}", file, line, assertion,
+                 msg);
+    std::terminate();
+}
+
+#define CR_ASSERT(expression, text, args...)                                  \
+    if (!expression)                                                          \
+    {                                                                         \
+        crater_assert(__FILE__, __LINE__, #expression, FMT_STRING(text), \
+                      ##args);                                                \
+    }
+

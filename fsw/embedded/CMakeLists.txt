@@ -29,3 +29,26 @@ add_executable(hi_mom
 target_include_directories(hi_mom PRIVATE inc/)
 target_link_libraries(hi_mom PRIVATE crater_shared)
 miosix_target(hi_mom)
+
+
+### UNIT TESTS ####
+set(CATCH_CONFIG_NO_POSIX_SIGNALS ON)
+set(CATCH_CONFIG_NO_WCHAR ON)
+set(CATCH_CONFIG_DISABLE_EXCEPTIONS ON)
+set(CATCH_CONFIG_DISABLE_STRINGIFICATION ON)
+# set(CATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS ON)
+# set(CATCH_CONFIG_NO_CPP17_STRING_VIEW ON)
+# set(CATCH_CONFIG_NO_CPP17_VARIANT ON)
+# set(CATCH_CONFIG_NO_CPP17_OPTIONAL ON)
+# set(CATCH_CONFIG_NO_CPP17_BYTE ON)
+add_subdirectory(../shared/libs/Catch2 Catch2)
+
+set(TEST_SOURCES )
+
+add_executable(embedded_tests tests/tests_main.cpp ${TEST_SOURCES} ${CRATER_SHARED_TEST_SOURCES})
+target_include_directories(embedded_tests PUBLIC ${INCLUDE_DIRS})
+target_link_libraries(embedded_tests PUBLIC ${LIBRARIES})
+target_link_libraries(embedded_tests PRIVATE Catch2::Catch2)
+set_target_properties(embedded_tests PROPERTIES EXPORT_COMPILE_COMMANDS ON)
+target_link_libraries(embedded_tests PRIVATE crater_shared)
+miosix_target(embedded_tests)
