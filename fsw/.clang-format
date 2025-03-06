@@ -4,12 +4,10 @@ ColumnLimit: 80
 IndentWidth: 4
 AccessModifierOffset: -4
 
-BreakBeforeBraces: Allman
-# Allow braceless single line if/else/for/while statements
-RemoveBracesLLVM: true
+BreakBeforeBraces: Linux
 
 AlignConsecutiveAssignments: Consecutive
-AllowShortIfStatementsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 PackConstructorInitializers: Never
 AllowAllParametersOfDeclarationOnNextLine: false
