@@ -1,12 +1,12 @@
 [submodule "fsw/miosix-kernel"]
 	path = fsw/embedded/miosix-kernel
 	url = https://github.com/crater-rockets/miosix-kernel.git
-[submodule "fsw/libs/Catch2"]
-	path = fsw/shared/libs/Catch2
-	url = https://github.com/catchorg/Catch2.git
 [submodule "fsw/shared/libs/expected-lite"]
 	path = fsw/shared/libs/expected-lite
 	url = https://github.com/martinmoene/expected-lite.git
 [submodule "fsw/shared/libs/fmt"]
 	path = fsw/shared/libs/fmt
 	url = https://github.com/fmtlib/fmt.git
+[submodule "fsw/shared/libs/lest"]
+	path = fsw/shared/libs/lest
+	url = https://github.com/martinmoene/lest.git

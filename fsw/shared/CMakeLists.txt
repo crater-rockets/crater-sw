@@ -31,22 +31,21 @@ set(TEST_SOURCES
     )
 
 # Export test sources for builds targeting the embedded device
+add_library(lest INTERFACE)
+target_include_directories(lest INTERFACE libs/lest/include)
+target_compile_definitions(lest INTERFACE -Dlest_FEATURE_AUTO_REGISTER=1)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    add_subdirectory(libs/Catch2 EXCLUDE_FROM_ALL)
+    add_executable(crater_shared_tests tests/main.cpp ${TEST_SOURCES})
 
-
-    add_executable(crater_shared_tests ${TEST_SOURCES})
     target_include_directories(crater_shared_tests PUBLIC ${INCLUDE_DIRS})
+
     target_link_libraries(crater_shared_tests PUBLIC ${LIBRARIES})
-    target_link_libraries(crater_shared_tests PRIVATE Catch2::Catch2WithMain)
-    include(CTest)
-    include(libs/Catch2/extras/ParseAndAddCatchTests.cmake)
-    ParseAndAddCatchTests(crater_shared_tests)
+    target_link_libraries(crater_shared_tests PRIVATE lest)
 
     set_target_properties(crater_shared_tests PROPERTIES EXPORT_COMPILE_COMMANDS ON)
 else()
     set(CRATER_SHARED_TEST_SOURCES ${TEST_SOURCES} PARENT_SCOPE)
 endif()
 
-set_target_properties(crater_shared PROPERTIES EXPORT_COMPILE_COMMANDS ON)
+# set_target_properties(crater_shared PROPERTIES EXPORT_COMPILE_COMMANDS ON)

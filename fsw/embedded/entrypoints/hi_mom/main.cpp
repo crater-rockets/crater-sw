@@ -7,10 +7,9 @@
 
 using namespace std;
 
-#include <nonstd/expected.hpp>
 #include <fmt/core.h>
 
-int main()
+int main(int argc, char *argv[])
 {
     chrono::seconds sleep_duration(1);
     while (true)
