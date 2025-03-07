@@ -5,7 +5,10 @@ max_t = { val = 120, dtype = "f64" }
 
 [sim.rocket.crater]
 mass = { val = 2, dtype = "f64" }
-inertia = { val = [0.005, 0.26, 0.26], dtype = "f64" }
+xcg_datcom = { val = [0.5,0.0,0.0], dtype = "f64" }
+xcg_empty = { val = [0.55,0.0,0.0], dtype = "f64" }
+xcg_motor_ref = { val = [0.70,0.0,0.0], dtype = "f64" }
+inertia_empty = { val = [0.005, 0.0, 0.0, 0.0, 0.26, 0.0, 0.0, 0.0, 0.26], dtype = "f64" }
 diameter = { val = 0.08, dtype = "f64" }
 g_n = { val = [0, 0, 9.81], dtype = "f64" }
 
@@ -17,10 +20,12 @@ v0_b = { val = [0, 0, 0], dtype = "f64" }
 w0_b_deg = { val = [0, 0, 0], dtype = "f64" }
 
 [sim.rocket.crater.engine]
-engine_type = { val = "simple", dtype = "string" }
+engine_type = { val = "tabulated", dtype = "string" }
 
 simple.total_impulse = { val = 320, dtype = "f64" }
 simple.thrust_duration = { val = 6, dtype = "f64" }
+
+tabulated.json_path = {val="config/motor.json", dtype ="string"}
 
 [sim.rocket.crater.aero]
 cA_0 = { val = 0.3200, dtype = "f64" }
