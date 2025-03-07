@@ -8,7 +8,7 @@ use super::{
     aero::aerodynamics::{AeroState, Aerodynamics},
     engine::engine::RocketEngine,
     gnc::ServoPosition,
-    rocket_data::{AeroAngles, RocketActions, RocketParams, RocketState},
+    rocket_data::{AeroAngles, RocketActions, RocketMassProperties, RocketParams, RocketState},
 };
 use anyhow::Result;
 use nalgebra::Vector3;
@@ -18,6 +18,7 @@ pub struct RocketOutput {
     snd_state: TelemetrySender<RocketState>,
     snd_actions: TelemetrySender<RocketActions>,
     snd_aeroangles: TelemetrySender<AeroAngles>,
+    snd_masses: TelemetrySender<RocketMassProperties>,
 }
 
 impl RocketOutput {
@@ -26,6 +27,7 @@ impl RocketOutput {
             snd_state: telemetry.publish("/rocket/state")?,
             snd_actions: telemetry.publish("/rocket/actions")?,
             snd_aeroangles: telemetry.publish("/rocket/aero_angles")?,
+            snd_masses: telemetry.publish("/rocket/masses")?,
         })
     }
 
@@ -39,6 +41,7 @@ impl RocketOutput {
         engine: &dyn RocketEngine,
         _: &RocketParams,
         aerodynamics: &Aerodynamics,
+        masses: &RocketMassProperties,
     ) {
         self.snd_state.send(t, state.clone());
 
@@ -56,6 +59,7 @@ impl RocketOutput {
             aero_torque_b: aero.moments,
             acc_n: d_state.vel_n(),
             acc_b: d_state.vel_b(&state.quat_nb()),
+            ang_acc: d_state.angvel_b(),
         };
 
         self.snd_actions.send(t, actions);
@@ -67,5 +71,7 @@ impl RocketOutput {
                 beta: aero.beta,
             },
         );
+
+        self.snd_masses.send(t, masses.clone());
     }
 }

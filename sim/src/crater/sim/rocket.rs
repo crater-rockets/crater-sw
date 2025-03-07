@@ -1,7 +1,8 @@
 use super::{
-    engine::{engine::RocketEngine, SimpleRocketEngine},
+    aero::aerodynamics::AerodynamicsResult,
+    engine::{engine::RocketEngine, SimpleRocketEngine, TabRocketEngine},
     gnc::ServoPosition,
-    rocket_data::{RocketParams, RocketState},
+    rocket_data::{RocketMassProperties, RocketParams, RocketState},
     rocket_output::RocketOutput,
 };
 use crate::{
@@ -15,10 +16,10 @@ use crate::{
     telemetry::{TelemetryDispatcher, TelemetryReceiver, Timestamped},
     utils::capacity::Capacity::Unbounded,
 };
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Ok, Result};
 use chrono::TimeDelta;
 use core::f64;
-use nalgebra::{Quaternion, SVector, Vector3, Vector4};
+use nalgebra::{Quaternion, SVector, UnitQuaternion, Vector3, Vector4};
 
 pub struct Rocket {
     params: RocketParams,
@@ -44,23 +45,31 @@ impl Rocket {
         let rocket_params = ctx.parameters().get_map("sim.rocket")?;
 
         // Select which engine to use based on the config file (currently only one option)
-        let engine = match rocket_params
+        let engine: Box<dyn RocketEngine + Send> = match rocket_params
             .get_param("engine.engine_type")?
             .value_string()?
             .as_str()
         {
-            "simple" => Ok(Box::new(SimpleRocketEngine::from_impulse(
+            "simple" => Box::new(SimpleRocketEngine::from_impulse(
                 rocket_params
                     .get_param("engine.simple.total_impulse")?
                     .value_float()?,
                 rocket_params
                     .get_param("engine.simple.thrust_duration")?
                     .value_float()?,
-            ))),
-            unknown => Err(anyhow!(
-                "Unknown engine type selected for rocket '{name}': {unknown}"
             )),
-        }?;
+            "tabulated" => Box::new(TabRocketEngine::from_json(
+                rocket_params
+                    .get_param("engine.tabulated.json_path")?
+                    .value_string()?
+                    .as_str(),
+            )?),
+            unknown => {
+                return Err(anyhow!(
+                    "Unknown engine type selected for rocket '{name}': {unknown}"
+                ))
+            }
+        };
 
         // Read parameters
         let params = RocketParams::from_params(rocket_params)?;
@@ -98,16 +107,16 @@ impl Rocket {
 
 impl OdeProblem<f64, 13> for Rocket {
     fn odefun(&self, t: f64, y: SVector<f64, 13>) -> SVector<f64, 13> {
-        let state = RocketState(y);
+        let state: RocketState = RocketState(y);
 
         // state derivative
-        let mut dstate = RocketState::default();
+        let mut dstate: RocketState = RocketState::default();
 
-        let q_nb = state.quat_nb();
-        let vel_b = q_nb.inverse_transform_vector(&state.vel_n().clone_owned());
-        let w_b = state.angvel_b();
+        let q_nb: UnitQuaternion<f64> = state.quat_nb();
+        let vel_b: Vector3<f64> = q_nb.inverse_transform_vector(&state.vel_n().clone_owned());
+        let w_b: Vector3<f64> = state.angvel_b();
 
-        let aero = self.aerodynamics.calc(&AeroState::new(
+        let aero: AerodynamicsResult = self.aerodynamics.calc(&AeroState::new(
             self.step_state.servo_pos.mix(),
             vel_b,
             Vector3::zeros(),
@@ -115,16 +124,22 @@ impl OdeProblem<f64, 13> for Rocket {
             -state.pos_n()[2],
         ));
 
-        let f_n = q_nb.transform_vector(&(self.engine.thrust_b(t) + &aero.forces));
-        let m_b = aero.moments;
+        let masses =
+            RocketMassProperties::calc_mass(self.engine.masses_prop(t), self.params.clone());
 
-        let acc_n = f_n / self.params.mass + self.params.g_n;
+        let f_n: Vector3<f64> = q_nb.transform_vector(
+            &(self.engine.thrust_b(t) + &aero.forces - masses.mass_dot * &state.vel_b(&state.quat_nb())),
+        );
+        let m_b: Vector3<f64> = aero.moments;
 
-        let qw =
+        let acc_n: Vector3<f64> = (f_n) / masses.mass_tot + self.params.g_n;
+
+        let qw: Quaternion<f64> =
             Quaternion::from_vector(Vector4::new(w_b[0] / 2.0, w_b[1] / 2.0, w_b[2] / 2.0, 0.0));
-        let qdot = q_nb.into_inner() * qw;
+        let qdot: Quaternion<f64> = q_nb.into_inner() * qw;
 
-        let w_dot = self.params.inv_inertia * (m_b + (self.params.inertia * w_b).cross(&w_b));
+        let w_dot: Vector3<f64> = masses.inertia.try_inverse().unwrap()
+            * (m_b - masses.inertia_dot * w_b + (masses.inertia * w_b).cross(&w_b));
 
         dstate.set_pos_n(&state.vel_n());
         dstate.set_vel_n(&acc_n);
@@ -149,6 +164,10 @@ impl Node for Rocket {
                 &*self.engine,
                 &self.params,
                 &self.aerodynamics,
+                &RocketMassProperties::calc_mass(
+                    self.engine.masses_prop(t.monotonic.elapsed_seconds_f64()),
+                    self.params.clone(),
+                ),
             );
             return Ok(StepResult::Continue);
         }
@@ -179,6 +198,10 @@ impl Node for Rocket {
             &*self.engine,
             &self.params,
             &self.aerodynamics,
+            &RocketMassProperties::calc_mass(
+                self.engine.masses_prop(t.monotonic.elapsed_seconds_f64()),
+                self.params.clone(),
+            ),
         );
 
         // Stop conditions
