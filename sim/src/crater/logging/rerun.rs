@@ -1,8 +1,10 @@
 use crate::{
     core::time::Timestamp,
     crater::sim::{
+        engine::engine::RocketEngineMasses,
         gnc::ServoPosition,
         rocket_data::{AeroAngles, RocketActions, RocketMassProperties, RocketState},
+        sensors::{ideal::IdealIMU, IMUSample},
     },
     telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetryService, Timestamped},
     utils::{capacity::Capacity, ringchannel::Select},
@@ -19,10 +21,12 @@ pub struct RerunLogger {
 struct Receivers {
     rocket_state: TelemetryReceiver<RocketState>,
     rocket_actions: TelemetryReceiver<RocketActions>,
+    rocket_engine: TelemetryReceiver<RocketEngineMasses>,
     aero_angles: TelemetryReceiver<AeroAngles>,
     masses: TelemetryReceiver<RocketMassProperties>,
     control_servo_cmd: TelemetryReceiver<ServoPosition>,
     actuator_servo_pos: TelemetryReceiver<ServoPosition>,
+    imu_sensor: TelemetryReceiver<IMUSample>,
 }
 pub struct RerunLoggerConnection {
     rx: Receivers,
@@ -44,10 +48,12 @@ impl RerunLogger {
         let receivers = Receivers {
             rocket_state: ts.subscribe("/rocket/state", Capacity::Unbounded)?,
             rocket_actions: ts.subscribe("/rocket/actions", Capacity::Unbounded)?,
+            rocket_engine: ts.subscribe("/rocket/engine", Capacity::Unbounded)?,
             aero_angles: ts.subscribe("/rocket/aero_angles", Capacity::Unbounded)?,
             masses: ts.subscribe("/rocket/masses", Capacity::Unbounded)?,
             control_servo_cmd: ts.subscribe("/gnc/control/servo_command", Capacity::Unbounded)?,
             actuator_servo_pos: ts.subscribe("/actuators/servo_position", Capacity::Unbounded)?,
+            imu_sensor: ts.subscribe("/sensors/ideal_imu", Capacity::Unbounded)?,
         };
 
         Ok(RerunLogger { receivers })
@@ -87,10 +93,12 @@ impl RerunLoggerConnection {
 
         let i_rocket_state = select.add(&self.rx.rocket_state);
         let i_rcv_rocket_actions = select.add(&self.rx.rocket_actions);
+        let i_rcv_rocket_engine = select.add(&self.rx.rocket_engine);
         let i_rcv_aero_angles = select.add(&self.rx.aero_angles);
         let i_rcv_masses = select.add(&self.rx.masses);
         let i_control_servo_cmd = select.add(&self.rx.control_servo_cmd);
         let i_actuator_servo_pos = select.add(&self.rx.actuator_servo_pos);
+        let i_sensors_imu = select.add(&self.rx.imu_sensor);
 
         while select.num_active_subs() > 0 {
             let i = select.ready();
@@ -106,6 +114,13 @@ impl RerunLoggerConnection {
                 i if i == i_rcv_rocket_actions => {
                     if let Ok(Timestamped(ts, state)) = self.rx.rocket_actions.recv() {
                         Self::log_rocket_actions(&mut self.rec, &mut self.memory, ts, state)?;
+                    } else {
+                        select.remove(i);
+                    }
+                }
+                i if i == i_rcv_rocket_engine => {
+                    if let Ok(Timestamped(ts, state)) = self.rx.rocket_engine.recv() {
+                        Self::log_rocket_engine(&mut self.rec, &mut self.memory, ts, state)?;
                     } else {
                         select.remove(i);
                     }
@@ -145,6 +160,20 @@ impl RerunLoggerConnection {
                             &mut self.memory,
                             ts,
                             servo_pos,
+                        )?;
+                    } else {
+                        select.remove(i);
+                    }
+                }
+
+                i if i == i_sensors_imu => {
+                    if let Ok(Timestamped(ts, imu)) = self.rx.imu_sensor.recv() {
+                        Self::log_imu(
+                            "/timeseries/sensors/imu",
+                            &mut self.rec,
+                            &mut self.memory,
+                            ts,
+                            imu,
                         )?;
                     } else {
                         select.remove(i);
@@ -300,6 +329,38 @@ impl RerunLoggerConnection {
         Ok(())
     }
 
+    fn log_rocket_engine(rec: &mut RecordingStream,
+        _: &mut Memory,
+        ts: Timestamp,
+        engine: RocketEngineMasses,) -> Result<()> {
+        
+        let ts_seconds = ts.monotonic.elapsed_seconds_f64();
+        rec.set_time_seconds("sim_time", ts_seconds);
+
+        rec.log("timeseries/engine/xcg", &rerun::Scalar::new(engine.xcg))?;
+
+        rec.log("timeseries/engine/xcg_dot", &rerun::Scalar::new(engine.xcg_dot))?;
+        
+        rec.log("timeseries/engine/mass", &rerun::Scalar::new(engine.mass))?;
+        
+        rec.log("timeseries/engine/mass_dot", &rerun::Scalar::new(engine.mass_dot))?;
+        
+        rec.log("timeseries/engine/inertia/xx", &rerun::Scalar::new(engine.inertia.m11))?;
+        
+        rec.log("timeseries/engine/inertia/yy", &rerun::Scalar::new(engine.inertia.m22))?;
+
+        rec.log("timeseries/engine/inertia/yy", &rerun::Scalar::new(engine.inertia.m33))?;
+
+        rec.log("timeseries/engine/inertia_dot/xx", &rerun::Scalar::new(engine.inertia_dot.m11))?;
+        
+        rec.log("timeseries/engine/inertia_dot/yy", &rerun::Scalar::new(engine.inertia_dot.m22))?;
+
+        rec.log("timeseries/engine/inertia_dot/yy", &rerun::Scalar::new(engine.inertia_dot.m33))?;
+
+
+        Ok(())
+    }
+
     fn log_aero_angles(
         rec: &mut RecordingStream,
         _: &mut Memory,
@@ -397,6 +458,51 @@ impl RerunLoggerConnection {
         rec.log(
             "timeseries/masses/inertia/zz",
             &rerun::Scalar::new(mass.inertia[8]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/xx",
+            &rerun::Scalar::new(mass.inertia_dot[0]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/xy",
+            &rerun::Scalar::new(mass.inertia_dot[1]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/xz",
+            &rerun::Scalar::new(mass.inertia_dot[2]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/yx",
+            &rerun::Scalar::new(mass.inertia_dot[3]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/yy",
+            &rerun::Scalar::new(mass.inertia_dot[4]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/yz",
+            &rerun::Scalar::new(mass.inertia_dot[5]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/zx",
+            &rerun::Scalar::new(mass.inertia_dot[6]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/zy",
+            &rerun::Scalar::new(mass.inertia_dot[7]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/zz",
+            &rerun::Scalar::new(mass.inertia_dot[8]),
         )?;
 
         Ok(())
@@ -525,6 +631,48 @@ impl RerunLoggerConnection {
         rec.log(
             format!("{}/mixed/squeeze", ent_path),
             &rerun::Scalar::new(mixed.squeeze().to_degrees()),
+        )?;
+
+        Ok(())
+    }
+
+    fn log_imu(
+        ent_path: &str,
+        rec: &mut RecordingStream,
+        _: &mut Memory,
+        ts: Timestamp,
+        imu: IMUSample,
+    ) -> Result<()> {
+        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+
+        rec.log(
+            format!("{}/acc/x", ent_path),
+            &rerun::Scalar::new(imu.acc.x),
+        )?;
+
+        rec.log(
+            format!("{}/acc/y", ent_path),
+            &rerun::Scalar::new(imu.acc.y),
+        )?;
+
+        rec.log(
+            format!("{}/acc/z", ent_path),
+            &rerun::Scalar::new(imu.acc.z),
+        )?;
+
+        rec.log(
+            format!("{}/gyro/x", ent_path),
+            &rerun::Scalar::new(imu.gyro.x.to_degrees()),
+        )?;
+
+        rec.log(
+            format!("{}/gyro/y", ent_path),
+            &rerun::Scalar::new(imu.gyro.y.to_degrees()),
+        )?;
+
+        rec.log(
+            format!("{}/gyro/z", ent_path),
+            &rerun::Scalar::new(imu.gyro.z.to_degrees()),
         )?;
 
         Ok(())
