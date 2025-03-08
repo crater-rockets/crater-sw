@@ -1,5 +1,6 @@
 use nalgebra::{Matrix3, Vector3};
 
+#[derive(Debug, Clone)]
 pub struct RocketEngineMasses {
     pub xcg: f64,
     pub xcg_dot: f64,
@@ -16,4 +17,3 @@ pub trait RocketEngine {
 
     fn masses_prop(&self, t: f64) -> RocketEngineMasses;
 }
-

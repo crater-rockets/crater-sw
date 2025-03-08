@@ -28,6 +28,9 @@ tabulated.json_path = {val="config/motor.json", type ="str"}
 total_impulse = { val = 320, type = "float" }
 thrust_duration = { val = 6, type = "float" }
 
+[sim.rocket.imu]
+imu_position = { val = [0.0,0.0,0.0], type = "float[]"}
+
 [sim.rocket.aero]
 cA_0 = { val = 0.3200, type = "float" }
 cA_a = { val = -0.1725, type = "float" }

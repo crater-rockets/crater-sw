@@ -6,7 +6,7 @@ use crate::{
 
 use super::{
     aero::aerodynamics::{AeroState, Aerodynamics},
-    engine::engine::RocketEngine,
+    engine::engine::{RocketEngine, RocketEngineMasses},
     gnc::ServoPosition,
     rocket_data::{AeroAngles, RocketActions, RocketMassProperties, RocketParams, RocketState},
 };
@@ -19,6 +19,7 @@ pub struct RocketOutput {
     snd_actions: TelemetrySender<RocketActions>,
     snd_aeroangles: TelemetrySender<AeroAngles>,
     snd_masses: TelemetrySender<RocketMassProperties>,
+    snd_engine: TelemetrySender<RocketEngineMasses>
 }
 
 impl RocketOutput {
@@ -28,6 +29,7 @@ impl RocketOutput {
             snd_actions: telemetry.publish("/rocket/actions")?,
             snd_aeroangles: telemetry.publish("/rocket/aero_angles")?,
             snd_masses: telemetry.publish("/rocket/masses")?,
+            snd_engine: telemetry.publish("/rocket/engine")?
         })
     }
 
@@ -73,5 +75,8 @@ impl RocketOutput {
         );
 
         self.snd_masses.send(t, masses.clone());
+
+        self.snd_engine.send(t, engine.masses_prop(t.monotonic.elapsed_seconds_f64()).clone());
+        
     }
 }
