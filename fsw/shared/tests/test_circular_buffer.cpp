@@ -1,15 +1,20 @@
 #include <fmt/core.h>
+
 #include <lest/lest.hpp>
+#include <nonstd/expected.hpp>
 
 #include "crater/core/collections/CircularBuffer.hpp"
+#include "crater/Common.hpp"
 
-#define CASE( name ) lest_CASE( specification(), name )
+#define CASE(name) lest_CASE(specification(), name)
 
-extern lest::tests & specification();
+extern lest::tests& specification();
 
-using namespace crater::collections;
+using namespace crt::collections;
 
-CASE( "Push & Pop" "[CircularBuffer]" ) 
+CASE(
+    "Push & Pop"
+    "[CircularBuffer]")
 {
     CircularBuffer<int> cb(3);
     EXPECT(cb.size() == 3);
@@ -48,7 +53,9 @@ CASE( "Push & Pop" "[CircularBuffer]" )
     EXPECT(cb.pop() == std::nullopt);
 }
 
-CASE("Push & pop" "[CircularBuffer]")
+CASE(
+    "Push & pop"
+    "[CircularBuffer]")
 {
     CircularBuffer<int> cb(3);
     EXPECT(cb.size() == 3);
@@ -87,7 +94,9 @@ CASE("Push & pop" "[CircularBuffer]")
     EXPECT(cb.pop() == std::nullopt);
 }
 
-CASE("Overflow" "[CircularBuffer]")
+CASE(
+    "Overflow"
+    "[CircularBuffer]")
 {
     CircularBuffer<int> cb(3);
     EXPECT(cb.pop() == std::nullopt);
@@ -109,7 +118,9 @@ CASE("Overflow" "[CircularBuffer]")
     EXPECT(cb.pop() == std::nullopt);
 }
 
-CASE("Tail after head" "[CircularBuffer]")
+CASE(
+    "Tail after head"
+    "[CircularBuffer]")
 {
     CircularBuffer<int> cb(5);
     EXPECT(cb.pop() == std::nullopt);

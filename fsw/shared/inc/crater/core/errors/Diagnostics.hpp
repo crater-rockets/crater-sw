@@ -20,3 +20,9 @@
     CRT_PRAGMA(GCC diagnostic ignored name);   \
     statement;                                 \
     CRT_PRAGMA(GCC diagnostic pop);
+
+#define CRT_BEGIN_NO_DEFAULT_CASE()  \
+    CRT_PRAGMA(GCC diagnostic push); \
+    CRT_PRAGMA(GCC diagnostic ignored "-Wswitch-default");
+
+#define CRT_END_NO_DEFAULT_CASE() CRT_PRAGMA(GCC diagnostic pop);

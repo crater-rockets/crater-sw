@@ -2,7 +2,7 @@
 
 #include "crater/core/errors/Asserts.hpp"
 
-namespace crater
+namespace crt
 {
 template <typename T>
 struct NonZero
@@ -22,4 +22,4 @@ struct NonZero
     const T v;
 };
 
-}  // namespace crater
+}  // namespace crt

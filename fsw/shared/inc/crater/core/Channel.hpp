@@ -2,7 +2,7 @@
 
 #include <crater/core/sync/Mutex.hpp>
 
-namespace crater
+namespace crt
 {
 
 template <typename T>
@@ -26,4 +26,4 @@ public:
 private:
 };
 
-}  // namespace crater
+}  // namespace crt

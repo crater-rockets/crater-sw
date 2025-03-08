@@ -6,7 +6,7 @@
 
 #include "crater/core/types/NonZero.hpp"
 
-namespace crater::collections
+namespace crt::collections
 {
 
 template <typename T>
@@ -41,7 +41,7 @@ public:
 
         empty_ = tail_ == head_;
 
-        return buffer_[old_tail];
+        return std::move(buffer_[old_tail]);
     }
 
     size_t size() const
@@ -83,4 +83,4 @@ private:
     std::vector<T> buffer_;
 };
 
-}  // namespace crater::collections
+}  // namespace crt::collections

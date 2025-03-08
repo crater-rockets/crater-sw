@@ -2,7 +2,7 @@
 
 #include <mutex>
 
-namespace crater::sync
+namespace crt::sync
 {
 
 template <typename T>
@@ -58,4 +58,4 @@ private:
     T* locked_data_;
 };
 
-}  // namespace crater::sync
+}  // namespace crt::sync
