@@ -5,8 +5,10 @@ use rerun::{components::RotationQuat, Quaternion, RecordingStream};
 use crate::{
     core::time::Timestamp,
     crater::sim::{
+        engine::engine::RocketEngineMasses,
         gnc::ServoPosition,
         rocket_data::{AeroAngles, RocketActions, RocketMassProperties, RocketState},
+        sensors::{ideal::IdealIMU, IMUSample},
     },
 };
 
@@ -473,9 +475,104 @@ impl RerunWrite for RocketMassPropertiesLog {
             &rerun::Scalar::new(mass.inertia[8]),
         )?;
 
+        rec.log(
+            "timeseries/masses/inertia_dot/xx",
+            &rerun::Scalar::new(mass.inertia_dot[0]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/xy",
+            &rerun::Scalar::new(mass.inertia_dot[1]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/xz",
+            &rerun::Scalar::new(mass.inertia_dot[2]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/yx",
+            &rerun::Scalar::new(mass.inertia_dot[3]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/yy",
+            &rerun::Scalar::new(mass.inertia_dot[4]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/yz",
+            &rerun::Scalar::new(mass.inertia_dot[5]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/zx",
+            &rerun::Scalar::new(mass.inertia_dot[6]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/zy",
+            &rerun::Scalar::new(mass.inertia_dot[7]),
+        )?;
+
+        rec.log(
+            "timeseries/masses/inertia_dot/zz",
+            &rerun::Scalar::new(mass.inertia_dot[8]),
+        )?;
+
         Ok(())
     }
 }
+
+#[derive(Default)]
+pub struct IMUSampleLog;
+
+impl RerunWrite for IMUSampleLog {
+    type Telem = IMUSample;
+
+    fn write(
+        &mut self,
+        rec: &mut RecordingStream,
+        ent_path: &str,
+        ts: Timestamp,
+        imu: IMUSample,
+    ) -> Result<()> {
+        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+
+        rec.log(
+            format!("{}/acc/x", ent_path),
+            &rerun::Scalar::new(imu.acc.x),
+        )?;
+
+        rec.log(
+            format!("{}/acc/y", ent_path),
+            &rerun::Scalar::new(imu.acc.y),
+        )?;
+
+        rec.log(
+            format!("{}/acc/z", ent_path),
+            &rerun::Scalar::new(imu.acc.z),
+        )?;
+
+        rec.log(
+            format!("{}/gyro/x", ent_path),
+            &rerun::Scalar::new(imu.gyro.x.to_degrees()),
+        )?;
+
+        rec.log(
+            format!("{}/gyro/y", ent_path),
+            &rerun::Scalar::new(imu.gyro.y.to_degrees()),
+        )?;
+
+        rec.log(
+            format!("{}/gyro/z", ent_path),
+            &rerun::Scalar::new(imu.gyro.z.to_degrees()),
+        )?;
+
+        Ok(())
+    }
+}
+
 
 fn vec3_to_slice(vec: &Vector3<f64>) -> [f32; 3] {
     [vec[0] as f32, vec[1] as f32, vec[2] as f32]
