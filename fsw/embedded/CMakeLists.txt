@@ -3,6 +3,7 @@ project(CraterMiosix C CXX)
 set (CMAKE_CXX_STANDARD 17)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../shared/cmake")
 
 include(MiosixTarget)
 include(MiosixBoardConfig)
@@ -32,17 +33,6 @@ miosix_target(hi_mom)
 
 
 ### UNIT TESTS ####
-set(CATCH_CONFIG_NO_POSIX_SIGNALS ON)
-set(CATCH_CONFIG_NO_WCHAR ON)
-set(CATCH_CONFIG_DISABLE_EXCEPTIONS ON)
-set(CATCH_CONFIG_DISABLE_STRINGIFICATION ON)
-# set(CATCH_CONFIG_NO_CPP17_UNCAUGHT_EXCEPTIONS ON)
-# set(CATCH_CONFIG_NO_CPP17_STRING_VIEW ON)
-# set(CATCH_CONFIG_NO_CPP17_VARIANT ON)
-# set(CATCH_CONFIG_NO_CPP17_OPTIONAL ON)
-# set(CATCH_CONFIG_NO_CPP17_BYTE ON)
-add_subdirectory(../shared/libs/Catch2 Catch2)
-
 set(TEST_SOURCES )
 
 add_executable(embedded_tests tests/tests_main.cpp ${TEST_SOURCES} ${CRATER_SHARED_TEST_SOURCES})

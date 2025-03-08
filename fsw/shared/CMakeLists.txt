@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.23)
 project(Crater_sharedShared C CXX)
 set (CMAKE_CXX_STANDARD 17)
 
@@ -6,34 +6,34 @@ add_subdirectory(libs/expected-lite EXCLUDE_FROM_ALL)
 add_subdirectory(libs/fmt EXCLUDE_FROM_ALL)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/Warnings.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LinkSystem.cmake)
-include(CMakePrintHelpers)
-
-set(SOURCES
-    src/a.cpp
-)
+target_compile_definitions(fmt-header-only INTERFACE -D_GLIBCXX_USE_WCHAR_T -DFMT_UNICODE=0 -DFMT_STATIC_THOUSANDS_SEPARATOR='.')
 
 set(LIBRARIES
     nonstd::expected-lite
     fmt::fmt-header-only
 )
 
+set(SOURCES
+    src/crater/core/errors/Error.cpp
+)
+
 set(INCLUDE_DIRS
     inc/
 )
 
-# FMT compile size optimizations
-target_compile_definitions(fmt-header-only INTERFACE -D_GLIBCXX_USE_WCHAR_T -DFMT_UNICODE=0 -DFMT_STATIC_THOUSANDS_SEPARATOR='.')
-
+#### Main Library ####
 add_library(crater_shared STATIC ${SOURCES})
 target_include_directories(crater_shared PUBLIC ${INCLUDE_DIRS})
 target_link_libraries_system(crater_shared PUBLIC ${LIBRARIES})
 target_compile_options(crater_shared PUBLIC "${CRATER_CXX_FLAGS}")
 
+
+#### UNIT TESTS ####
 set(TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/tests/test_circular_buffer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tests/test_errors.cpp
 )
 
-# Export test sources for builds targeting the embedded device
 add_library(lest INTERFACE)
 target_include_directories(lest INTERFACE libs/lest/include)
 target_compile_definitions(lest INTERFACE -Dlest_FEATURE_AUTO_REGISTER=1)
