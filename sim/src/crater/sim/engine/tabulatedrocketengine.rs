@@ -1,5 +1,6 @@
 use super::engine::{RocketEngine, RocketEngineMasses};
-use crate::math::interp::{self, interp, interp_slope};
+use crate::math::interp::{find_index, interpolate, InterpPos};
+
 use nalgebra::{Matrix3, Vector3};
 use serde_json::Value;
 
@@ -37,64 +38,49 @@ impl TabRocketEngine {
             inertia_zz_value: Vec::new(),
         };
 
-        let parse_data = |data: &Value, time: &mut Vec<f64>, value: &mut Vec<f64>| {
-            if let Value::Array(entries) = data {
-                for entry in entries {
-                    if let Value::Array(pair) = entry {
-                        if pair.len() == 2 {
-                            if let (Value::Number(t), Value::Number(v)) = (&pair[0], &pair[1]) {
-                                if let (Some(t_f64), Some(v_f64)) = (t.as_f64(), v.as_f64()) {
-                                    time.push(t_f64);
-                                    value.push(v_f64);
-                                }
-                            }
+        let parse_data = |entries: &Vec<Value>, time: &mut Vec<f64>, value: &mut Vec<f64>| {
+            for entry in entries {
+                if let Value::Array(pair) = entry {
+                    if pair.len() == 2 {
+                        if let (Some(t_f64), Some(v_f64)) = (pair[0].as_f64(), pair[1].as_f64()) {
+                            time.push(t_f64);
+                            value.push(v_f64);
                         }
                     }
                 }
             }
         };
 
-        if let Value::Array(xcg) = &data["xcg"] {
-            parse_data(
-                &Value::Array(xcg.clone()),
-                &mut engine.xcg_time,
-                &mut engine.xcg_value,
-            );
+        if let Some(thrust) = data["thrust"].as_array() {
+            parse_data(thrust, &mut engine.thrust_time, &mut engine.thrust_value);
         }
-        if let Value::Array(thrust) = &data["thrust"] {
-            parse_data(
-                &Value::Array(thrust.clone()),
-                &mut engine.thrust_time,
-                &mut engine.thrust_value,
-            );
-        }
-        if let Value::Array(mass) = &data["mass"] {
-            parse_data(
-                &Value::Array(mass.clone()),
-                &mut engine.mass_time,
-                &mut engine.mass_value,
-            );
-        }
-        if let Value::Array(inertia_xx) = &data["inertia_xx"] {
-            parse_data(
-                &Value::Array(inertia_xx.clone()),
-                &mut engine.inertia_xx_time,
-                &mut engine.inertia_xx_value,
-            );
-        }
-        if let Value::Array(inertia_yy) = &data["inertia_yy"] {
-            parse_data(
-                &Value::Array(inertia_yy.clone()),
-                &mut engine.inertia_yy_time,
-                &mut engine.inertia_yy_value,
-            );
-        }
-        if let Value::Array(inertia_zz) = &data["inertia_zz"] {
-            parse_data(
-                &Value::Array(inertia_zz.clone()),
-                &mut engine.inertia_zz_time,
-                &mut engine.inertia_zz_value,
-            );
+
+        if let Some(t_xcg_mass_ixx_iyy_izz) = data["t_xcg_mass_ixx_iyy_izz"].as_array() {
+            for entry in t_xcg_mass_ixx_iyy_izz {
+                if let Value::Array(values) = entry {
+                    if values.len() == 6 {
+                        if let (Some(t), Some(xcg), Some(mass), Some(ixx), Some(iyy), Some(izz)) = (
+                            values[0].as_f64(),
+                            values[1].as_f64(),
+                            values[2].as_f64(),
+                            values[3].as_f64(),
+                            values[4].as_f64(),
+                            values[5].as_f64(),
+                        ) {
+                            engine.xcg_time.push(t);
+                            engine.xcg_value.push(xcg);
+                            engine.mass_time.push(t);
+                            engine.mass_value.push(mass);
+                            engine.inertia_xx_time.push(t);
+                            engine.inertia_xx_value.push(ixx);
+                            engine.inertia_yy_time.push(t);
+                            engine.inertia_yy_value.push(iyy);
+                            engine.inertia_zz_time.push(t);
+                            engine.inertia_zz_value.push(izz);
+                        }
+                    }
+                }
+            }
         }
 
         Ok(engine)
@@ -103,95 +89,43 @@ impl TabRocketEngine {
 
 impl RocketEngine for TabRocketEngine {
     fn thrust_b(&self, t: f64) -> Vector3<f64> {
-        Vector3::new(
-            interp(
-                &self.thrust_time,
-                &self.thrust_value,
-                t,
-                &interp::InterpMode::Constant(0.0),
-            ),
-            0.0,
-            0.0,
-        )
+        let int = find_index(&self.thrust_time, t);
+        Vector3::new(interpolate(&self.thrust_value, int).0, 0.0, 0.0)
     }
 
     fn masses_prop(&self, t: f64) -> RocketEngineMasses {
+        let int = find_index(&self.mass_time, t);
+        let xcg_int = interpolate(&self.xcg_value, int);
+        let mass_int = interpolate(&self.mass_value, int);
+        let in_xx_int = interpolate(&self.inertia_xx_value, int);
+        let in_yy_int = interpolate(&self.inertia_yy_value, int);
+        let in_zz_int = interpolate(&self.inertia_zz_value, int);
         RocketEngineMasses {
-            xcg: interp(
-                &self.xcg_time,
-                &self.mass_value,
-                t,
-                &interp::InterpMode::FirstLast,
-            ),
-            xcg_dot: interp_slope(
-                &self.xcg_time,
-                &self.mass_value,
-                t,
-                &interp::InterpMode::Constant(0.0),
-            ),
-            mass: interp(
-                &self.mass_time,
-                &self.mass_value,
-                t,
-                &interp::InterpMode::FirstLast,
-            ),
-            mass_dot: interp_slope(
-                &self.mass_time,
-                &self.mass_value,
-                t,
-                &interp::InterpMode::Constant(0.0),
-            ),
+            xcg: xcg_int.0,
+            xcg_dot: xcg_int.1,
+            mass: mass_int.0,
+            mass_dot: mass_int.1,
             inertia: Matrix3::new(
-                interp(
-                    &self.inertia_xx_time,
-                    &self.inertia_xx_value,
-                    t,
-                    &interp::InterpMode::FirstLast,
-                ),
+                in_xx_int.0,
                 0.0,
                 0.0,
                 0.0,
-                interp(
-                    &self.inertia_yy_time,
-                    &self.inertia_yy_value,
-                    t,
-                    &interp::InterpMode::FirstLast,
-                ),
+                in_yy_int.0,
                 0.0,
                 0.0,
                 0.0,
-                interp(
-                    &self.inertia_zz_time,
-                    &self.inertia_zz_value,
-                    t,
-                    &interp::InterpMode::FirstLast,
-                ),
+                in_zz_int.0,
             ),
             inertia_dot: Matrix3::new(
-                interp_slope(
-                    &self.inertia_xx_time,
-                    &self.inertia_xx_value,
-                    t,
-                    &interp::InterpMode::Constant(0.0),
-                ),
+                in_xx_int.1,
                 0.0,
                 0.0,
                 0.0,
-                interp_slope(
-                    &self.inertia_yy_time,
-                    &self.inertia_yy_value,
-                    t,
-                    &interp::InterpMode::Constant(0.0),
-                ),
+                in_yy_int.1,
                 0.0,
                 0.0,
                 0.0,
-                interp_slope(
-                    &self.inertia_zz_time,
-                    &self.inertia_zz_value,
-                    t,
-                    &interp::InterpMode::Constant(0.0),
-                ),
+                in_zz_int.1,
             ),
         }
     }
