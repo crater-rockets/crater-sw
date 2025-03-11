@@ -9,11 +9,12 @@
 #include <string>
 #include <utility>
 
-#include "ErrorCodes.hpp"
+#include "mavlink/crater/crater.hpp"
 #include "crater/core/types/DynamicCast.hpp"
 
 namespace crt
 {
+using ErrorCode = mavlink::crater::ErrorCode;
 
 template <typename DataT>
 struct ErrorDataToString;
@@ -44,7 +45,7 @@ public:
 
     std::string message() const override
     {
-        return fmt::format("Error {}:{}. {}", code_str(), static_cast<int>(err_code_), data_string());
+        return fmt::format("Error {}:{} - {}", code_str(), static_cast<int>(err_code_), data_string());
     }
 
     const DataT& data() const

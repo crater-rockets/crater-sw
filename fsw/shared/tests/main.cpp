@@ -1,3 +1,4 @@
+#include <fmt/base.h>
 #include "lest/lest.hpp"
 
 #define CASE(name) lest_CASE(specification(), name)
@@ -10,5 +11,7 @@ lest::tests& specification()
 
 int main(int argc, char* argv[])
 {
-    return lest::run(specification(), argc, argv /*, std::cout */);
+    if(lest::run(specification(), argc, argv /*, std::cout */) == 0) {
+        fmt::println("Tests completed successfully");
+    }
 }
