@@ -1,0 +1,4 @@
+click==8.1.8
+Jinja2==3.1.6
+pydantic==2.10.6
+pydantic-xml==2.14.2

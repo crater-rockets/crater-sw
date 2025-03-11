@@ -1,0 +1,26 @@
+BasedOnStyle: Google
+
+ColumnLimit: 120
+IndentWidth: 4
+AccessModifierOffset: -4
+
+BreakBeforeBraces: Linux
+
+AlignConsecutiveAssignments: Consecutive
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+PackConstructorInitializers: Never
+AllowAllParametersOfDeclarationOnNextLine: false
+
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
+IndentCaseLabels: true
+
+# Empty lines behavior
+InsertNewlineAtEOF: true
+KeepEmptyLinesAtEOF: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+
+# Align pointers/references to the type, not the variable
+DerivePointerAlignment: false
+PointerAlignment: Left

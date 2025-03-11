@@ -1,0 +1,12 @@
+#pragma once
+
+#include "mavlink/crater/crater.hpp"
+
+namespace crt_ext
+{
+
+const char* error_code_str(mavlink::crater::ErrorCode error_code);
+
+mavlink::crater::ErrorCode error_code_from_u8(uint8_t error_code);
+
+}
