@@ -4,6 +4,8 @@ set (CMAKE_CXX_STANDARD 17)
 
 add_subdirectory(libs/expected-lite EXCLUDE_FROM_ALL)
 add_subdirectory(libs/fmt EXCLUDE_FROM_ALL)
+add_subdirectory(../../proto EXCLUDE_FROM_ALL mavlink)
+
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/Warnings.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LinkSystem.cmake)
 target_compile_definitions(fmt-header-only INTERFACE -D_GLIBCXX_USE_WCHAR_T -DFMT_UNICODE=0 -DFMT_STATIC_THOUSANDS_SEPARATOR='.')
@@ -11,7 +13,9 @@ target_compile_definitions(fmt-header-only INTERFACE -D_GLIBCXX_USE_WCHAR_T -DFM
 set(LIBRARIES
     nonstd::expected-lite
     fmt::fmt-header-only
+    crater_mavlink
 )
+
 
 set(SOURCES
     src/crater/core/errors/Error.cpp

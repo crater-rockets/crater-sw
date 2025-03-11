@@ -2,9 +2,9 @@
 
 #include <lest/lest.hpp>
 #include <nonstd/expected.hpp>
+#include <string>
 
 #include "crater/core/errors/Error.hpp"
-#include "crater/core/errors/ErrorCodes.hpp"
 #include "crater/core/errors/Try.hpp"
 #include "crater/core/types/NonZero.hpp"
 
@@ -38,17 +38,17 @@ struct crt::ErrorDataToString<TestErrorData2> {
 
 crt::Expected<int, TestErrorData> error1()
 {
-    return crt::make_error(crt::ErrorCode::Error1, TestErrorData{.additional_data = 123});
+    return crt::make_error(crt::ErrorCode::MockError1, TestErrorData{.additional_data = 123});
 }
 
 crt::Expected<float, TestErrorData2> error2()
 {
-    return crt::make_error(crt::ErrorCode::Error2, TestErrorData2{.additional_data = 123.0F});
+    return crt::make_error(crt::ErrorCode::MockError2, TestErrorData2{.additional_data = 123.0F});
 }
 
 crt::Expected<crt::NonZero<int>> error_void()
 {
-    return crt::make_error(crt::ErrorCode::Error2);
+    return crt::make_error(crt::ErrorCode::MockError2);
 }
 
 crt::AnyExpected<int> error_aggregate(int selector)
@@ -77,40 +77,40 @@ CASE(
     "Simple error"
     "[Errors]")
 {
-    crt::Error err(crt::ErrorCode::Error1, TestErrorData{.additional_data = 123});
+    crt::Error err(crt::ErrorCode::MockError1, TestErrorData{.additional_data = 123});
 
-    EXPECT(err.code() == crt::ErrorCode::Error1);
-    EXPECT(err.code_str() == "Error1");
+    EXPECT(err.code() == crt::ErrorCode::MockError1);
+    EXPECT(err.code_str() == std::string{"MockError1"});
 
     EXPECT(err.data().additional_data == 123);
-    EXPECT(err.message() == "Error Error1:1. Test data=123");
+    EXPECT(err.message() == "Error MockError1:254 - Test data=123");
 }
 
 CASE(
     "Simple void error"
     "[Errors]")
 {
-    crt::Error err(crt::ErrorCode::Error1);
+    crt::Error err(crt::ErrorCode::MockError1);
 
-    EXPECT(err.code() == crt::ErrorCode::Error1);
-    EXPECT(err.code_str() == "Error1");
+    EXPECT(err.code() == crt::ErrorCode::MockError1);
+    EXPECT(err.code_str() == std::string{"MockError1"});
 
-    EXPECT(err.message() == "Error Error1:1");
+    EXPECT(err.message() == "Error MockError1:254");
 }
 
 CASE(
     "Simple string error"
     "[Errors]")
 {
-    crt::Error err(crt::ErrorCode::Error1, "Hello world");
+    crt::Error err(crt::ErrorCode::MockError1, "Hello world");
 
-    EXPECT(err.code() == crt::ErrorCode::Error1);
-    EXPECT(err.code_str() == "Error1");
+    EXPECT(err.code() == crt::ErrorCode::MockError1);
+    EXPECT(err.code_str() == std::string{"MockError1"});
 
-    EXPECT(err.message() == "Error Error1:1. Hello world");
+    EXPECT(err.message() == "Error MockError1:254. Hello world");
 
-    crt::Error err2(crt::ErrorCode::Error1, std::string{"Hello world"});
-    EXPECT(err2.message() == "Error Error1:1. Hello world");
+    crt::Error err2(crt::ErrorCode::MockError1, std::string{"Hello world"});
+    EXPECT(err2.message() == "Error MockError1:254. Hello world");
 }
 
 CASE(
@@ -123,8 +123,8 @@ CASE(
     crt::AnyExpected<int> any2 = error_aggregate(1);
     EXPECT_NOT(any2);
 
-    EXPECT(any2.error().code() == crt::ErrorCode::Error1);
-    EXPECT(any2.error().message() == "Error Error1:1. Test data=123");
+    EXPECT(any2.error().code() == crt::ErrorCode::MockError1);
+    EXPECT(any2.error().message() == "Error MockError1:254 - Test data=123");
 
     std::optional<crt::Error<TestErrorData>> error2 = any2.error().downcast<crt::Error<TestErrorData>>();
     EXPECT(error2);
