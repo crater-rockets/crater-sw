@@ -180,11 +180,9 @@ impl RerunWrite for RocketStateUILog {
         // Velocity vector
         rec.log(
             "objects/vectors/velocity",
-            &rerun::Arrows3D::from_vectors([vec3_to_slice(
-                &(state.vel_b(&state.quat_nb()) / 10.0),
-            )])
-            .with_colors([rerun::Color::from_rgb(0, 255, 0)])
-            .with_origins([[0.0, 0.0, 0.0]]),
+            &rerun::Arrows3D::from_vectors([vec3_to_slice(&(state.vel_b(&state.quat_nb()) / 10.0))])
+                .with_colors([rerun::Color::from_rgb(0, 255, 0)])
+                .with_origins([[0.0, 0.0, 0.0]]),
         )?;
 
         // Transform
@@ -250,67 +248,67 @@ impl RerunWrite for RocketActionsLog {
         rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
-            format!("{ent_path}/thrust_b/x"),
+            "timeseries/actions/body/thrust/x",
             &rerun::Scalar::new(actions.thrust_b[0]),
         )?;
         rec.log(
-            format!("{ent_path}/thrust_b/y"),
+            "timeseries/actions/body/thrust/y",
             &rerun::Scalar::new(actions.thrust_b[1]),
         )?;
         rec.log(
-            format!("{ent_path}/thrust_b/z"),
+            "timeseries/actions/body/thrust/z",
             &rerun::Scalar::new(actions.thrust_b[2]),
         )?;
 
         rec.log(
-            format!("{ent_path}/aero_force_b/x"),
+            "timeseries/actions/body/aero_force/x",
             &rerun::Scalar::new(actions.aero_force_b[0]),
         )?;
         rec.log(
-            format!("{ent_path}/aero_force_b/y"),
+            "timeseries/actions/body/aero_force/y",
             &rerun::Scalar::new(actions.aero_force_b[1]),
         )?;
         rec.log(
-            format!("{ent_path}/aero_force_b/z"),
+            "timeseries/actions/body/aero_force/z",
             &rerun::Scalar::new(actions.aero_force_b[2]),
         )?;
 
         rec.log(
-            format!("{ent_path}/aero_torque_b/x"),
+            "timeseries/actions/body/aero_torque/x",
             &rerun::Scalar::new(actions.aero_torque_b[0]),
         )?;
         rec.log(
-            format!("{ent_path}/aero_torque_b/y"),
+            "timeseries/actions/body/aero_torque/y",
             &rerun::Scalar::new(actions.aero_torque_b[1]),
         )?;
         rec.log(
-            format!("{ent_path}/aero_torque_b/z"),
+            "timeseries/actions/body/aero_torque/z",
             &rerun::Scalar::new(actions.aero_torque_b[2]),
         )?;
 
         rec.log(
-            format!("{ent_path}/acc_b/x"),
+            "timeseries/actions/body/acc/x",
             &rerun::Scalar::new(actions.acc_b[0]),
         )?;
         rec.log(
-            format!("{ent_path}/acc_b/y"),
+            "timeseries/actions/body/acc/y",
             &rerun::Scalar::new(actions.acc_b[1]),
         )?;
         rec.log(
-            format!("{ent_path}/acc_b/z"),
+            "timeseries/actions/body/acc/z",
             &rerun::Scalar::new(actions.acc_b[2]),
         )?;
 
         rec.log(
-            format!("{ent_path}/acc_n/x"),
+            "timeseries/actions/ned/acc/x",
             &rerun::Scalar::new(actions.acc_n[0]),
         )?;
         rec.log(
-            format!("{ent_path}/acc_n/y"),
+            "timeseries/actions/ned/acc/y",
             &rerun::Scalar::new(actions.acc_n[1]),
         )?;
         rec.log(
-            format!("{ent_path}/acc_n/z"),
+            "timeseries/actions/ned/acc/z",
             &rerun::Scalar::new(actions.acc_n[2]),
         )?;
 
