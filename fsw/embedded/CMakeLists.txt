@@ -42,3 +42,6 @@ target_link_libraries(embedded_tests PRIVATE lest)
 set_target_properties(embedded_tests PROPERTIES EXPORT_COMPILE_COMMANDS ON)
 target_link_libraries(embedded_tests PRIVATE crater_shared)
 miosix_target(embedded_tests)
+
+# Workaround to let mavlink-C++11 compile properly
+target_include_directories(crater_mavlink PUBLIC ${CMAKE_CURRENT_LIST_DIR}/bsps/include)
