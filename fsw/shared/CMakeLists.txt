@@ -3,15 +3,23 @@ project(Crater_sharedShared C CXX)
 set (CMAKE_CXX_STANDARD 17)
 
 add_subdirectory(libs/expected-lite EXCLUDE_FROM_ALL)
+add_subdirectory(libs/span-lite EXCLUDE_FROM_ALL)
 add_subdirectory(libs/fmt EXCLUDE_FROM_ALL)
+add_subdirectory(../proto EXCLUDE_FROM_ALL proto)
+
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/Warnings.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/LinkSystem.cmake)
-target_compile_definitions(fmt-header-only INTERFACE -D_GLIBCXX_USE_WCHAR_T -DFMT_UNICODE=0 -DFMT_STATIC_THOUSANDS_SEPARATOR='.')
+target_compile_definitions(fmt-header-only INTERFACE -D_GLIBCXX_USE_WCHAR_T -DFMT_UNICODE=0 -DFMT_USE_LOCALE=false)
+
+option(CRT_LIBRARY_ONLY "Build only the static library" OFF)
 
 set(LIBRARIES
     nonstd::expected-lite
+    nonstd::span-lite
     fmt::fmt-header-only
+    crater_mavlink
 )
+
 
 set(SOURCES
     src/crater/core/errors/Error.cpp
@@ -28,22 +36,32 @@ target_link_libraries_system(crater_shared PUBLIC ${LIBRARIES})
 target_compile_options(crater_shared PUBLIC "${CRATER_CXX_FLAGS}")
 
 
+#### Interface Library ####
+add_library(crater_shared_intf INTERFACE )
+target_sources(crater_shared_intf INTERFACE ${SOURCES})
+target_include_directories(crater_shared_intf INTERFACE ${INCLUDE_DIRS})
+target_link_libraries_system(crater_shared_intf INTERFACE ${LIBRARIES})
+target_compile_options(crater_shared_intf INTERFACE "${CRATER_CXX_FLAGS}")
+
 #### UNIT TESTS ####
 set(TEST_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/tests/test_circular_buffer.cpp
     ${CMAKE_CURRENT_LIST_DIR}/tests/test_errors.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tests/test_mutex.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tests/test_channel.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tests/test_mavlink.cpp
 )
 
 add_library(lest INTERFACE)
 target_include_directories(lest INTERFACE libs/lest/include)
 target_compile_definitions(lest INTERFACE -Dlest_FEATURE_AUTO_REGISTER=1)
 
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+if(NOT CRT_LIBRARY_ONLY)
     add_executable(crater_shared_tests tests/main.cpp ${TEST_SOURCES})
 
     target_include_directories(crater_shared_tests PUBLIC ${INCLUDE_DIRS})
 
-    target_link_libraries(crater_shared_tests PUBLIC crater_shared)
+    target_link_libraries(crater_shared_tests PUBLIC crater_shared_intf)
     target_link_libraries_system(crater_shared_tests PUBLIC ${LIBRARIES})
     target_link_libraries_system(crater_shared_tests PRIVATE lest)
 

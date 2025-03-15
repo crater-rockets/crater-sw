@@ -10,3 +10,9 @@
 [submodule "fsw/shared/libs/lest"]
 	path = fsw/shared/libs/lest
 	url = https://github.com/martinmoene/lest.git
+[submodule "fsw/shared/libs/span-lite"]
+	path = fsw/shared/libs/span-lite
+	url = https://github.com/martinmoene/span-lite.git
+[submodule "fsw/proto/pymavlink"]
+	path = fsw/proto/pymavlink
+	url = git@github.com:crater-rockets/pymavlink.git
