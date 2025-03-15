@@ -9,156 +9,129 @@
 #include <string>
 #include <utility>
 
-#include "mavlink/crater/crater.hpp"
 #include "crater/core/types/DynamicCast.hpp"
+#include "mavlink/crater/crater.hpp"
 
-namespace crt
-{
+namespace crt {
 using ErrorCode = mavlink::crater::ErrorCode;
 
-template <typename DataT>
+template<typename DataT>
 struct ErrorDataToString;
 
-class ErrorBase
-{
-public:
-    virtual ErrorCode code() const      = 0;
+class ErrorBase {
+  public:
+    virtual ~ErrorBase() = default;
+    
+    virtual ErrorCode code() const = 0;
     virtual std::string message() const = 0;
 
     const char* code_str() const;
 };
 
-template <typename DataT>
-class Error : public ErrorBase
-{
-public:
-    explicit Error(ErrorCode err_code, DataT data)
-        : err_code_(err_code),
-          data_(data)
-    {
-    }
+template<typename DataT>
+class Error: public ErrorBase {
+  public:
+    explicit Error(ErrorCode err_code, DataT data) : err_code_(err_code), data_(data) {}
 
-    ErrorCode code() const override
-    {
+    ErrorCode code() const override {
         return err_code_;
     }
 
-    std::string message() const override
-    {
-        return fmt::format("Error {}:{} - {}", code_str(), static_cast<int>(err_code_), data_string());
+    std::string message() const override {
+        return fmt::format(
+            "Error {}:{} - {}",
+            code_str(),
+            static_cast<int>(err_code_),
+            data_string()
+        );
     }
 
-    const DataT& data() const
-    {
+    const DataT& data() const {
         return data_;
     }
 
-    std::string data_string() const
-    {
+    std::string data_string() const {
         return ErrorDataToString<DataT>::data_string(data_);
     }
 
-private:
+  private:
     ErrorCode err_code_;
     DataT data_;
 };
 
-template <>
-class Error<void> : public ErrorBase
-{
-public:
-    explicit Error(ErrorCode err_code)
-        : err_code_(err_code)
-    {
-    }
+template<>
+class Error<void>: public ErrorBase {
+  public:
+    explicit Error(ErrorCode err_code) : err_code_(err_code) {}
 
-    ErrorCode code() const override
-    {
+    ErrorCode code() const override {
         return err_code_;
     }
 
-    std::string message() const override
-    {
+    std::string message() const override {
         return fmt::format("Error {}:{}", code_str(), static_cast<int>(err_code_));
     }
 
-private:
+  private:
     ErrorCode err_code_;
 };
 
-template <>
-class Error<std::string> : public ErrorBase
-{
-public:
-    explicit Error(ErrorCode err_code, std::string msg)
-        : err_code_(err_code),
-          msg_(msg)
-    {
-    }
+template<>
+class Error<std::string>: public ErrorBase {
+  public:
+    explicit Error(ErrorCode err_code, std::string msg) : err_code_(err_code), msg_(msg) {}
 
-    ErrorCode code() const override
-    {
+    ErrorCode code() const override {
         return err_code_;
     }
 
-    std::string message() const override
-    {
+    std::string message() const override {
         return fmt::format("Error {}:{}. {}", code_str(), static_cast<int>(err_code_), msg_);
     }
 
-private:
+  private:
     ErrorCode err_code_;
     std::string msg_;
 };
 
-class AnyError : public ErrorBase
-{
-public:
-    template <typename DataT>
-    AnyError(Error<DataT> error)
-        : error_(std::make_unique<Error<DataT>>(error))
-    {
-    }
+class AnyError: public ErrorBase {
+  public:
+    template<typename DataT>
+    AnyError(Error<DataT> error) : error_(std::make_unique<Error<DataT>>(error)) {}
 
-    ErrorCode code() const override
-    {
+    ErrorCode code() const override {
         return error_->code();
     }
 
-    std::string message() const override
-    {
+    std::string message() const override {
         return error_->message();
     }
 
-    template <typename ErrorT>
-    std::optional<std::reference_wrapper<ErrorT>> downcast()
-    {
+    template<typename ErrorT>
+    std::optional<std::reference_wrapper<ErrorT>> downcast() {
         return crt::dyn_cast<ErrorT>(*error_.get());
     }
 
-private:
+  private:
     std::unique_ptr<ErrorBase> error_;
 };
 
-template <typename T, typename ET = void>
+template<typename T, typename ET = void>
 using Expected = nonstd::expected<T, Error<ET>>;
 
-template <typename T>
+template<typename T>
 using AnyExpected = nonstd::expected<T, AnyError>;
 
-template <typename ET>
-static inline nonstd::unexpected<Error<ET>> make_error(ErrorCode ecode, ET&& data)
-{
+template<typename ET>
+static inline nonstd::unexpected<Error<ET>> err(ErrorCode ecode, ET&& data) {
     return nonstd::make_unexpected(Error<ET>(ecode, std::forward<ET>(data)));
 }
 
-static inline nonstd::unexpected<Error<std::string>> make_error(ErrorCode ecode, const char* data)
-{
+static inline nonstd::unexpected<Error<std::string>> err(ErrorCode ecode, const char* data) {
     return nonstd::make_unexpected(Error<std::string>(ecode, data));
 }
 
-static inline nonstd::unexpected<Error<void>> make_error(ErrorCode ecode)
-{
+static inline nonstd::unexpected<Error<void>> err(ErrorCode ecode) {
     return nonstd::make_unexpected(Error<void>(ecode));
 }
 
@@ -166,4 +139,4 @@ static inline nonstd::unexpected<Error<void>> make_error(ErrorCode ecode)
 Error(ErrorCode) -> Error<void>;
 Error(ErrorCode, const char*) -> Error<std::string>;
 
-}  // namespace crt
+} // namespace crt

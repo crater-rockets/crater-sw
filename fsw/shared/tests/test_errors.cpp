@@ -38,17 +38,17 @@ struct crt::ErrorDataToString<TestErrorData2> {
 
 crt::Expected<int, TestErrorData> error1()
 {
-    return crt::make_error(crt::ErrorCode::MockError1, TestErrorData{.additional_data = 123});
+    return crt::err(crt::ErrorCode::MockError1, TestErrorData{.additional_data = 123});
 }
 
 crt::Expected<float, TestErrorData2> error2()
 {
-    return crt::make_error(crt::ErrorCode::MockError2, TestErrorData2{.additional_data = 123.0F});
+    return crt::err(crt::ErrorCode::MockError2, TestErrorData2{.additional_data = 123.0F});
 }
 
 crt::Expected<crt::NonZero<int>> error_void()
 {
-    return crt::make_error(crt::ErrorCode::MockError2);
+    return crt::err(crt::ErrorCode::MockError2);
 }
 
 crt::AnyExpected<int> error_aggregate(int selector)
