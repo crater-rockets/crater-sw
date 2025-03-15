@@ -16,14 +16,111 @@
             </entry>
 
         </enum>
+
+        <enum name="ImuID">
+            <description>ID of an IMU</description>
+
+            <entry name="IMU_16_G" value="0" />
+            <entry name="IMU_32_G" value="1" />
+        </enum>
+
     </enums>
 
 
     <messages>
-        <message id="1" name="TestMessage">
-            <description>A test message</description>
-            <field type="uint8_t" name="field1">Is this a description?</field>
-            <field type="float" name="field2">Is this a description 2?</field>
+        <!-- Sensors -->
+        <message id="50" name="Raw6DOFImu">
+            <description></description>
+
+            <field type="uint64_t" name="timestamp_us" />
+
+            <field type="uint16_t" name="raw_acc_x_body">Raw acceleration X body</field>
+            <field type="uint16_t" name="raw_acc_y_body">Raw acceleration Y body</field>
+            <field type="uint16_t" name="raw_acc_z_body">Raw acceleration Z body</field>
+
+            <field type="uint16_t" name="raw_gyro_x_body">Raw angular speed X body</field>
+            <field type="uint16_t" name="raw_gyro_y_body">Raw angular speed Y body</field>
+            <field type="uint16_t" name="raw_gyro_z_body">Raw angular speed Z body</field>
+
+            <field type="uint8_t" name="imu_id" enum="ImuID">ID of the IMU source of this data</field>
+        </message>
+
+        <!-- Navigation -->
+        <message id="100" name="PositionNED">
+            <description></description>
+
+            <field type="uint64_t" name="timestamp_us" />
+
+            <field type="float" name="p_x_ned_m" units="m">Position X NED</field>
+            <field type="float" name="p_y_ned_m" units="m">Position Y NED</field>
+            <field type="float" name="p_z_ned_m" units="m">Position Z NED</field>
+
+            <field type="float" name="v_x_ned_m_s" units="m/s">Velocity X NED</field>
+            <field type="float" name="v_y_ned_m_s" units="m/s">Velocity Y NED</field>
+            <field type="float" name="v_z_ned_m_s" units="m/s">Velocity Z NED</field>
+        </message>
+
+        <message id="101" name="AttitudeQuaternion">
+            <description></description>
+
+            <field type="uint64_t" name="timestamp_us" />
+
+            <field type="float" name="q_x">Quaternion X</field>
+            <field type="float" name="q_y">Quaternion Y</field>
+            <field type="float" name="q_z">Quaternion Z</field>
+            <field type="float" name="q_w">Quaternion W</field>
+
+            <field type="float" name="w_x_body_deg" units="deg/s">Angular speed X body</field>
+            <field type="float" name="w_y_body_deg" units="deg/s">Angular speed Y body</field>
+            <field type="float" name="w_z_body_deg" units="deg/s">Angular speed Z body</field>
+        </message>
+
+        <message id="102" name="AttitudeEuler">
+            <description></description>
+
+            <field type="uint64_t" name="timestamp_us" />
+
+            <field type="float" name="yaw_deg" units="deg">Yaw</field>
+            <field type="float" name="pitch_deg" units="deg">Pitch</field>
+            <field type="float" name="roll_deg" units="deg">Roll</field>
+
+            <field type="float" name="w_x_body_deg" units="deg/s">Angular speed X body</field>
+            <field type="float" name="w_y_body_deg" units="deg/s">Angular speed Y body</field>
+            <field type="float" name="w_z_body_deg" units="deg/s">Angular speed Z body</field>
+        </message>
+
+        <!-- Control -->
+        <message id="130" name="ServoTarget">
+            <description></description>
+
+            <field type="uint64_t" name="timestamp_us" />
+
+            <field type="float" name="s1_target_deg" units="deg">Servo 1 target position</field>
+            <field type="float" name="s2_target_deg" units="deg">Servo 2 target position</field>
+            <field type="float" name="s3_target_deg" units="deg">Servo 3 target position</field>
+            <field type="float" name="s4_target_deg" units="deg">Servo 4 target position</field>
+        </message>
+
+         <message id="131" name="ServoTargetMixed">
+            <description></description>
+
+            <field type="uint64_t" name="timestamp_us" />
+
+            <field type="float" name="yaw_target_deg" units="deg">Yaw control target position</field>
+            <field type="float" name="pitch_target_deg" units="deg">Pitch control target position</field>
+            <field type="float" name="roll_target_deg" units="deg">Roll control target position</field>
+            <field type="float" name="squeeze_target_deg" units="deg">Squeeze control target position</field>
+        </message>
+
+
+        <!-- Testing & Mocks -->
+        <message id="254" name="TestMessage">
+            <description></description>
+
+            <field type="uint64_t" name="timestamp_us" />
+
+            <field type="float" name="param1">Test param 1</field>
+            <field type="int32_t[3]" name="param2">Test param 2</field>
         </message>
     </messages>
 </mavlink>
