@@ -29,6 +29,8 @@ tabulated.json_path = {val="config/motor.json", dtype ="string"}
 
 [sim.rocket.crater.imu]
 imu_position = { val = [0.0,0.0,0.0], dtype = "f64"}
+imu_rotation = { val = [1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,1.0], dtype = "f64"}
+imu_misalign = { val = [0.995,0.01,0.005,-0.001,0.989,0.0,0.0,0.0,1.0], dtype = "f64"}
 
 [sim.rocket.crater.aero]
 cA_0 = { val = 0.3200, dtype = "f64" }
