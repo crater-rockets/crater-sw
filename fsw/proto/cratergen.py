@@ -71,7 +71,7 @@ class MavlinkMessageField(BaseXmlModel):
     instance: bool = attr(default=False)
     invalid: str | None = attr(default=None)
 
-    description: str
+    description: str | None = None
 
 
 class MavlinkMessage(BaseXmlModel):
