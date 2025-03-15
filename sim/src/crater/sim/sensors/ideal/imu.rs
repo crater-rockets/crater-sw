@@ -12,11 +12,13 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::TimeDelta;
-use nalgebra::Vector3;
+use nalgebra::{Matrix3, Vector3};
 
 #[derive(Debug)]
 pub struct ImuParams {
     imu_pos: Vector3<f64>,
+    imu_rot: Matrix3<f64>,
+    imu_mis: Matrix3<f64>,
     g_n: Vector3<f64>,
 }
 
@@ -43,13 +45,28 @@ impl IdealIMU {
         let imu_pos = imu_params.get_param("imu_position")?.value_float_arr()?;
         let imu_pos = Vector3::from_column_slice(&imu_pos);
 
+        let imu_rot = ctx
+            .parameters()
+            .get_vec_f64(format!("/sim/rocket/crater/imu/imu_rotation").as_str())?;
+        let imu_rot = Matrix3::from_column_slice(&imu_rot);
+
+        let imu_mis = ctx
+            .parameters()
+            .get_vec_f64(format!("/sim/rocket/crater/imu/imu_misalign").as_str())?;
+        let imu_mis = Matrix3::from_column_slice(&imu_mis);
+
         let g_n = ctx
             .parameters()
             .get_param("sim.rocket.g_n")?
             .value_float_arr()?;
         let g_n = Vector3::from_column_slice(&g_n);
 
-        let imu_parameters = ImuParams { imu_pos, g_n };
+        let imu_parameters = ImuParams {
+            imu_pos,
+            imu_rot,
+            imu_mis,
+            g_n,
+        };
 
         Ok(Self {
             rx_state,
@@ -76,14 +93,19 @@ impl Node for IdealIMU {
             .try_recv()
             .expect("IMU step executed, but no /rocket/masses input available");
 
-        let acc = actions.acc_b
-            + actions
-                .ang_acc
-                .cross(&(masses.xcg_total - &self.imu_parameters.imu_pos))
-            + state.angvel_b().cross(&state.angvel_b());
-        // - state.quat_nb().inverse_transform_vector(&self.imu_parameters.g_n);
+        let acc: Vector3<f64> = self.imu_parameters.imu_mis
+            * self.imu_parameters.imu_rot
+            * (actions.acc_b
+                + actions
+                    .ang_acc
+                    .cross(&(masses.xcg_total - &self.imu_parameters.imu_pos))
+                + state.angvel_b().cross(&state.angvel_b())
+                + state
+                    .quat_nb()
+                    .inverse_transform_vector(&self.imu_parameters.g_n));
 
-        let w_imu = state.angvel_b();
+        let w_imu: Vector3<f64> =
+            self.imu_parameters.imu_mis * self.imu_parameters.imu_rot * state.angvel_b();
 
         let sample = IMUSample { acc, gyro: w_imu };
 
