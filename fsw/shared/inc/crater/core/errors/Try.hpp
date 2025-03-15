@@ -11,21 +11,19 @@
 #include <nonstd/expected.hpp>
 #include <optional>
 
-namespace crt::error_detail
-{
-template <typename T>
-static inline __attribute__((always_inline)) std::optional<T> extract_error(std::optional<T>&&)
-{
+namespace crt::error_detail {
+template<typename T>
+static inline __attribute__((always_inline)) std::optional<T> extract_error(std::optional<T>&&) {
     return std::nullopt;
 }
 
-template <typename T, typename E>
-static inline __attribute__((always_inline)) nonstd::expected<T, E> extract_error(nonstd::expected<T, E>&& err)
-{
+template<typename T, typename E>
+static inline __attribute__((always_inline)) nonstd::expected<T, E>
+extract_error(nonstd::expected<T, E>&& err) {
     return err.get_unexpected();
 }
 
-}  // namespace crt::error_detail
+} // namespace crt::error_detail
 
 // NOTE: This macro works with any result type that has the expected APIs.
 //
@@ -38,19 +36,19 @@ static inline __attribute__((always_inline)) nonstd::expected<T, E> extract_erro
 //       reference from a fallible expression. This will not do what you want;
 //       the statement expression will create a copy regardless, so it is
 //       explicitly disallowed.
-#define TRY(expression)                                                               \
-    ({                                                                                \
-        /* Ignore -Wshadow to allow nesting the macro. */                             \
-        CRT_IGNORE_DIAGNOSTIC("-Wshadow", auto&& _temporary_result = (expression));   \
-        if (!_temporary_result.has_value()) [[unlikely]]                              \
+#define TRY(expression) \
+    ({ \
+        /* Ignore -Wshadow to allow nesting the macro. */ \
+        CRT_IGNORE_DIAGNOSTIC("-Wshadow", auto&& _temporary_result = (expression)); \
+        if (!_temporary_result.has_value()) [[unlikely]] \
             return crt::error_detail::extract_error(std::move(_temporary_result)); \
-        std::move(_temporary_result.value());                                         \
+        std::move(_temporary_result.value()); \
     })
 
-#define MUST(expression)                                                            \
-    ({                                                                              \
-        /* Ignore -Wshadow to allow nesting the macro. */                           \
+#define MUST(expression) \
+    ({ \
+        /* Ignore -Wshadow to allow nesting the macro. */ \
         CRT_IGNORE_DIAGNOSTIC("-Wshadow", auto&& _temporary_result = (expression)); \
-        CRT_ASSERT(_temporary_result.has_value(), "Expected contains an error");    \
-        _temporary_result.value();                                                  \
+        CRT_ASSERT(_temporary_result.has_value(), "Expected contains an error"); \
+        _temporary_result.value(); \
     })
