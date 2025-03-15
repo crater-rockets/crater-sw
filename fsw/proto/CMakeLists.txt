@@ -3,9 +3,11 @@ project(Crater_Mavlink C CXX)
 set (CMAKE_CXX_STANDARD 17)
 
 
+set(CODEGEN_OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
+
 ### MAVLINK FILE GENERATION ###
-set(MAVLINK_DIALECT_FILE ${CMAKE_CURRENT_LIST_DIR}/crater.xml)
-set(MAVLINK_GEN_DIR ${CMAKE_CURRENT_LIST_DIR}/generated/mavlink)
+set(MAVLINK_DIALECT_FILE ${CMAKE_CURRENT_LIST_DIR}/message_definitions/v1.0/crater.xml)
+set(MAVLINK_GEN_DIR ${CODEGEN_OUTPUT_DIR}/mavlink)
 set(MAVLINK_GEN_FILES
     ${MAVLINK_GEN_DIR}/mavlink_get_info.h
     ${MAVLINK_GEN_DIR}/message.hpp
@@ -34,7 +36,7 @@ add_custom_target(mavlink_generated DEPENDS ${MAVLINK_GEN_FILES})
 
 ### CUSTOM CODEGENERATION ###
 set(CRTEXT_TEMPLATE_DIR ${CMAKE_CURRENT_LIST_DIR}/templates)
-set(CRTEXT_GEN_DIR ${CMAKE_CURRENT_LIST_DIR}/generated/crater_ext)
+set(CRTEXT_GEN_DIR ${CODEGEN_OUTPUT_DIR}/crater_ext)
 
 set(CRTEXT_GEN_FILES
         ${CRTEXT_GEN_DIR}/ErrorCode.hpp
@@ -52,9 +54,9 @@ add_custom_command(OUTPUT ${CRTEXT_GEN_FILES}
                     )
 add_custom_target(crtext_generated DEPENDS ${CRTEXT_GEN_FILES})
 
-add_library(crater_mavlink STATIC generated/crater_ext/ErrorCode.cpp)
+add_library(crater_mavlink STATIC ${CODEGEN_OUTPUT_DIR}/crater_ext/ErrorCode.cpp)
 
-target_include_directories(crater_mavlink PUBLIC generated)
+target_include_directories(crater_mavlink PUBLIC ${CODEGEN_OUTPUT_DIR})
 target_compile_definitions(crater_mavlink PUBLIC MAVLINK_NO_CONVERSION_HELPERS)
 
 

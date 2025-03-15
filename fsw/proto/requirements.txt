@@ -7,5 +7,5 @@ MarkupSafe==3.0.2
 pydantic==2.10.6
 pydantic-xml==2.14.3
 pydantic_core==2.27.2
-pymavlink==2.4.42
+./pymavlink
 typing_extensions==4.12.2
