@@ -186,7 +186,7 @@ impl RerunLoggerConnection {
         rec.log("timeseries/position/z", &rerun::Scalar::new(pos[2]))?;
 
         // Velocity
-        let vel_b = state.vel_b();
+        let vel_b = state.vel_b(&state.quat_nb());
         let vnorm = vel_b.norm();
 
         rec.log("timeseries/velocity/body/x", &rerun::Scalar::new(vel_b[0]))?;
@@ -268,7 +268,7 @@ impl RerunLoggerConnection {
         // Velocity vector
         rec.log(
             "objects/vectors/velocity",
-            &rerun::Arrows3D::from_vectors([vec3_to_slice(&(state.vel_b() / 10.0))])
+            &rerun::Arrows3D::from_vectors([vec3_to_slice(&(state.vel_b(&state.quat_nb()) / 10.0))])
                 .with_colors([rerun::Color::from_rgb(0, 255, 0)])
                 .with_origins([[0.0, 0.0, 0.0]]),
         )?;
@@ -369,6 +369,19 @@ impl RerunLoggerConnection {
         rec.log(
             "timeseries/actions/body/acc/z",
             &rerun::Scalar::new(actions.acc_b[2]),
+        )?;
+
+        rec.log(
+            "timeseries/actions/ned/acc/x",
+            &rerun::Scalar::new(actions.acc_n[0]),
+        )?;
+        rec.log(
+            "timeseries/actions/ned/acc/y",
+            &rerun::Scalar::new(actions.acc_n[1]),
+        )?;
+        rec.log(
+            "timeseries/actions/ned/acc/z",
+            &rerun::Scalar::new(actions.acc_n[2]),
         )?;
 
         let thrust_scaled = actions.thrust_b / 20.0;

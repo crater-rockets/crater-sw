@@ -44,11 +44,9 @@ impl RocketOutput {
 
         let aero = aerodynamics.calc(&AeroState::new(
             servo_pos.mix(),
-            state
-                .quat_nb()
-                .inverse_transform_vector(&state.vel_n().clone_owned()),
+            state.vel_b(&state.quat_nb()),
             Vector3::zeros(),
-            state.angvel_b().clone_owned(),
+            state.angvel_b(),
             state.pos_n()[2],
         ));
 
@@ -56,7 +54,8 @@ impl RocketOutput {
             thrust_b: engine.thrust_b(t.monotonic.elapsed_seconds_f64()),
             aero_force_b: aero.forces,
             aero_torque_b: aero.moments,
-            acc_b: d_state.vel_b(),
+            acc_n: d_state.vel_n(),
+            acc_b: d_state.vel_b(&state.quat_nb()),
         };
 
         self.snd_actions.send(t, actions);

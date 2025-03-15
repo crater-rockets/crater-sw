@@ -37,9 +37,8 @@ impl RocketState {
         self.0.fixed_rows::<3>(3).clone_owned()
     }
 
-    pub fn vel_b(&self) -> Vector3<f64> {
-        self.quat_nb()
-            .inverse_transform_vector(&self.vel_n().clone_owned())
+    pub fn vel_b(&self, quat_nb: &UnitQuaternion<f64>) -> Vector3<f64> {
+        quat_nb.inverse_transform_vector(&self.vel_n().clone_owned())
     }
 
     pub fn quat_nb_vec(&self) -> Vector4<f64> {
@@ -82,6 +81,7 @@ pub struct RocketActions {
     pub aero_force_b: Vector3<f64>,
     pub aero_torque_b: Vector3<f64>,
 
+    pub acc_n: Vector3<f64>, // Acceleration
     pub acc_b: Vector3<f64>, // Acceleration
 }
 
