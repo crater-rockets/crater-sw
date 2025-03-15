@@ -23,6 +23,7 @@ set(LIBRARIES
 
 set(SOURCES
     src/crater/core/errors/Error.cpp
+    src/crater/core/io/ChannelToOutputStream.cpp
 )
 
 set(INCLUDE_DIRS

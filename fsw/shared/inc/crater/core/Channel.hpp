@@ -33,6 +33,13 @@ class Receiver {
         return size;
     }
 
+    ~Receiver() = default;
+    
+    Receiver(const Receiver& s) = delete;
+    Receiver(Receiver&& s) = default;
+    
+    Receiver& operator=(const Receiver& other) = delete;
+    Receiver& operator=(Receiver&& other) = default;
   private:
     struct ReceiverInner {
         crt::sync::Mutex<crt::collections::CircularBuffer<T>> buf_;
