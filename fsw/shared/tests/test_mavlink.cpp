@@ -1,7 +1,7 @@
 #include <fmt/base.h>
 #include <fmt/core.h>
 
-#include <crater/telemetry/Mavlink.hpp>
+#include <crater/core/io/Mavlink.hpp>
 #include <cstdint>
 #include <lest/lest.hpp>
 #include <nonstd/span.hpp>

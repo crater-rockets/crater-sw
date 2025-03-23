@@ -7,11 +7,11 @@
 
 namespace crt::mavlink {
 
-static constexpr uint16_t MavlinkMaxPacketLen = MAVLINK_MAX_PACKET_LEN;
+static constexpr uint16_t MaxPacketLen = MAVLINK_MAX_PACKET_LEN;
 
 template<typename MsgT>
 static uint16_t mavlink_encode_msg(
-    nonstd::span<uint8_t, MavlinkMaxPacketLen> buffer,
+    nonstd::span<uint8_t, MaxPacketLen> buffer,
     const MsgT& message,
     uint8_t sys_id,
     uint8_t comp_id
@@ -44,4 +44,7 @@ static std::optional<MsgT> mavlink_decode_msg(const ::mavlink::mavlink_message_t
     }
 }
 
+enum class MavlinkChannel : uint8_t {
+    RustFFI = 0
+};
 } // namespace crt::mavlink
