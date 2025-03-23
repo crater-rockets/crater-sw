@@ -3,7 +3,10 @@ use chrono::TimeDelta;
 use crater::{
     crater::{
         logging::RerunLogger,
-        sim::{actuators::ideal::IdealServo, gnc::openloop::OpenloopControl, rocket::Rocket},
+        sim::{
+            actuators::ideal::IdealServo, ffi::cratercpp::CraterCpp,
+            gnc::openloop::OpenloopControl, rocket::Rocket, sensors::ideal::IdealIMU,
+        },
     },
     nodes::{FtlOrderedExecutor, NodeConfig, NodeManager},
     parameters::ParameterService,
@@ -19,9 +22,12 @@ use std::{
 
 fn build_model(nm: &mut NodeManager) -> Result<()> {
     nm.add_node("rocket", |ctx| Ok(Box::new(Rocket::new("crater", ctx)?)))?;
+    nm.add_node("imu", |ctx| Ok(Box::new(IdealIMU::new(ctx)?)))?;
     nm.add_node("openloop_control", |ctx| {
         Ok(Box::new(OpenloopControl::new(ctx)?))
     })?;
+
+    nm.add_node("cratercpp", |ctx| Ok(Box::new(CraterCpp::new(ctx)?)))?;
     nm.add_node("ideal_servo", |ctx| Ok(Box::new(IdealServo::new(ctx)?)))?;
 
     Ok(())
@@ -55,7 +61,9 @@ fn main() -> Result<()> {
             params.clone(),
             HashMap::from([
                 ("rocket".to_string(), NodeConfig::default()),
+                ("imu".to_string(), NodeConfig::default()),
                 ("openloop_control".to_string(), NodeConfig::default()),
+                ("cratercpp".to_string(), NodeConfig::default()),
                 ("ideal_servo".to_string(), NodeConfig::default()),
             ]),
         );

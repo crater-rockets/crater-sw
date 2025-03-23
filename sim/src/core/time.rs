@@ -204,6 +204,5 @@ impl TD {
 
 pub fn nsec_to_sec_f64(nsec: i64) -> f64 {
     let td = TimeDelta::nanoseconds(nsec);
-
     td.num_seconds() as f64 + (td.subsec_nanos() as f64) / 1000000000.0
 }
