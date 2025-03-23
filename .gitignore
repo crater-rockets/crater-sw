@@ -1,6 +1,6 @@
 .venv/
 *.pyc
-build/
+/build
 /.cache/
 compile_commands.json
 .vscode/

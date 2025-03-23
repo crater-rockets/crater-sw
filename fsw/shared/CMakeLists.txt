@@ -23,7 +23,12 @@ set(LIBRARIES
 
 set(SOURCES
     src/crater/core/errors/Error.cpp
-    src/crater/core/io/ChannelToOutputStream.cpp
+    src/crater/core/exec/Executor.cpp
+    src/crater/core/io/MavlinkHelpers.cpp
+    src/crater/main/io/ChannelWriter.cpp
+    src/crater/main/io/ChannelReader.cpp
+    src/crater/main/MainExec.cpp
+    src/crater/main/ffi/CraterFFI.cpp
 )
 
 set(INCLUDE_DIRS

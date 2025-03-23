@@ -1,0 +1,11 @@
+{
+    "version": 10,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 23,
+        "patch": 0
+    },
+    "include": [
+        "fsw/shared/CMakePresets.json"
+    ]
+}
