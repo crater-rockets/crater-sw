@@ -100,7 +100,7 @@ impl Node for IdealIMU {
                     .ang_acc
                     .cross(&(masses.xcg_total - &self.imu_parameters.imu_pos))
                 + state.angvel_b().cross(&state.angvel_b())
-                + state
+                - state
                     .quat_nb()
                     .inverse_transform_vector(&self.imu_parameters.g_n));
 
