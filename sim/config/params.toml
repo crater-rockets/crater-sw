@@ -30,6 +30,10 @@ p0_n = { val = [0, 0, 0], type = "float[]" }
 v0_b = { val = [0, 0, 0], type = "float[]" }
 w0_b_deg = { val = [0, 0, 0], type = "float[]" }
 
+latitude = { val = 41.8080239, type = "float" }
+longitude = { val = 14.0548082, type = "float" }
+altitude = { val = 1411.211, type = "float" }
+
 [sim.rocket.engine]
 engine_type = { val = "tabulated", type = "str" }
 tabulated.json_path = { val = "config/motor.json", type = "str" }
@@ -57,6 +61,30 @@ imu_misalign = { val = [
     0.005,
     -0.001,
     0.989,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+], type = "float[]" }
+
+[sim.rocket.magnetomer]
+mag_rotation = { val = [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+], type = "float[]" }
+mag_misalign = { val = [
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
     0.0,
     0.0,
     0.0,

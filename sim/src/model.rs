@@ -1,4 +1,4 @@
-use crate::{crater::sim::{actuators::ideal::IdealServo, gnc::openloop::OpenloopControl, rocket::Rocket, sensors::ideal::IdealIMU}, nodes::NodeManager};
+use crate::{crater::sim::{actuators::ideal::IdealServo, gnc::openloop::OpenloopControl, rocket::Rocket, sensors::ideal::{IdealIMU, IdealMagnetometer}}, nodes::NodeManager};
 use anyhow::Result;
 
 pub trait ModelBuilder {
@@ -16,6 +16,7 @@ impl ModelBuilder for OpenLoopCrater {
         })?;
         nm.add_node("ideal_servo", |ctx| Ok(Box::new(IdealServo::new(ctx)?)))?;
         nm.add_node("ideal_imu", |ctx| Ok(Box::new(IdealIMU::new(ctx)?)))?;
+        nm.add_node("ideal_mag", |ctx| Ok(Box::new(IdealMagnetometer::new(ctx)?)))?;
 
         Ok(())
     }

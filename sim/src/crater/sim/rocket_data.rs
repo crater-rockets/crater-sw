@@ -167,6 +167,7 @@ pub struct RocketParams {
     pub xcg_empty: Vector3<f64>,
     pub xcg_motor_ref: Vector3<f64>,
     pub inv_inertia: Matrix3<f64>,
+    pub origin_geo: Vector3<f64>,
     pub p0_n: Vector3<f64>,
     pub v0_b: Vector3<f64>,
     pub w0_b: Vector3<f64>,
@@ -199,6 +200,12 @@ impl RocketParams {
         let diameter = params.get_param("diameter")?.value_randfloat()?.sampled();
         let surface = f64::consts::PI * (diameter / 2.0).powf(2.0);
 
+        let orig_lat = params.get_param("init.latitude")?.value_float()?.to_radians();
+        let orig_lon = params.get_param("init.longitude")?.value_float()?.to_radians();
+        let orig_alt = params.get_param("init.altitude")?.value_float()?;
+
+        let origin_geo = Vector3::new(orig_lat,orig_lon,orig_alt);
+
         let p0_n = params.get_param("init.p0_n")?.value_float_arr()?;
         let p0_n = Vector3::from_column_slice(&p0_n);
 
@@ -223,6 +230,7 @@ impl RocketParams {
             xcg_empty,
             xcg_motor_ref,
             inv_inertia,
+            origin_geo,
             p0_n,
             v0_b,
             w0_b,

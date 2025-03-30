@@ -45,14 +45,10 @@ impl IdealIMU {
         let imu_pos = imu_params.get_param("imu_position")?.value_float_arr()?;
         let imu_pos = Vector3::from_column_slice(&imu_pos);
 
-        let imu_rot = ctx
-            .parameters()
-            .get_vec_f64(format!("/sim/rocket/crater/imu/imu_rotation").as_str())?;
+        let imu_rot = imu_params.get_param("imu_rotation")?.value_float_arr()?;
         let imu_rot = Matrix3::from_column_slice(&imu_rot);
 
-        let imu_mis = ctx
-            .parameters()
-            .get_vec_f64(format!("/sim/rocket/crater/imu/imu_misalign").as_str())?;
+        let imu_mis = imu_params.get_param("imu_misalign")?.value_float_arr()?;
         let imu_mis = Matrix3::from_column_slice(&imu_mis);
 
         let g_n = ctx

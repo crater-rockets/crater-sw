@@ -1,28 +1,67 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::sim::{rocket_data::RocketState, sensors::datatypes::MagnetometerSample},
+    crater::sim::{
+        rocket_data::{RocketParams, RocketState},
+        sensors::datatypes::MagnetometerSample,
+    },
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
 };
 use anyhow::Result;
 use chrono::TimeDelta;
-use nalgebra::Vector3;
+use map_3d::ned2geodetic;
+use nalgebra::{Matrix3, Vector3};
+use num_traits::ToPrimitive;
+use world_magnetic_model::{
+    time::OffsetDateTime,
+    uom::si::{
+        f32::{Angle, Length},
+        length::meter,
+        magnetic_flux_density::nanotesla,
+    },
+};
+use world_magnetic_model::{uom::si::angle::radian, GeomagneticField};
+
+#[derive(Debug)]
+pub struct MagParams {
+    mag_mis: Matrix3<f64>,
+    mag_rot: Matrix3<f64>,
+}
 
 #[derive(Debug)]
 pub struct IdealMagnetometer {
     rx_state: TelemetryReceiver<RocketState>,
-
+    rx_params: TelemetryReceiver<RocketParams>,
     tx_magn: TelemetrySender<MagnetometerSample>,
+    mag_par: MagParams,
 }
 
 impl IdealMagnetometer {
     pub fn new(ctx: NodeContext) -> Result<Self> {
         let rx_state = ctx.telemetry().subscribe("/rocket/state", Unbounded)?;
+        let rx_params = ctx.telemetry().subscribe("/rocket/params", Unbounded)?;
+        let tx_magn = ctx.telemetry().publish("/sensors/ideal_mag")?;
 
-        let tx_magn = ctx.telemetry().publish("/sensors/magnetometer")?;
+        let mag_params = ctx.parameters().get_map("sim.rocket.magnetomer")?;
 
-        Ok(Self { rx_state, tx_magn })
+        let mag_rot = mag_params.get_param("mag_rotation")?.value_float_arr()?;
+        let mag_rot: Matrix3<f64> = Matrix3::from_column_slice(&mag_rot);
+
+        let mag_mis = mag_params.get_param("mag_misalign")?.value_float_arr()?;
+        let mag_mis: Matrix3<f64> = Matrix3::from_column_slice(&mag_mis);
+
+        let mag_par: MagParams = MagParams {
+            mag_mis: mag_mis,
+            mag_rot: mag_rot,
+        };
+
+        Ok(Self {
+            rx_state,
+            rx_params,
+            tx_magn,
+            mag_par,
+        })
     }
 }
 
@@ -34,8 +73,44 @@ impl Node for IdealMagnetometer {
             .try_recv()
             .expect("Magnetometer step executed, but no /rocket/state input available");
 
+        let Timestamped(_, params) = self
+            .rx_params
+            .try_recv()
+            .expect("Magnetometer step executed, but no /rocket/params input available");
+
+        let pos = state.pos_n();
+
+        let (lat, lon, _) = ned2geodetic(
+            pos[0],
+            pos[1],
+            pos[2],
+            params.origin_geo[0],
+            params.origin_geo[1],
+            params.origin_geo[2],
+            map_3d::Ellipsoid::WGS84,
+        );
+
+        let alt = (-state.pos_n().z + params.origin_geo.z).to_f32().unwrap();
+        let today = OffsetDateTime::now_utc().date();
+
+        let mag_field = GeomagneticField::new(
+            Length::new::<meter>(alt),
+            Angle::new::<radian>(lat.to_f32().unwrap()),
+            Angle::new::<radian>(lon.to_f32().unwrap()),
+            today,
+        )
+        .unwrap();
+
+        let mag_n = mag_field.x().get::<nanotesla>().to_f64().unwrap();
+        let mag_e = mag_field.y().get::<nanotesla>().to_f64().unwrap();
+        let mag_d = mag_field.z().get::<nanotesla>().to_f64().unwrap();
+
+        let mag_ned: Vector3<f64> = Vector3::new(mag_n, mag_e, mag_n);
+
         let sample = MagnetometerSample {
-            magfield_b: Vector3::<f64>::zeros(), // TODO: Implement magnetometer
+            magfield_b: self.mag_par.mag_mis
+                * self.mag_par.mag_rot
+                * state.quat_nb().inverse_transform_vector(&mag_ned),
         };
 
         self.tx_magn.send(Timestamp::now(clock), sample);
