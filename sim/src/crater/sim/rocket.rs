@@ -5,7 +5,6 @@ use super::{
     gnc::ServoPosition,
     rocket_data::{RocketMassProperties, RocketParams, RocketState},
     rocket_output::RocketOutput,
-    sensors::ideal::IdealIMU,
 };
 use crate::{
     core::time::{Clock, Timestamp, TD},
@@ -15,7 +14,7 @@ use crate::{
     },
     math::ode::{OdeProblem, OdeSolver, RungeKutta4},
     nodes::{Node, NodeContext, StepResult},
-    telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetrySender, Timestamped},
+    telemetry::{TelemetryDispatcher, TelemetryReceiver, Timestamped},
     utils::capacity::Capacity::Unbounded,
 };
 use anyhow::{anyhow, Ok, Result};

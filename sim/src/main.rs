@@ -2,6 +2,7 @@ use anyhow::Result;
 use crater::{
     crater::logging::rerun::CraterUiLogConfig, model::OpenLoopCrater, runner::SingleThreadedRunner,
 };
+
 use log::info;
 use std::{env, path::Path};
 

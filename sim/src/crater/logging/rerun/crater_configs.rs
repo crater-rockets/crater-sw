@@ -4,12 +4,12 @@ use rerun::RecordingStream;
 
 use crate::crater::sim::{
     gnc::ServoPosition,
-    rocket_data::{AeroAngles, RocketActions, RocketMassProperties, RocketState}, sensors::IMUSample,
+    rocket_data::{AeroAngles, RocketActions, RocketMassProperties, RocketState}, sensors::{IMUSample, MagnetometerSample},
 };
 
 use super::{
     crater_log_impl::{
-        AeroAnglesLog, IMUSampleLog, RocketActionsLog, RocketMassPropertiesLog, RocketStateRawLog, RocketStateUILog, ServoPositionLog
+        AeroAnglesLog, IMUSampleLog, MagnetometerSampleLog, RocketActionsLog, RocketMassPropertiesLog, RocketStateRawLog, RocketStateUILog, ServoPositionLog
     },
     rerun_logger::{RerunLogConfig, RerunLoggerBuilder},
 };
@@ -72,6 +72,11 @@ impl RerunLogConfig for CraterUiLogConfig {
             "/sensors/ideal_imu",
             "timeseries/sensors/ideal_imu",
             IMUSampleLog::default(),
+        )?;
+        builder.log_telemetry::<MagnetometerSample>(
+            "/sensors/ideal_mag",
+            "timeseries/sensors/ideal_mag",
+            MagnetometerSampleLog::default(),
         )?;
         Ok(())
     }

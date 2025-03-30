@@ -7,8 +7,8 @@ use crate::{
     crater::sim::{
         engine::engine::RocketEngineMasses,
         gnc::ServoPosition,
-        rocket_data::{AeroAngles, RocketActions, RocketMassProperties, RocketState},
-        sensors::{ideal::IdealIMU, IMUSample},
+        rocket_data::{AeroAngles, RocketActions, RocketMassProperties, RocketParams, RocketState},
+        sensors::{ideal::IdealIMU, IMUSample, MagnetometerSample},
     },
 };
 
@@ -180,9 +180,11 @@ impl RerunWrite for RocketStateUILog {
         // Velocity vector
         rec.log(
             "objects/vectors/velocity",
-            &rerun::Arrows3D::from_vectors([vec3_to_slice(&(state.vel_b(&state.quat_nb()) / 10.0))])
-                .with_colors([rerun::Color::from_rgb(0, 255, 0)])
-                .with_origins([[0.0, 0.0, 0.0]]),
+            &rerun::Arrows3D::from_vectors([vec3_to_slice(
+                &(state.vel_b(&state.quat_nb()) / 10.0),
+            )])
+            .with_colors([rerun::Color::from_rgb(0, 255, 0)])
+            .with_origins([[0.0, 0.0, 0.0]]),
         )?;
 
         // Transform
@@ -571,6 +573,39 @@ impl RerunWrite for IMUSampleLog {
     }
 }
 
+#[derive(Default)]
+pub struct MagnetometerSampleLog;
+
+impl RerunWrite for MagnetometerSampleLog {
+    type Telem = MagnetometerSample;
+
+    fn write(
+        &mut self,
+        rec: &mut RecordingStream,
+        ent_path: &str,
+        ts: Timestamp,
+        mag: MagnetometerSample,
+    ) -> Result<()> {
+        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+
+        rec.log(
+            format!("{}/x", ent_path),
+            &rerun::Scalar::new(mag.magfield_b.x),
+        )?;
+
+        rec.log(
+            format!("{}/y", ent_path),
+            &rerun::Scalar::new(mag.magfield_b.y),
+        )?;
+
+        rec.log(
+            format!("{}/z", ent_path),
+            &rerun::Scalar::new(mag.magfield_b.z),
+        )?;
+
+        Ok(())
+    }
+}
 
 fn vec3_to_slice(vec: &Vector3<f64>) -> [f32; 3] {
     [vec[0] as f32, vec[1] as f32, vec[2] as f32]
