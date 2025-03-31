@@ -1,0 +1,1318 @@
+crater_core v0.1.0 (/home/luca/code/crater/quadcopter/crater/core_lib)
+
+crater_plant v0.1.0 (/home/luca/code/crater/quadcopter/crater/plant)
+├── anyhow v1.0.97
+│   └── backtrace v0.3.74
+│       ├── addr2line v0.24.2
+│       │   └── gimli v0.31.1
+│       ├── cfg-if v1.0.0
+│       ├── libc v0.2.171
+│       ├── miniz_oxide v0.8.5
+│       │   └── adler2 v2.0.0
+│       ├── object v0.36.7
+│       │   └── memchr v2.7.4
+│       └── rustc-demangle v0.1.24
+├── bytes v1.10.1
+├── chrono v0.4.40
+│   ├── iana-time-zone v0.1.63
+│   └── num-traits v0.2.19
+│       └── libm v0.2.11
+│       [build-dependencies]
+│       └── autocfg v1.4.0
+├── egui v0.31.1
+│   ├── ahash v0.8.11
+│   │   ├── cfg-if v1.0.0
+│   │   ├── getrandom v0.2.15
+│   │   │   ├── cfg-if v1.0.0
+│   │   │   └── libc v0.2.171
+│   │   ├── once_cell v1.21.3
+│   │   └── zerocopy v0.7.35
+│   │   [build-dependencies]
+│   │   └── version_check v0.9.5
+│   ├── bitflags v2.9.0
+│   ├── emath v0.31.1
+│   ├── epaint v0.31.1
+│   │   ├── ab_glyph v0.2.29
+│   │   │   ├── ab_glyph_rasterizer v0.1.8
+│   │   │   └── owned_ttf_parser v0.25.0
+│   │   │       └── ttf-parser v0.25.1
+│   │   ├── ahash v0.8.11 (*)
+│   │   ├── ecolor v0.31.1
+│   │   │   └── emath v0.31.1
+│   │   ├── emath v0.31.1
+│   │   ├── epaint_default_fonts v0.31.1
+│   │   ├── nohash-hasher v0.2.0
+│   │   ├── parking_lot v0.12.3
+│   │   │   ├── lock_api v0.4.12
+│   │   │   │   └── scopeguard v1.2.0
+│   │   │   │   [build-dependencies]
+│   │   │   │   └── autocfg v1.4.0
+│   │   │   └── parking_lot_core v0.9.10
+│   │   │       ├── cfg-if v1.0.0
+│   │   │       ├── libc v0.2.171
+│   │   │       └── smallvec v1.14.0
+│   │   └── profiling v1.0.16
+│   ├── nohash-hasher v0.2.0
+│   └── profiling v1.0.16
+├── itertools v0.14.0
+│   └── either v1.15.0
+├── log v0.4.27
+├── map_3d v0.1.5
+├── nalgebra v0.33.2
+│   ├── approx v0.5.1
+│   │   └── num-traits v0.2.19 (*)
+│   ├── matrixmultiply v0.3.9
+│   │   └── rawpointer v0.2.1
+│   │   [build-dependencies]
+│   │   └── autocfg v1.4.0
+│   ├── nalgebra-macros v0.2.2 (proc-macro)
+│   │   ├── proc-macro2 v1.0.94
+│   │   │   └── unicode-ident v1.0.18
+│   │   ├── quote v1.0.40
+│   │   │   └── proc-macro2 v1.0.94 (*)
+│   │   └── syn v2.0.100
+│   │       ├── proc-macro2 v1.0.94 (*)
+│   │       ├── quote v1.0.40 (*)
+│   │       └── unicode-ident v1.0.18
+│   ├── num-complex v0.4.6
+│   │   └── num-traits v0.2.19 (*)
+│   ├── num-rational v0.4.2
+│   │   ├── num-bigint v0.4.6
+│   │   │   ├── num-integer v0.1.46
+│   │   │   │   └── num-traits v0.2.19 (*)
+│   │   │   └── num-traits v0.2.19 (*)
+│   │   ├── num-integer v0.1.46 (*)
+│   │   ├── num-traits v0.2.19 (*)
+│   │   └── serde v1.0.219
+│   │       └── serde_derive v1.0.219 (proc-macro)
+│   │           ├── proc-macro2 v1.0.94 (*)
+│   │           ├── quote v1.0.40 (*)
+│   │           └── syn v2.0.100 (*)
+│   ├── num-traits v0.2.19 (*)
+│   ├── simba v0.9.0
+│   │   ├── approx v0.5.1 (*)
+│   │   ├── num-complex v0.4.6 (*)
+│   │   ├── num-traits v0.2.19 (*)
+│   │   ├── paste v1.0.15 (proc-macro)
+│   │   └── wide v0.7.32
+│   │       ├── bytemuck v1.22.0
+│   │       │   └── bytemuck_derive v1.9.3 (proc-macro)
+│   │       │       ├── proc-macro2 v1.0.94 (*)
+│   │       │       ├── quote v1.0.40 (*)
+│   │       │       └── syn v2.0.100 (*)
+│   │       └── safe_arch v0.7.4
+│   │           └── bytemuck v1.22.0 (*)
+│   └── typenum v1.18.0
+├── num-traits v0.2.19 (*)
+├── once_cell v1.21.3
+├── pretty_env_logger v0.5.0
+│   ├── env_logger v0.10.2
+│   │   ├── humantime v2.2.0
+│   │   ├── is-terminal v0.4.16
+│   │   │   └── libc v0.2.171
+│   │   ├── log v0.4.27
+│   │   ├── regex v1.11.1
+│   │   │   ├── aho-corasick v1.1.3
+│   │   │   │   └── memchr v2.7.4
+│   │   │   ├── memchr v2.7.4
+│   │   │   ├── regex-automata v0.4.9
+│   │   │   │   ├── aho-corasick v1.1.3 (*)
+│   │   │   │   ├── memchr v2.7.4
+│   │   │   │   └── regex-syntax v0.8.5
+│   │   │   └── regex-syntax v0.8.5
+│   │   └── termcolor v1.4.1
+│   └── log v0.4.27
+├── rand v0.9.0
+│   ├── rand_chacha v0.9.0
+│   │   ├── ppv-lite86 v0.2.21
+│   │   │   └── zerocopy v0.8.24
+│   │   └── rand_core v0.9.3
+│   │       └── getrandom v0.3.2
+│   │           ├── cfg-if v1.0.0
+│   │           └── libc v0.2.171
+│   ├── rand_core v0.9.3 (*)
+│   └── zerocopy v0.8.24
+├── rerun v0.22.1
+│   ├── anyhow v1.0.97 (*)
+│   ├── arrow v53.4.0
+│   │   ├── arrow-arith v53.4.0
+│   │   │   ├── arrow-array v53.4.0
+│   │   │   │   ├── ahash v0.8.11 (*)
+│   │   │   │   ├── arrow-buffer v53.4.1
+│   │   │   │   │   ├── bytes v1.10.1
+│   │   │   │   │   ├── half v2.5.0
+│   │   │   │   │   │   ├── bytemuck v1.22.0 (*)
+│   │   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   │   └── num-traits v0.2.19 (*)
+│   │   │   │   │   └── num v0.4.3
+│   │   │   │   │       ├── num-bigint v0.4.6 (*)
+│   │   │   │   │       ├── num-complex v0.4.6 (*)
+│   │   │   │   │       ├── num-integer v0.1.46 (*)
+│   │   │   │   │       ├── num-iter v0.1.45
+│   │   │   │   │       │   ├── num-integer v0.1.46 (*)
+│   │   │   │   │       │   └── num-traits v0.2.19 (*)
+│   │   │   │   │       │   [build-dependencies]
+│   │   │   │   │       │   └── autocfg v1.4.0
+│   │   │   │   │       ├── num-rational v0.4.2 (*)
+│   │   │   │   │       └── num-traits v0.2.19 (*)
+│   │   │   │   ├── arrow-data v53.4.1
+│   │   │   │   │   ├── arrow-buffer v53.4.1 (*)
+│   │   │   │   │   ├── arrow-schema v53.4.1
+│   │   │   │   │   ├── half v2.5.0 (*)
+│   │   │   │   │   └── num v0.4.3 (*)
+│   │   │   │   ├── arrow-schema v53.4.1
+│   │   │   │   ├── chrono v0.4.40 (*)
+│   │   │   │   ├── half v2.5.0 (*)
+│   │   │   │   ├── hashbrown v0.15.2
+│   │   │   │   └── num v0.4.3 (*)
+│   │   │   ├── arrow-buffer v53.4.1 (*)
+│   │   │   ├── arrow-data v53.4.1 (*)
+│   │   │   ├── arrow-schema v53.4.1
+│   │   │   ├── chrono v0.4.40 (*)
+│   │   │   ├── half v2.5.0 (*)
+│   │   │   └── num v0.4.3 (*)
+│   │   ├── arrow-array v53.4.0 (*)
+│   │   ├── arrow-buffer v53.4.1 (*)
+│   │   ├── arrow-cast v53.4.0
+│   │   │   ├── arrow-array v53.4.0 (*)
+│   │   │   ├── arrow-buffer v53.4.1 (*)
+│   │   │   ├── arrow-data v53.4.1 (*)
+│   │   │   ├── arrow-schema v53.4.1
+│   │   │   ├── arrow-select v53.4.0
+│   │   │   │   ├── ahash v0.8.11 (*)
+│   │   │   │   ├── arrow-array v53.4.0 (*)
+│   │   │   │   ├── arrow-buffer v53.4.1 (*)
+│   │   │   │   ├── arrow-data v53.4.1 (*)
+│   │   │   │   ├── arrow-schema v53.4.1
+│   │   │   │   └── num v0.4.3 (*)
+│   │   │   ├── atoi v2.0.0
+│   │   │   │   └── num-traits v0.2.19 (*)
+│   │   │   ├── base64 v0.22.1
+│   │   │   ├── chrono v0.4.40 (*)
+│   │   │   ├── half v2.5.0 (*)
+│   │   │   ├── lexical-core v1.0.5
+│   │   │   │   ├── lexical-parse-float v1.0.5
+│   │   │   │   │   ├── lexical-parse-integer v1.0.5
+│   │   │   │   │   │   ├── lexical-util v1.0.6
+│   │   │   │   │   │   │   └── static_assertions v1.1.0
+│   │   │   │   │   │   └── static_assertions v1.1.0
+│   │   │   │   │   ├── lexical-util v1.0.6 (*)
+│   │   │   │   │   └── static_assertions v1.1.0
+│   │   │   │   ├── lexical-parse-integer v1.0.5 (*)
+│   │   │   │   ├── lexical-util v1.0.6 (*)
+│   │   │   │   ├── lexical-write-float v1.0.5
+│   │   │   │   │   ├── lexical-util v1.0.6 (*)
+│   │   │   │   │   ├── lexical-write-integer v1.0.5
+│   │   │   │   │   │   ├── lexical-util v1.0.6 (*)
+│   │   │   │   │   │   └── static_assertions v1.1.0
+│   │   │   │   │   └── static_assertions v1.1.0
+│   │   │   │   └── lexical-write-integer v1.0.5 (*)
+│   │   │   ├── num v0.4.3 (*)
+│   │   │   └── ryu v1.0.20
+│   │   ├── arrow-data v53.4.1 (*)
+│   │   ├── arrow-ipc v53.4.0
+│   │   │   ├── arrow-array v53.4.0 (*)
+│   │   │   ├── arrow-buffer v53.4.1 (*)
+│   │   │   ├── arrow-cast v53.4.0 (*)
+│   │   │   ├── arrow-data v53.4.1 (*)
+│   │   │   ├── arrow-schema v53.4.1
+│   │   │   └── flatbuffers v24.12.23
+│   │   │       └── bitflags v1.3.2
+│   │   │       [build-dependencies]
+│   │   │       └── rustc_version v0.4.1
+│   │   │           └── semver v1.0.26
+│   │   │               └── serde v1.0.219
+│   │   │                   └── serde_derive v1.0.219 (proc-macro) (*)
+│   │   ├── arrow-ord v53.4.0
+│   │   │   ├── arrow-array v53.4.0 (*)
+│   │   │   ├── arrow-buffer v53.4.1 (*)
+│   │   │   ├── arrow-data v53.4.1 (*)
+│   │   │   ├── arrow-schema v53.4.1
+│   │   │   ├── arrow-select v53.4.0 (*)
+│   │   │   ├── half v2.5.0 (*)
+│   │   │   └── num v0.4.3 (*)
+│   │   ├── arrow-row v53.4.0
+│   │   │   ├── ahash v0.8.11 (*)
+│   │   │   ├── arrow-array v53.4.0 (*)
+│   │   │   ├── arrow-buffer v53.4.1 (*)
+│   │   │   ├── arrow-data v53.4.1 (*)
+│   │   │   ├── arrow-schema v53.4.1
+│   │   │   └── half v2.5.0 (*)
+│   │   ├── arrow-schema v53.4.1
+│   │   ├── arrow-select v53.4.0 (*)
+│   │   └── arrow-string v53.4.0
+│   │       ├── arrow-array v53.4.0 (*)
+│   │       ├── arrow-buffer v53.4.1 (*)
+│   │       ├── arrow-data v53.4.1 (*)
+│   │       ├── arrow-schema v53.4.1
+│   │       ├── arrow-select v53.4.0 (*)
+│   │       ├── memchr v2.7.4
+│   │       ├── num v0.4.3 (*)
+│   │       ├── regex v1.11.1 (*)
+│   │       └── regex-syntax v0.8.5
+│   ├── document-features v0.2.11 (proc-macro)
+│   │   └── litrs v0.4.1
+│   ├── env_logger v0.10.2 (*)
+│   ├── itertools v0.13.0
+│   │   └── either v1.15.0
+│   ├── log v0.4.27
+│   ├── puffin v0.19.1
+│   │   ├── anyhow v1.0.97 (*)
+│   │   ├── byteorder v1.5.0
+│   │   ├── cfg-if v1.0.0
+│   │   ├── itertools v0.10.5
+│   │   │   └── either v1.15.0
+│   │   ├── once_cell v1.21.3
+│   │   └── parking_lot v0.12.3 (*)
+│   ├── rayon v1.10.0
+│   │   ├── either v1.15.0
+│   │   └── rayon-core v1.12.1
+│   │       ├── crossbeam-deque v0.8.6
+│   │       │   ├── crossbeam-epoch v0.9.18
+│   │       │   │   └── crossbeam-utils v0.8.21
+│   │       │   └── crossbeam-utils v0.8.21
+│   │       └── crossbeam-utils v0.8.21
+│   ├── re_analytics v0.22.1
+│   │   ├── crossbeam v0.8.4
+│   │   │   ├── crossbeam-channel v0.5.14
+│   │   │   │   └── crossbeam-utils v0.8.21
+│   │   │   ├── crossbeam-deque v0.8.6 (*)
+│   │   │   ├── crossbeam-epoch v0.9.18 (*)
+│   │   │   ├── crossbeam-queue v0.3.12
+│   │   │   │   └── crossbeam-utils v0.8.21
+│   │   │   └── crossbeam-utils v0.8.21
+│   │   ├── directories v5.0.1
+│   │   │   └── dirs-sys v0.4.1
+│   │   │       ├── libc v0.2.171
+│   │   │       └── option-ext v0.2.0
+│   │   ├── ehttp v0.5.0
+│   │   │   ├── document-features v0.2.11 (proc-macro) (*)
+│   │   │   └── ureq v2.12.1
+│   │   │       ├── base64 v0.22.1
+│   │   │       ├── flate2 v1.1.0
+│   │   │       │   ├── crc32fast v1.4.2
+│   │   │       │   │   └── cfg-if v1.0.0
+│   │   │       │   └── miniz_oxide v0.8.5 (*)
+│   │   │       ├── log v0.4.27
+│   │   │       ├── once_cell v1.21.3
+│   │   │       ├── rustls v0.23.25
+│   │   │       │   ├── log v0.4.27
+│   │   │       │   ├── once_cell v1.21.3
+│   │   │       │   ├── ring v0.17.14
+│   │   │       │   │   ├── cfg-if v1.0.0
+│   │   │       │   │   ├── getrandom v0.2.15 (*)
+│   │   │       │   │   └── untrusted v0.9.0
+│   │   │       │   │   [build-dependencies]
+│   │   │       │   │   └── cc v1.2.17
+│   │   │       │   │       └── shlex v1.3.0
+│   │   │       │   ├── rustls-pki-types v1.11.0
+│   │   │       │   ├── rustls-webpki v0.103.1
+│   │   │       │   │   ├── ring v0.17.14 (*)
+│   │   │       │   │   ├── rustls-pki-types v1.11.0
+│   │   │       │   │   └── untrusted v0.9.0
+│   │   │       │   ├── subtle v2.6.1
+│   │   │       │   └── zeroize v1.8.1
+│   │   │       ├── rustls-pki-types v1.11.0
+│   │   │       ├── url v2.5.4
+│   │   │       │   ├── form_urlencoded v1.2.1
+│   │   │       │   │   └── percent-encoding v2.3.1
+│   │   │       │   ├── idna v1.0.3
+│   │   │       │   │   ├── idna_adapter v1.2.0
+│   │   │       │   │   │   ├── icu_normalizer v1.5.0
+│   │   │       │   │   │   │   ├── displaydoc v0.2.5 (proc-macro)
+│   │   │       │   │   │   │   │   ├── proc-macro2 v1.0.94 (*)
+│   │   │       │   │   │   │   │   ├── quote v1.0.40 (*)
+│   │   │       │   │   │   │   │   └── syn v2.0.100 (*)
+│   │   │       │   │   │   │   ├── icu_collections v1.5.0
+│   │   │       │   │   │   │   │   ├── displaydoc v0.2.5 (proc-macro) (*)
+│   │   │       │   │   │   │   │   ├── yoke v0.7.5
+│   │   │       │   │   │   │   │   │   ├── stable_deref_trait v1.2.0
+│   │   │       │   │   │   │   │   │   ├── yoke-derive v0.7.5 (proc-macro)
+│   │   │       │   │   │   │   │   │   │   ├── proc-macro2 v1.0.94 (*)
+│   │   │       │   │   │   │   │   │   │   ├── quote v1.0.40 (*)
+│   │   │       │   │   │   │   │   │   │   ├── syn v2.0.100 (*)
+│   │   │       │   │   │   │   │   │   │   └── synstructure v0.13.1
+│   │   │       │   │   │   │   │   │   │       ├── proc-macro2 v1.0.94 (*)
+│   │   │       │   │   │   │   │   │   │       ├── quote v1.0.40 (*)
+│   │   │       │   │   │   │   │   │   │       └── syn v2.0.100 (*)
+│   │   │       │   │   │   │   │   │   └── zerofrom v0.1.6
+│   │   │       │   │   │   │   │   │       └── zerofrom-derive v0.1.6 (proc-macro)
+│   │   │       │   │   │   │   │   │           ├── proc-macro2 v1.0.94 (*)
+│   │   │       │   │   │   │   │   │           ├── quote v1.0.40 (*)
+│   │   │       │   │   │   │   │   │           ├── syn v2.0.100 (*)
+│   │   │       │   │   │   │   │   │           └── synstructure v0.13.1 (*)
+│   │   │       │   │   │   │   │   ├── zerofrom v0.1.6 (*)
+│   │   │       │   │   │   │   │   └── zerovec v0.10.4
+│   │   │       │   │   │   │   │       ├── yoke v0.7.5 (*)
+│   │   │       │   │   │   │   │       ├── zerofrom v0.1.6 (*)
+│   │   │       │   │   │   │   │       └── zerovec-derive v0.10.3 (proc-macro)
+│   │   │       │   │   │   │   │           ├── proc-macro2 v1.0.94 (*)
+│   │   │       │   │   │   │   │           ├── quote v1.0.40 (*)
+│   │   │       │   │   │   │   │           └── syn v2.0.100 (*)
+│   │   │       │   │   │   │   ├── icu_normalizer_data v1.5.1
+│   │   │       │   │   │   │   ├── icu_properties v1.5.1
+│   │   │       │   │   │   │   │   ├── displaydoc v0.2.5 (proc-macro) (*)
+│   │   │       │   │   │   │   │   ├── icu_collections v1.5.0 (*)
+│   │   │       │   │   │   │   │   ├── icu_locid_transform v1.5.0
+│   │   │       │   │   │   │   │   │   ├── displaydoc v0.2.5 (proc-macro) (*)
+│   │   │       │   │   │   │   │   │   ├── icu_locid v1.5.0
+│   │   │       │   │   │   │   │   │   │   ├── displaydoc v0.2.5 (proc-macro) (*)
+│   │   │       │   │   │   │   │   │   │   ├── litemap v0.7.5
+│   │   │       │   │   │   │   │   │   │   ├── tinystr v0.7.6
+│   │   │       │   │   │   │   │   │   │   │   ├── displaydoc v0.2.5 (proc-macro) (*)
+│   │   │       │   │   │   │   │   │   │   │   └── zerovec v0.10.4 (*)
+│   │   │       │   │   │   │   │   │   │   ├── writeable v0.5.5
+│   │   │       │   │   │   │   │   │   │   └── zerovec v0.10.4 (*)
+│   │   │       │   │   │   │   │   │   ├── icu_locid_transform_data v1.5.1
+│   │   │       │   │   │   │   │   │   ├── icu_provider v1.5.0
+│   │   │       │   │   │   │   │   │   │   ├── displaydoc v0.2.5 (proc-macro) (*)
+│   │   │       │   │   │   │   │   │   │   ├── icu_locid v1.5.0 (*)
+│   │   │       │   │   │   │   │   │   │   ├── icu_provider_macros v1.5.0 (proc-macro)
+│   │   │       │   │   │   │   │   │   │   │   ├── proc-macro2 v1.0.94 (*)
+│   │   │       │   │   │   │   │   │   │   │   ├── quote v1.0.40 (*)
+│   │   │       │   │   │   │   │   │   │   │   └── syn v2.0.100 (*)
+│   │   │       │   │   │   │   │   │   │   ├── stable_deref_trait v1.2.0
+│   │   │       │   │   │   │   │   │   │   ├── tinystr v0.7.6 (*)
+│   │   │       │   │   │   │   │   │   │   ├── writeable v0.5.5
+│   │   │       │   │   │   │   │   │   │   ├── yoke v0.7.5 (*)
+│   │   │       │   │   │   │   │   │   │   ├── zerofrom v0.1.6 (*)
+│   │   │       │   │   │   │   │   │   │   └── zerovec v0.10.4 (*)
+│   │   │       │   │   │   │   │   │   ├── tinystr v0.7.6 (*)
+│   │   │       │   │   │   │   │   │   └── zerovec v0.10.4 (*)
+│   │   │       │   │   │   │   │   ├── icu_properties_data v1.5.1
+│   │   │       │   │   │   │   │   ├── icu_provider v1.5.0 (*)
+│   │   │       │   │   │   │   │   ├── tinystr v0.7.6 (*)
+│   │   │       │   │   │   │   │   └── zerovec v0.10.4 (*)
+│   │   │       │   │   │   │   ├── icu_provider v1.5.0 (*)
+│   │   │       │   │   │   │   ├── smallvec v1.14.0
+│   │   │       │   │   │   │   ├── utf16_iter v1.0.5
+│   │   │       │   │   │   │   ├── utf8_iter v1.0.4
+│   │   │       │   │   │   │   ├── write16 v1.0.0
+│   │   │       │   │   │   │   └── zerovec v0.10.4 (*)
+│   │   │       │   │   │   └── icu_properties v1.5.1 (*)
+│   │   │       │   │   ├── smallvec v1.14.0
+│   │   │       │   │   └── utf8_iter v1.0.4
+│   │   │       │   └── percent-encoding v2.3.1
+│   │   │       └── webpki-roots v0.26.8
+│   │   │           └── rustls-pki-types v1.11.0
+│   │   ├── re_build_info v0.22.1
+│   │   │   ├── re_byte_size v0.22.1
+│   │   │   │   ├── arrow v53.4.0 (*)
+│   │   │   │   ├── half v2.5.0 (*)
+│   │   │   │   └── smallvec v1.14.0
+│   │   │   └── serde v1.0.219 (*)
+│   │   ├── re_log v0.22.1
+│   │   │   ├── env_logger v0.10.2 (*)
+│   │   │   ├── log v0.4.27
+│   │   │   ├── log-once v0.4.1
+│   │   │   │   └── log v0.4.27
+│   │   │   ├── parking_lot v0.12.3 (*)
+│   │   │   └── tracing v0.1.41
+│   │   │       ├── log v0.4.27
+│   │   │       ├── pin-project-lite v0.2.16
+│   │   │       ├── tracing-attributes v0.1.28 (proc-macro)
+│   │   │       │   ├── proc-macro2 v1.0.94 (*)
+│   │   │       │   ├── quote v1.0.40 (*)
+│   │   │       │   └── syn v2.0.100 (*)
+│   │   │       └── tracing-core v0.1.33
+│   │   │           └── once_cell v1.21.3
+│   │   ├── serde v1.0.219 (*)
+│   │   ├── serde_json v1.0.140
+│   │   │   ├── itoa v1.0.15
+│   │   │   ├── memchr v2.7.4
+│   │   │   ├── ryu v1.0.20
+│   │   │   └── serde v1.0.219 (*)
+│   │   ├── sha2 v0.10.8
+│   │   │   ├── cfg-if v1.0.0
+│   │   │   ├── cpufeatures v0.2.17
+│   │   │   └── digest v0.10.7
+│   │   │       ├── block-buffer v0.10.4
+│   │   │       │   └── generic-array v0.14.7
+│   │   │       │       └── typenum v1.18.0
+│   │   │       │       [build-dependencies]
+│   │   │       │       └── version_check v0.9.5
+│   │   │       └── crypto-common v0.1.6
+│   │   │           ├── generic-array v0.14.7 (*)
+│   │   │           └── typenum v1.18.0
+│   │   ├── thiserror v1.0.69
+│   │   │   └── thiserror-impl v1.0.69 (proc-macro)
+│   │   │       ├── proc-macro2 v1.0.94 (*)
+│   │   │       ├── quote v1.0.40 (*)
+│   │   │       └── syn v2.0.100 (*)
+│   │   ├── time v0.3.41
+│   │   │   ├── deranged v0.4.1
+│   │   │   │   ├── powerfmt v0.2.0
+│   │   │   │   └── serde v1.0.219 (*)
+│   │   │   ├── itoa v1.0.15
+│   │   │   ├── libc v0.2.171
+│   │   │   ├── num-conv v0.1.0
+│   │   │   ├── num_threads v0.1.7
+│   │   │   ├── powerfmt v0.2.0
+│   │   │   ├── serde v1.0.219 (*)
+│   │   │   ├── time-core v0.1.4
+│   │   │   └── time-macros v0.2.22 (proc-macro)
+│   │   │       ├── num-conv v0.1.0
+│   │   │       └── time-core v0.1.4
+│   │   ├── url v2.5.4 (*)
+│   │   └── uuid v1.16.0
+│   │       ├── getrandom v0.3.2 (*)
+│   │       └── serde v1.0.219 (*)
+│   │   [build-dependencies]
+│   │   └── re_build_tools v0.22.1
+│   │       ├── anyhow v1.0.97
+│   │       ├── cargo_metadata v0.18.1
+│   │       │   ├── camino v1.1.9
+│   │       │   │   └── serde v1.0.219 (*)
+│   │       │   ├── cargo-platform v0.1.9
+│   │       │   │   └── serde v1.0.219 (*)
+│   │       │   ├── semver v1.0.26 (*)
+│   │       │   ├── serde v1.0.219 (*)
+│   │       │   ├── serde_json v1.0.140
+│   │       │   │   ├── itoa v1.0.15
+│   │       │   │   ├── memchr v2.7.4
+│   │       │   │   ├── ryu v1.0.20
+│   │       │   │   └── serde v1.0.219 (*)
+│   │       │   └── thiserror v1.0.69 (*)
+│   │       ├── glob v0.3.2
+│   │       ├── sha2 v0.10.8 (*)
+│   │       ├── time v0.3.41
+│   │       │   ├── deranged v0.4.1
+│   │       │   │   └── powerfmt v0.2.0
+│   │       │   ├── itoa v1.0.15
+│   │       │   ├── num-conv v0.1.0
+│   │       │   ├── powerfmt v0.2.0
+│   │       │   └── time-core v0.1.4
+│   │       ├── unindent v0.2.4
+│   │       └── walkdir v2.5.0
+│   │           └── same-file v1.0.6
+│   ├── re_build_info v0.22.1 (*)
+│   ├── re_byte_size v0.22.1 (*)
+│   ├── re_capabilities v0.22.1
+│   │   ├── document-features v0.2.11 (proc-macro) (*)
+│   │   └── static_assertions v1.1.0
+│   ├── re_chunk v0.22.1
+│   │   ├── ahash v0.8.11 (*)
+│   │   ├── anyhow v1.0.97 (*)
+│   │   ├── arrow v53.4.0 (*)
+│   │   ├── bytemuck v1.22.0 (*)
+│   │   ├── crossbeam v0.8.4 (*)
+│   │   ├── document-features v0.2.11 (proc-macro) (*)
+│   │   ├── half v2.5.0 (*)
+│   │   ├── itertools v0.13.0 (*)
+│   │   ├── nohash-hasher v0.2.0
+│   │   ├── rand v0.8.5
+│   │   │   ├── libc v0.2.171
+│   │   │   ├── rand_chacha v0.3.1
+│   │   │   │   ├── ppv-lite86 v0.2.21 (*)
+│   │   │   │   └── rand_core v0.6.4
+│   │   │   │       └── getrandom v0.2.15 (*)
+│   │   │   └── rand_core v0.6.4 (*)
+│   │   ├── re_arrow_util v0.22.1
+│   │   │   ├── arrow v53.4.0 (*)
+│   │   │   ├── itertools v0.13.0 (*)
+│   │   │   ├── re_log v0.22.1 (*)
+│   │   │   └── re_tracing v0.22.1
+│   │   │       └── puffin v0.19.1 (*)
+│   │   ├── re_byte_size v0.22.1 (*)
+│   │   ├── re_error v0.22.1
+│   │   ├── re_format v0.22.1
+│   │   │   └── num-traits v0.2.19 (*)
+│   │   ├── re_format_arrow v0.22.1
+│   │   │   ├── arrow v53.4.0 (*)
+│   │   │   ├── comfy-table v7.1.4
+│   │   │   │   ├── crossterm v0.28.1
+│   │   │   │   │   ├── bitflags v2.9.0
+│   │   │   │   │   ├── parking_lot v0.12.3 (*)
+│   │   │   │   │   └── rustix v0.38.44
+│   │   │   │   │       ├── bitflags v2.9.0
+│   │   │   │   │       └── linux-raw-sys v0.4.15
+│   │   │   │   ├── unicode-segmentation v1.12.0
+│   │   │   │   └── unicode-width v0.2.0
+│   │   │   ├── itertools v0.13.0 (*)
+│   │   │   ├── re_arrow_util v0.22.1 (*)
+│   │   │   ├── re_tuid v0.22.1
+│   │   │   │   ├── document-features v0.2.11 (proc-macro) (*)
+│   │   │   │   ├── getrandom v0.2.15 (*)
+│   │   │   │   ├── once_cell v1.21.3
+│   │   │   │   ├── re_byte_size v0.22.1 (*)
+│   │   │   │   ├── serde v1.0.219 (*)
+│   │   │   │   └── web-time v1.1.0
+│   │   │   └── re_types_core v0.22.1
+│   │   │       ├── anyhow v1.0.97 (*)
+│   │   │       ├── arrow v53.4.0 (*)
+│   │   │       ├── backtrace v0.3.74 (*)
+│   │   │       ├── bytemuck v1.22.0 (*)
+│   │   │       ├── document-features v0.2.11 (proc-macro) (*)
+│   │   │       ├── half v2.5.0 (*)
+│   │   │       ├── itertools v0.13.0 (*)
+│   │   │       ├── nohash-hasher v0.2.0
+│   │   │       ├── once_cell v1.21.3
+│   │   │       ├── re_arrow_util v0.22.1 (*)
+│   │   │       ├── re_byte_size v0.22.1 (*)
+│   │   │       ├── re_case v0.22.1
+│   │   │       │   └── convert_case v0.6.0
+│   │   │       │       └── unicode-segmentation v1.12.0
+│   │   │       ├── re_error v0.22.1
+│   │   │       ├── re_log v0.22.1 (*)
+│   │   │       ├── re_string_interner v0.22.1
+│   │   │       │   ├── ahash v0.8.11 (*)
+│   │   │       │   ├── nohash-hasher v0.2.0
+│   │   │       │   ├── once_cell v1.21.3
+│   │   │       │   ├── parking_lot v0.12.3 (*)
+│   │   │       │   ├── serde v1.0.219 (*)
+│   │   │       │   └── static_assertions v1.1.0
+│   │   │       ├── re_tracing v0.22.1 (*)
+│   │   │       ├── re_tuid v0.22.1 (*)
+│   │   │       ├── serde v1.0.219 (*)
+│   │   │       └── thiserror v1.0.69 (*)
+│   │   ├── re_log v0.22.1 (*)
+│   │   ├── re_log_types v0.22.1
+│   │   │   ├── ahash v0.8.11 (*)
+│   │   │   ├── anyhow v1.0.97 (*)
+│   │   │   ├── arrow v53.4.0 (*)
+│   │   │   ├── backtrace v0.3.74 (*)
+│   │   │   ├── bytemuck v1.22.0 (*)
+│   │   │   ├── clean-path v0.2.1
+│   │   │   ├── document-features v0.2.11 (proc-macro) (*)
+│   │   │   ├── fixed v1.29.0
+│   │   │   │   ├── az v1.2.1
+│   │   │   │   ├── bytemuck v1.22.0 (*)
+│   │   │   │   ├── half v2.5.0 (*)
+│   │   │   │   ├── serde v1.0.219 (*)
+│   │   │   │   └── typenum v1.18.0
+│   │   │   ├── half v2.5.0 (*)
+│   │   │   ├── itertools v0.13.0 (*)
+│   │   │   ├── natord v1.0.9
+│   │   │   ├── nohash-hasher v0.2.0
+│   │   │   ├── num-derive v0.4.2 (proc-macro)
+│   │   │   │   ├── proc-macro2 v1.0.94 (*)
+│   │   │   │   ├── quote v1.0.40 (*)
+│   │   │   │   └── syn v2.0.100 (*)
+│   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   ├── re_arrow2 v0.18.2
+│   │   │   │   ├── ahash v0.8.11 (*)
+│   │   │   │   ├── arrow-array v53.4.0 (*)
+│   │   │   │   ├── arrow-buffer v53.4.1 (*)
+│   │   │   │   ├── arrow-data v53.4.1 (*)
+│   │   │   │   ├── arrow-format v0.8.1
+│   │   │   │   │   ├── planus v0.3.1
+│   │   │   │   │   │   └── array-init-cursor v0.2.1
+│   │   │   │   │   └── serde v1.0.219 (*)
+│   │   │   │   ├── arrow-schema v53.4.1
+│   │   │   │   ├── bytemuck v1.22.0 (*)
+│   │   │   │   ├── chrono v0.4.40 (*)
+│   │   │   │   ├── dyn-clone v1.0.19
+│   │   │   │   ├── either v1.15.0
+│   │   │   │   ├── ethnum v1.5.0
+│   │   │   │   ├── foreign_vec v0.1.0
+│   │   │   │   ├── half v2.5.0 (*)
+│   │   │   │   ├── hash_hasher v2.0.3
+│   │   │   │   ├── hashbrown v0.14.5
+│   │   │   │   │   └── ahash v0.8.11 (*)
+│   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   └── simdutf8 v0.1.5
+│   │   │   │   [build-dependencies]
+│   │   │   │   └── rustc_version v0.4.1 (*)
+│   │   │   ├── re_arrow_util v0.22.1 (*)
+│   │   │   ├── re_build_info v0.22.1 (*)
+│   │   │   ├── re_byte_size v0.22.1 (*)
+│   │   │   ├── re_format v0.22.1 (*)
+│   │   │   ├── re_log v0.22.1 (*)
+│   │   │   ├── re_string_interner v0.22.1 (*)
+│   │   │   ├── re_tracing v0.22.1 (*)
+│   │   │   ├── re_tuid v0.22.1 (*)
+│   │   │   ├── re_types_core v0.22.1 (*)
+│   │   │   ├── serde v1.0.219 (*)
+│   │   │   ├── serde_bytes v0.11.17
+│   │   │   │   └── serde v1.0.219 (*)
+│   │   │   ├── static_assertions v1.1.0
+│   │   │   ├── thiserror v1.0.69 (*)
+│   │   │   ├── time v0.3.41 (*)
+│   │   │   ├── typenum v1.18.0
+│   │   │   ├── uuid v1.16.0 (*)
+│   │   │   └── web-time v1.1.0
+│   │   ├── re_tracing v0.22.1 (*)
+│   │   ├── re_tuid v0.22.1 (*)
+│   │   ├── re_types_core v0.22.1 (*)
+│   │   ├── similar-asserts v1.7.0
+│   │   │   ├── console v0.15.11
+│   │   │   │   ├── libc v0.2.171
+│   │   │   │   └── once_cell v1.21.3
+│   │   │   └── similar v2.7.0
+│   │   │       └── unicode-segmentation v1.12.0
+│   │   ├── tap v1.0.1
+│   │   └── thiserror v1.0.69 (*)
+│   ├── re_crash_handler v0.22.1
+│   │   ├── backtrace v0.3.74 (*)
+│   │   ├── econtext v0.2.0
+│   │   ├── itertools v0.13.0 (*)
+│   │   ├── libc v0.2.171
+│   │   ├── parking_lot v0.12.3 (*)
+│   │   ├── re_analytics v0.22.1 (*)
+│   │   └── re_build_info v0.22.1 (*)
+│   ├── re_dataframe v0.22.1
+│   │   ├── anyhow v1.0.97 (*)
+│   │   ├── arrow v53.4.0 (*)
+│   │   ├── insta v1.42.2
+│   │   │   ├── console v0.15.11 (*)
+│   │   │   ├── linked-hash-map v0.5.6
+│   │   │   ├── once_cell v1.21.3
+│   │   │   ├── pin-project v1.1.10
+│   │   │   │   └── pin-project-internal v1.1.10 (proc-macro)
+│   │   │   │       ├── proc-macro2 v1.0.94 (*)
+│   │   │   │       ├── quote v1.0.40 (*)
+│   │   │   │       └── syn v2.0.100 (*)
+│   │   │   └── similar v2.7.0 (*)
+│   │   ├── itertools v0.13.0 (*)
+│   │   ├── nohash-hasher v0.2.0
+│   │   ├── rayon v1.10.0 (*)
+│   │   ├── re_arrow_util v0.22.1 (*)
+│   │   ├── re_chunk v0.22.1 (*)
+│   │   ├── re_chunk_store v0.22.1
+│   │   │   ├── ahash v0.8.11 (*)
+│   │   │   ├── anyhow v1.0.97 (*)
+│   │   │   ├── arrow v53.4.0 (*)
+│   │   │   ├── document-features v0.2.11 (proc-macro) (*)
+│   │   │   ├── indent v0.1.1
+│   │   │   ├── itertools v0.13.0 (*)
+│   │   │   ├── nohash-hasher v0.2.0
+│   │   │   ├── once_cell v1.21.3
+│   │   │   ├── parking_lot v0.12.3 (*)
+│   │   │   ├── re_arrow_util v0.22.1 (*)
+│   │   │   ├── re_byte_size v0.22.1 (*)
+│   │   │   ├── re_chunk v0.22.1 (*)
+│   │   │   ├── re_format v0.22.1 (*)
+│   │   │   ├── re_log v0.22.1 (*)
+│   │   │   ├── re_log_encoding v0.22.1
+│   │   │   │   ├── arrow v53.4.0 (*)
+│   │   │   │   ├── bytes v1.10.1
+│   │   │   │   ├── lz4_flex v0.11.3
+│   │   │   │   │   └── twox-hash v1.6.3
+│   │   │   │   │       ├── cfg-if v1.0.0
+│   │   │   │   │       └── static_assertions v1.1.0
+│   │   │   │   ├── parking_lot v0.12.3 (*)
+│   │   │   │   ├── re_arrow2 v0.18.2 (*)
+│   │   │   │   ├── re_build_info v0.22.1 (*)
+│   │   │   │   ├── re_chunk v0.22.1 (*)
+│   │   │   │   ├── re_log v0.22.1 (*)
+│   │   │   │   ├── re_log_types v0.22.1 (*)
+│   │   │   │   ├── re_protos v0.22.1
+│   │   │   │   │   ├── arrow v53.4.0 (*)
+│   │   │   │   │   ├── prost v0.13.5
+│   │   │   │   │   │   ├── bytes v1.10.1
+│   │   │   │   │   │   └── prost-derive v0.13.5 (proc-macro)
+│   │   │   │   │   │       ├── anyhow v1.0.97
+│   │   │   │   │   │       ├── itertools v0.14.0 (*)
+│   │   │   │   │   │       ├── proc-macro2 v1.0.94 (*)
+│   │   │   │   │   │       ├── quote v1.0.40 (*)
+│   │   │   │   │   │       └── syn v2.0.100 (*)
+│   │   │   │   │   ├── re_build_info v0.22.1 (*)
+│   │   │   │   │   ├── re_byte_size v0.22.1 (*)
+│   │   │   │   │   ├── re_log_types v0.22.1 (*)
+│   │   │   │   │   ├── re_sorbet v0.22.1
+│   │   │   │   │   │   ├── arrow v53.4.0 (*)
+│   │   │   │   │   │   ├── re_log v0.22.1 (*)
+│   │   │   │   │   │   ├── re_log_types v0.22.1 (*)
+│   │   │   │   │   │   ├── re_types_core v0.22.1 (*)
+│   │   │   │   │   │   └── thiserror v1.0.69 (*)
+│   │   │   │   │   ├── re_tuid v0.22.1 (*)
+│   │   │   │   │   ├── thiserror v1.0.69 (*)
+│   │   │   │   │   └── tonic v0.12.3
+│   │   │   │   │       ├── async-stream v0.3.6
+│   │   │   │   │       │   ├── async-stream-impl v0.3.6 (proc-macro)
+│   │   │   │   │       │   │   ├── proc-macro2 v1.0.94 (*)
+│   │   │   │   │       │   │   ├── quote v1.0.40 (*)
+│   │   │   │   │       │   │   └── syn v2.0.100 (*)
+│   │   │   │   │       │   ├── futures-core v0.3.31
+│   │   │   │   │       │   └── pin-project-lite v0.2.16
+│   │   │   │   │       ├── async-trait v0.1.88 (proc-macro)
+│   │   │   │   │       │   ├── proc-macro2 v1.0.94 (*)
+│   │   │   │   │       │   ├── quote v1.0.40 (*)
+│   │   │   │   │       │   └── syn v2.0.100 (*)
+│   │   │   │   │       ├── axum v0.7.9
+│   │   │   │   │       │   ├── async-trait v0.1.88 (proc-macro) (*)
+│   │   │   │   │       │   ├── axum-core v0.4.5
+│   │   │   │   │       │   │   ├── async-trait v0.1.88 (proc-macro) (*)
+│   │   │   │   │       │   │   ├── bytes v1.10.1
+│   │   │   │   │       │   │   ├── futures-util v0.3.31
+│   │   │   │   │       │   │   │   ├── futures-core v0.3.31
+│   │   │   │   │       │   │   │   ├── futures-task v0.3.31
+│   │   │   │   │       │   │   │   ├── pin-project-lite v0.2.16
+│   │   │   │   │       │   │   │   └── pin-utils v0.1.0
+│   │   │   │   │       │   │   ├── http v1.3.1
+│   │   │   │   │       │   │   │   ├── bytes v1.10.1
+│   │   │   │   │       │   │   │   ├── fnv v1.0.7
+│   │   │   │   │       │   │   │   └── itoa v1.0.15
+│   │   │   │   │       │   │   ├── http-body v1.0.1
+│   │   │   │   │       │   │   │   ├── bytes v1.10.1
+│   │   │   │   │       │   │   │   └── http v1.3.1 (*)
+│   │   │   │   │       │   │   ├── http-body-util v0.1.3
+│   │   │   │   │       │   │   │   ├── bytes v1.10.1
+│   │   │   │   │       │   │   │   ├── futures-core v0.3.31
+│   │   │   │   │       │   │   │   ├── http v1.3.1 (*)
+│   │   │   │   │       │   │   │   ├── http-body v1.0.1 (*)
+│   │   │   │   │       │   │   │   └── pin-project-lite v0.2.16
+│   │   │   │   │       │   │   ├── mime v0.3.17
+│   │   │   │   │       │   │   ├── pin-project-lite v0.2.16
+│   │   │   │   │       │   │   ├── rustversion v1.0.20 (proc-macro)
+│   │   │   │   │       │   │   ├── sync_wrapper v1.0.2
+│   │   │   │   │       │   │   ├── tower-layer v0.3.3
+│   │   │   │   │       │   │   └── tower-service v0.3.3
+│   │   │   │   │       │   ├── bytes v1.10.1
+│   │   │   │   │       │   ├── futures-util v0.3.31 (*)
+│   │   │   │   │       │   ├── http v1.3.1 (*)
+│   │   │   │   │       │   ├── http-body v1.0.1 (*)
+│   │   │   │   │       │   ├── http-body-util v0.1.3 (*)
+│   │   │   │   │       │   ├── itoa v1.0.15
+│   │   │   │   │       │   ├── matchit v0.7.3
+│   │   │   │   │       │   ├── memchr v2.7.4
+│   │   │   │   │       │   ├── mime v0.3.17
+│   │   │   │   │       │   ├── percent-encoding v2.3.1
+│   │   │   │   │       │   ├── pin-project-lite v0.2.16
+│   │   │   │   │       │   ├── rustversion v1.0.20 (proc-macro)
+│   │   │   │   │       │   ├── serde v1.0.219 (*)
+│   │   │   │   │       │   ├── sync_wrapper v1.0.2
+│   │   │   │   │       │   ├── tower v0.5.2
+│   │   │   │   │       │   │   ├── futures-core v0.3.31
+│   │   │   │   │       │   │   ├── futures-util v0.3.31 (*)
+│   │   │   │   │       │   │   ├── pin-project-lite v0.2.16
+│   │   │   │   │       │   │   ├── sync_wrapper v1.0.2
+│   │   │   │   │       │   │   ├── tower-layer v0.3.3
+│   │   │   │   │       │   │   └── tower-service v0.3.3
+│   │   │   │   │       │   ├── tower-layer v0.3.3
+│   │   │   │   │       │   └── tower-service v0.3.3
+│   │   │   │   │       ├── base64 v0.22.1
+│   │   │   │   │       ├── bytes v1.10.1
+│   │   │   │   │       ├── h2 v0.4.8
+│   │   │   │   │       │   ├── atomic-waker v1.1.2
+│   │   │   │   │       │   ├── bytes v1.10.1
+│   │   │   │   │       │   ├── fnv v1.0.7
+│   │   │   │   │       │   ├── futures-core v0.3.31
+│   │   │   │   │       │   ├── futures-sink v0.3.31
+│   │   │   │   │       │   ├── http v1.3.1 (*)
+│   │   │   │   │       │   ├── indexmap v2.8.0
+│   │   │   │   │       │   │   ├── equivalent v1.0.2
+│   │   │   │   │       │   │   └── hashbrown v0.15.2
+│   │   │   │   │       │   ├── slab v0.4.9
+│   │   │   │   │       │   │   [build-dependencies]
+│   │   │   │   │       │   │   └── autocfg v1.4.0
+│   │   │   │   │       │   ├── tokio v1.44.1
+│   │   │   │   │       │   │   ├── bytes v1.10.1
+│   │   │   │   │       │   │   ├── libc v0.2.171
+│   │   │   │   │       │   │   ├── mio v1.0.3
+│   │   │   │   │       │   │   │   └── libc v0.2.171
+│   │   │   │   │       │   │   ├── pin-project-lite v0.2.16
+│   │   │   │   │       │   │   ├── socket2 v0.5.9
+│   │   │   │   │       │   │   │   └── libc v0.2.171
+│   │   │   │   │       │   │   └── tokio-macros v2.5.0 (proc-macro)
+│   │   │   │   │       │   │       ├── proc-macro2 v1.0.94 (*)
+│   │   │   │   │       │   │       ├── quote v1.0.40 (*)
+│   │   │   │   │       │   │       └── syn v2.0.100 (*)
+│   │   │   │   │       │   ├── tokio-util v0.7.14
+│   │   │   │   │       │   │   ├── bytes v1.10.1
+│   │   │   │   │       │   │   ├── futures-core v0.3.31
+│   │   │   │   │       │   │   ├── futures-sink v0.3.31
+│   │   │   │   │       │   │   ├── pin-project-lite v0.2.16
+│   │   │   │   │       │   │   └── tokio v1.44.1 (*)
+│   │   │   │   │       │   └── tracing v0.1.41 (*)
+│   │   │   │   │       ├── http v1.3.1 (*)
+│   │   │   │   │       ├── http-body v1.0.1 (*)
+│   │   │   │   │       ├── http-body-util v0.1.3 (*)
+│   │   │   │   │       ├── hyper v1.6.0
+│   │   │   │   │       │   ├── bytes v1.10.1
+│   │   │   │   │       │   ├── futures-channel v0.3.31
+│   │   │   │   │       │   │   └── futures-core v0.3.31
+│   │   │   │   │       │   ├── futures-util v0.3.31 (*)
+│   │   │   │   │       │   ├── h2 v0.4.8 (*)
+│   │   │   │   │       │   ├── http v1.3.1 (*)
+│   │   │   │   │       │   ├── http-body v1.0.1 (*)
+│   │   │   │   │       │   ├── httparse v1.10.1
+│   │   │   │   │       │   ├── httpdate v1.0.3
+│   │   │   │   │       │   ├── itoa v1.0.15
+│   │   │   │   │       │   ├── pin-project-lite v0.2.16
+│   │   │   │   │       │   ├── smallvec v1.14.0
+│   │   │   │   │       │   ├── tokio v1.44.1 (*)
+│   │   │   │   │       │   └── want v0.3.1
+│   │   │   │   │       │       └── try-lock v0.2.5
+│   │   │   │   │       ├── hyper-timeout v0.5.2
+│   │   │   │   │       │   ├── hyper v1.6.0 (*)
+│   │   │   │   │       │   ├── hyper-util v0.1.11
+│   │   │   │   │       │   │   ├── bytes v1.10.1
+│   │   │   │   │       │   │   ├── futures-channel v0.3.31 (*)
+│   │   │   │   │       │   │   ├── futures-util v0.3.31 (*)
+│   │   │   │   │       │   │   ├── http v1.3.1 (*)
+│   │   │   │   │       │   │   ├── http-body v1.0.1 (*)
+│   │   │   │   │       │   │   ├── hyper v1.6.0 (*)
+│   │   │   │   │       │   │   ├── libc v0.2.171
+│   │   │   │   │       │   │   ├── pin-project-lite v0.2.16
+│   │   │   │   │       │   │   ├── socket2 v0.5.9 (*)
+│   │   │   │   │       │   │   ├── tokio v1.44.1 (*)
+│   │   │   │   │       │   │   ├── tower-service v0.3.3
+│   │   │   │   │       │   │   └── tracing v0.1.41 (*)
+│   │   │   │   │       │   ├── pin-project-lite v0.2.16
+│   │   │   │   │       │   ├── tokio v1.44.1 (*)
+│   │   │   │   │       │   └── tower-service v0.3.3
+│   │   │   │   │       ├── hyper-util v0.1.11 (*)
+│   │   │   │   │       ├── percent-encoding v2.3.1
+│   │   │   │   │       ├── pin-project v1.1.10 (*)
+│   │   │   │   │       ├── prost v0.13.5 (*)
+│   │   │   │   │       ├── socket2 v0.5.9 (*)
+│   │   │   │   │       ├── tokio v1.44.1 (*)
+│   │   │   │   │       ├── tokio-stream v0.1.17
+│   │   │   │   │       │   ├── futures-core v0.3.31
+│   │   │   │   │       │   ├── pin-project-lite v0.2.16
+│   │   │   │   │       │   └── tokio v1.44.1 (*)
+│   │   │   │   │       ├── tower v0.4.13
+│   │   │   │   │       │   ├── futures-core v0.3.31
+│   │   │   │   │       │   ├── futures-util v0.3.31 (*)
+│   │   │   │   │       │   ├── indexmap v1.9.3
+│   │   │   │   │       │   │   └── hashbrown v0.12.3
+│   │   │   │   │       │   │   [build-dependencies]
+│   │   │   │   │       │   │   └── autocfg v1.4.0
+│   │   │   │   │       │   ├── pin-project v1.1.10 (*)
+│   │   │   │   │       │   ├── pin-project-lite v0.2.16
+│   │   │   │   │       │   ├── rand v0.8.5 (*)
+│   │   │   │   │       │   ├── slab v0.4.9 (*)
+│   │   │   │   │       │   ├── tokio v1.44.1 (*)
+│   │   │   │   │       │   ├── tokio-util v0.7.14 (*)
+│   │   │   │   │       │   ├── tower-layer v0.3.3
+│   │   │   │   │       │   ├── tower-service v0.3.3
+│   │   │   │   │       │   └── tracing v0.1.41 (*)
+│   │   │   │   │       ├── tower-layer v0.3.3
+│   │   │   │   │       ├── tower-service v0.3.3
+│   │   │   │   │       └── tracing v0.1.41 (*)
+│   │   │   │   ├── re_smart_channel v0.22.1
+│   │   │   │   │   ├── crossbeam v0.8.4 (*)
+│   │   │   │   │   ├── parking_lot v0.12.3 (*)
+│   │   │   │   │   ├── re_tracing v0.22.1 (*)
+│   │   │   │   │   ├── serde v1.0.219 (*)
+│   │   │   │   │   └── web-time v1.1.0
+│   │   │   │   ├── re_tracing v0.22.1 (*)
+│   │   │   │   ├── rmp-serde v1.3.0
+│   │   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   │   ├── rmp v0.8.14
+│   │   │   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   │   └── paste v1.0.15 (proc-macro)
+│   │   │   │   │   └── serde v1.0.219 (*)
+│   │   │   │   ├── thiserror v1.0.69 (*)
+│   │   │   │   ├── tokio v1.44.1 (*)
+│   │   │   │   └── tokio-stream v0.1.17 (*)
+│   │   │   ├── re_log_types v0.22.1 (*)
+│   │   │   ├── re_protos v0.22.1 (*)
+│   │   │   ├── re_sorbet v0.22.1 (*)
+│   │   │   ├── re_tracing v0.22.1 (*)
+│   │   │   ├── re_types_core v0.22.1 (*)
+│   │   │   ├── thiserror v1.0.69 (*)
+│   │   │   └── web-time v1.1.0
+│   │   ├── re_format_arrow v0.22.1 (*)
+│   │   ├── re_log v0.22.1 (*)
+│   │   ├── re_log_encoding v0.22.1 (*)
+│   │   ├── re_log_types v0.22.1 (*)
+│   │   ├── re_query v0.22.1
+│   │   │   ├── ahash v0.8.11 (*)
+│   │   │   ├── anyhow v1.0.97 (*)
+│   │   │   ├── arrow v53.4.0 (*)
+│   │   │   ├── backtrace v0.3.74 (*)
+│   │   │   ├── indent v0.1.1
+│   │   │   ├── itertools v0.13.0 (*)
+│   │   │   ├── nohash-hasher v0.2.0
+│   │   │   ├── parking_lot v0.12.3 (*)
+│   │   │   ├── paste v1.0.15 (proc-macro)
+│   │   │   ├── re_arrow_util v0.22.1 (*)
+│   │   │   ├── re_byte_size v0.22.1 (*)
+│   │   │   ├── re_chunk v0.22.1 (*)
+│   │   │   ├── re_chunk_store v0.22.1 (*)
+│   │   │   ├── re_error v0.22.1
+│   │   │   ├── re_format v0.22.1 (*)
+│   │   │   ├── re_log v0.22.1 (*)
+│   │   │   ├── re_log_types v0.22.1 (*)
+│   │   │   ├── re_tracing v0.22.1 (*)
+│   │   │   ├── re_types_core v0.22.1 (*)
+│   │   │   ├── seq-macro v0.3.6 (proc-macro)
+│   │   │   └── thiserror v1.0.69 (*)
+│   │   ├── re_tracing v0.22.1 (*)
+│   │   └── re_types_core v0.22.1 (*)
+│   ├── re_entity_db v0.22.1
+│   │   ├── ahash v0.8.11 (*)
+│   │   ├── document-features v0.2.11 (proc-macro) (*)
+│   │   ├── emath v0.31.1
+│   │   ├── itertools v0.13.0 (*)
+│   │   ├── nohash-hasher v0.2.0
+│   │   ├── parking_lot v0.12.3 (*)
+│   │   ├── re_build_info v0.22.1 (*)
+│   │   ├── re_byte_size v0.22.1 (*)
+│   │   ├── re_chunk v0.22.1 (*)
+│   │   ├── re_chunk_store v0.22.1 (*)
+│   │   ├── re_format v0.22.1 (*)
+│   │   ├── re_int_histogram v0.22.1
+│   │   │   ├── smallvec v1.14.0
+│   │   │   └── static_assertions v1.1.0
+│   │   ├── re_log v0.22.1 (*)
+│   │   ├── re_log_encoding v0.22.1 (*)
+│   │   ├── re_log_types v0.22.1 (*)
+│   │   ├── re_query v0.22.1 (*)
+│   │   ├── re_smart_channel v0.22.1 (*)
+│   │   ├── re_tracing v0.22.1 (*)
+│   │   ├── re_types_core v0.22.1 (*)
+│   │   ├── thiserror v1.0.69 (*)
+│   │   └── web-time v1.1.0
+│   ├── re_error v0.22.1
+│   ├── re_format v0.22.1 (*)
+│   ├── re_format_arrow v0.22.1 (*)
+│   ├── re_log v0.22.1 (*)
+│   ├── re_log_encoding v0.22.1 (*)
+│   ├── re_log_types v0.22.1 (*)
+│   ├── re_memory v0.22.1
+│   │   ├── ahash v0.8.11 (*)
+│   │   ├── backtrace v0.3.74 (*)
+│   │   ├── emath v0.31.1
+│   │   ├── itertools v0.13.0 (*)
+│   │   ├── memory-stats v1.2.0
+│   │   │   └── libc v0.2.171
+│   │   ├── nohash-hasher v0.2.0
+│   │   ├── once_cell v1.21.3
+│   │   ├── parking_lot v0.12.3 (*)
+│   │   ├── re_format v0.22.1 (*)
+│   │   ├── re_log v0.22.1 (*)
+│   │   ├── re_tracing v0.22.1 (*)
+│   │   ├── smallvec v1.14.0
+│   │   ├── sysinfo v0.30.13
+│   │   │   ├── cfg-if v1.0.0
+│   │   │   ├── libc v0.2.171
+│   │   │   └── once_cell v1.21.3
+│   │   └── web-time v1.1.0
+│   ├── re_sdk v0.22.1
+│   │   ├── ahash v0.8.11 (*)
+│   │   ├── crossbeam v0.8.4 (*)
+│   │   ├── document-features v0.2.11 (proc-macro) (*)
+│   │   ├── itertools v0.13.0 (*)
+│   │   ├── libc v0.2.171
+│   │   ├── nohash-hasher v0.2.0
+│   │   ├── once_cell v1.21.3
+│   │   ├── parking_lot v0.12.3 (*)
+│   │   ├── re_build_info v0.22.1 (*)
+│   │   ├── re_byte_size v0.22.1 (*)
+│   │   ├── re_chunk v0.22.1 (*)
+│   │   ├── re_data_loader v0.22.1
+│   │   │   ├── ahash v0.8.11 (*)
+│   │   │   ├── anyhow v1.0.97 (*)
+│   │   │   ├── arrow v53.4.0 (*)
+│   │   │   ├── crossbeam v0.8.4 (*)
+│   │   │   ├── image v0.25.6
+│   │   │   │   ├── bytemuck v1.22.0 (*)
+│   │   │   │   ├── byteorder-lite v0.1.0
+│   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   ├── zune-core v0.4.12
+│   │   │   │   └── zune-jpeg v0.4.14
+│   │   │   │       └── zune-core v0.4.12
+│   │   │   ├── itertools v0.13.0 (*)
+│   │   │   ├── notify v6.1.1
+│   │   │   │   ├── crossbeam-channel v0.5.14 (*)
+│   │   │   │   ├── filetime v0.2.25
+│   │   │   │   │   ├── cfg-if v1.0.0
+│   │   │   │   │   └── libc v0.2.171
+│   │   │   │   ├── inotify v0.9.6
+│   │   │   │   │   ├── bitflags v1.3.2
+│   │   │   │   │   ├── inotify-sys v0.1.5
+│   │   │   │   │   │   └── libc v0.2.171
+│   │   │   │   │   └── libc v0.2.171
+│   │   │   │   ├── libc v0.2.171
+│   │   │   │   ├── log v0.4.27
+│   │   │   │   ├── mio v0.8.11
+│   │   │   │   │   ├── libc v0.2.171
+│   │   │   │   │   └── log v0.4.27
+│   │   │   │   └── walkdir v2.5.0 (*)
+│   │   │   ├── once_cell v1.21.3
+│   │   │   ├── parking_lot v0.12.3 (*)
+│   │   │   ├── parquet v53.4.0
+│   │   │   │   ├── ahash v0.8.11 (*)
+│   │   │   │   ├── arrow-array v53.4.0 (*)
+│   │   │   │   ├── arrow-buffer v53.4.1 (*)
+│   │   │   │   ├── arrow-cast v53.4.0 (*)
+│   │   │   │   ├── arrow-data v53.4.1 (*)
+│   │   │   │   ├── arrow-ipc v53.4.0 (*)
+│   │   │   │   ├── arrow-schema v53.4.1
+│   │   │   │   ├── arrow-select v53.4.0 (*)
+│   │   │   │   ├── base64 v0.22.1
+│   │   │   │   ├── bytes v1.10.1
+│   │   │   │   ├── chrono v0.4.40 (*)
+│   │   │   │   ├── half v2.5.0 (*)
+│   │   │   │   ├── hashbrown v0.15.2
+│   │   │   │   ├── num v0.4.3 (*)
+│   │   │   │   ├── num-bigint v0.4.6 (*)
+│   │   │   │   ├── paste v1.0.15 (proc-macro)
+│   │   │   │   ├── seq-macro v0.3.6 (proc-macro)
+│   │   │   │   ├── snap v1.1.1
+│   │   │   │   ├── thrift v0.17.0
+│   │   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   │   ├── integer-encoding v3.0.4
+│   │   │   │   │   └── ordered-float v2.10.1
+│   │   │   │   │       └── num-traits v0.2.19 (*)
+│   │   │   │   └── twox-hash v1.6.3 (*)
+│   │   │   ├── rayon v1.10.0 (*)
+│   │   │   ├── re_arrow_util v0.22.1 (*)
+│   │   │   ├── re_build_info v0.22.1 (*)
+│   │   │   ├── re_chunk v0.22.1 (*)
+│   │   │   ├── re_crash_handler v0.22.1 (*)
+│   │   │   ├── re_log v0.22.1 (*)
+│   │   │   ├── re_log_encoding v0.22.1 (*)
+│   │   │   ├── re_log_types v0.22.1 (*)
+│   │   │   ├── re_smart_channel v0.22.1 (*)
+│   │   │   ├── re_tracing v0.22.1 (*)
+│   │   │   ├── re_types v0.22.1
+│   │   │   │   ├── anyhow v1.0.97 (*)
+│   │   │   │   ├── array-init v2.1.0
+│   │   │   │   ├── arrow v53.4.0 (*)
+│   │   │   │   ├── bytemuck v1.22.0 (*)
+│   │   │   │   ├── document-features v0.2.11 (proc-macro) (*)
+│   │   │   │   ├── ecolor v0.31.1 (*)
+│   │   │   │   ├── emath v0.31.1
+│   │   │   │   ├── glam v0.28.0
+│   │   │   │   ├── half v2.5.0 (*)
+│   │   │   │   ├── image v0.25.6 (*)
+│   │   │   │   ├── infer v0.16.0
+│   │   │   │   │   └── cfb v0.7.3
+│   │   │   │   │       ├── byteorder v1.5.0
+│   │   │   │   │       ├── fnv v1.0.7
+│   │   │   │   │       └── uuid v1.16.0 (*)
+│   │   │   │   ├── itertools v0.13.0 (*)
+│   │   │   │   ├── linked-hash-map v0.5.6
+│   │   │   │   ├── mime_guess2 v2.0.5
+│   │   │   │   │   ├── mime v0.3.17
+│   │   │   │   │   └── unicase v2.8.1
+│   │   │   │   │   [build-dependencies]
+│   │   │   │   │   └── unicase v2.8.1
+│   │   │   │   ├── ndarray v0.16.1
+│   │   │   │   │   ├── matrixmultiply v0.3.9 (*)
+│   │   │   │   │   ├── num-complex v0.4.6 (*)
+│   │   │   │   │   ├── num-integer v0.1.46 (*)
+│   │   │   │   │   ├── num-traits v0.2.19 (*)
+│   │   │   │   │   └── rawpointer v0.2.1
+│   │   │   │   ├── nohash-hasher v0.2.0
+│   │   │   │   ├── once_cell v1.21.3
+│   │   │   │   ├── ply-rs v0.1.3
+│   │   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   │   ├── linked-hash-map v0.5.6
+│   │   │   │   │   └── peg v0.6.3
+│   │   │   │   │       ├── peg-macros v0.6.3 (proc-macro)
+│   │   │   │   │       │   ├── peg-runtime v0.6.3
+│   │   │   │   │       │   ├── proc-macro2 v1.0.94 (*)
+│   │   │   │   │       │   └── quote v1.0.40 (*)
+│   │   │   │   │       └── peg-runtime v0.6.3
+│   │   │   │   │   [build-dependencies]
+│   │   │   │   │   └── skeptic v0.13.7
+│   │   │   │   │       ├── bytecount v0.6.8
+│   │   │   │   │       ├── cargo_metadata v0.14.2
+│   │   │   │   │       │   ├── camino v1.1.9 (*)
+│   │   │   │   │       │   ├── cargo-platform v0.1.9 (*)
+│   │   │   │   │       │   ├── semver v1.0.26 (*)
+│   │   │   │   │       │   ├── serde v1.0.219 (*)
+│   │   │   │   │       │   └── serde_json v1.0.140 (*)
+│   │   │   │   │       ├── error-chain v0.12.4
+│   │   │   │   │       │   [build-dependencies]
+│   │   │   │   │       │   └── version_check v0.9.5
+│   │   │   │   │       ├── glob v0.3.2
+│   │   │   │   │       ├── pulldown-cmark v0.9.6
+│   │   │   │   │       │   ├── bitflags v2.9.0
+│   │   │   │   │       │   ├── memchr v2.7.4
+│   │   │   │   │       │   └── unicase v2.8.1
+│   │   │   │   │       ├── tempfile v3.19.1
+│   │   │   │   │       │   ├── fastrand v2.3.0
+│   │   │   │   │       │   ├── getrandom v0.3.2
+│   │   │   │   │       │   │   ├── cfg-if v1.0.0
+│   │   │   │   │       │   │   └── libc v0.2.171
+│   │   │   │   │       │   ├── once_cell v1.21.3
+│   │   │   │   │       │   └── rustix v1.0.3
+│   │   │   │   │       │       ├── bitflags v2.9.0
+│   │   │   │   │       │       └── linux-raw-sys v0.9.3
+│   │   │   │   │       └── walkdir v2.5.0 (*)
+│   │   │   │   ├── re_byte_size v0.22.1 (*)
+│   │   │   │   ├── re_error v0.22.1
+│   │   │   │   ├── re_format v0.22.1 (*)
+│   │   │   │   ├── re_log v0.22.1 (*)
+│   │   │   │   ├── re_log_types v0.22.1 (*)
+│   │   │   │   ├── re_math v0.20.0
+│   │   │   │   │   └── glam v0.28.0
+│   │   │   │   ├── re_tracing v0.22.1 (*)
+│   │   │   │   ├── re_types_core v0.22.1 (*)
+│   │   │   │   ├── re_video v0.22.1
+│   │   │   │   │   ├── bit-vec v0.8.0
+│   │   │   │   │   ├── crossbeam v0.8.4 (*)
+│   │   │   │   │   ├── econtext v0.2.0
+│   │   │   │   │   ├── itertools v0.13.0 (*)
+│   │   │   │   │   ├── once_cell v1.21.3
+│   │   │   │   │   ├── parking_lot v0.12.3 (*)
+│   │   │   │   │   ├── poll-promise v0.3.0
+│   │   │   │   │   │   ├── document-features v0.2.11 (proc-macro) (*)
+│   │   │   │   │   │   └── static_assertions v1.1.0
+│   │   │   │   │   ├── re_build_info v0.22.1 (*)
+│   │   │   │   │   ├── re_log v0.22.1 (*)
+│   │   │   │   │   ├── re_mp4 v0.3.0
+│   │   │   │   │   │   ├── byteorder v1.5.0
+│   │   │   │   │   │   ├── bytes v1.10.1
+│   │   │   │   │   │   ├── num-rational v0.4.2 (*)
+│   │   │   │   │   │   ├── serde v1.0.219 (*)
+│   │   │   │   │   │   ├── serde_json v1.0.140 (*)
+│   │   │   │   │   │   └── thiserror v1.0.69 (*)
+│   │   │   │   │   ├── re_tracing v0.22.1 (*)
+│   │   │   │   │   └── thiserror v1.0.69 (*)
+│   │   │   │   │   [build-dependencies]
+│   │   │   │   │   ├── cfg_aliases v0.2.1
+│   │   │   │   │   └── re_build_tools v0.22.1 (*)
+│   │   │   │   ├── smallvec v1.14.0
+│   │   │   │   ├── thiserror v1.0.69 (*)
+│   │   │   │   └── uuid v1.16.0 (*)
+│   │   │   │   [build-dependencies]
+│   │   │   │   ├── rayon v1.10.0 (*)
+│   │   │   │   ├── re_build_tools v0.22.1 (*)
+│   │   │   │   └── re_types_builder v0.22.1
+│   │   │   │       ├── anyhow v1.0.97
+│   │   │   │       ├── arrow v53.4.0
+│   │   │   │       │   ├── arrow-arith v53.4.0 (*)
+│   │   │   │       │   ├── arrow-array v53.4.0 (*)
+│   │   │   │       │   ├── arrow-buffer v53.4.1 (*)
+│   │   │   │       │   ├── arrow-cast v53.4.0 (*)
+│   │   │   │       │   ├── arrow-data v53.4.1 (*)
+│   │   │   │       │   ├── arrow-ord v53.4.0 (*)
+│   │   │   │       │   ├── arrow-row v53.4.0 (*)
+│   │   │   │       │   ├── arrow-schema v53.4.1
+│   │   │   │       │   ├── arrow-select v53.4.0 (*)
+│   │   │   │       │   └── arrow-string v53.4.0 (*)
+│   │   │   │       ├── camino v1.1.9 (*)
+│   │   │   │       ├── clang-format v0.3.0
+│   │   │   │       │   └── thiserror v1.0.69 (*)
+│   │   │   │       ├── colored v2.2.0
+│   │   │   │       │   └── lazy_static v1.5.0
+│   │   │   │       ├── flatbuffers v24.12.23
+│   │   │   │       │   └── bitflags v1.3.2
+│   │   │   │       │   [build-dependencies]
+│   │   │   │       │   └── rustc_version v0.4.1 (*)
+│   │   │   │       ├── indent v0.1.1
+│   │   │   │       ├── itertools v0.13.0 (*)
+│   │   │   │       ├── prettyplease v0.2.31
+│   │   │   │       │   ├── proc-macro2 v1.0.94 (*)
+│   │   │   │       │   └── syn v2.0.100 (*)
+│   │   │   │       ├── proc-macro2 v1.0.94 (*)
+│   │   │   │       ├── quote v1.0.40 (*)
+│   │   │   │       ├── rayon v1.10.0 (*)
+│   │   │   │       ├── re_arrow2 v0.18.2
+│   │   │   │       │   ├── ahash v0.8.11
+│   │   │   │       │   │   ├── cfg-if v1.0.0
+│   │   │   │       │   │   ├── getrandom v0.2.15
+│   │   │   │       │   │   │   ├── cfg-if v1.0.0
+│   │   │   │       │   │   │   └── libc v0.2.171
+│   │   │   │       │   │   ├── once_cell v1.21.3
+│   │   │   │       │   │   └── zerocopy v0.7.35
+│   │   │   │       │   │   [build-dependencies]
+│   │   │   │       │   │   └── version_check v0.9.5
+│   │   │   │       │   ├── arrow-array v53.4.0 (*)
+│   │   │   │       │   ├── arrow-buffer v53.4.1 (*)
+│   │   │   │       │   ├── arrow-data v53.4.1 (*)
+│   │   │   │       │   ├── arrow-schema v53.4.1
+│   │   │   │       │   ├── bytemuck v1.22.0
+│   │   │   │       │   │   └── bytemuck_derive v1.9.3 (proc-macro) (*)
+│   │   │   │       │   ├── chrono v0.4.40
+│   │   │   │       │   │   ├── iana-time-zone v0.1.63
+│   │   │   │       │   │   └── num-traits v0.2.19 (*)
+│   │   │   │       │   ├── dyn-clone v1.0.19
+│   │   │   │       │   ├── either v1.15.0
+│   │   │   │       │   ├── ethnum v1.5.0
+│   │   │   │       │   ├── foreign_vec v0.1.0
+│   │   │   │       │   ├── half v2.5.0 (*)
+│   │   │   │       │   ├── hash_hasher v2.0.3
+│   │   │   │       │   ├── hashbrown v0.14.5 (*)
+│   │   │   │       │   ├── num-traits v0.2.19 (*)
+│   │   │   │       │   └── simdutf8 v0.1.5
+│   │   │   │       │   [build-dependencies]
+│   │   │   │       │   └── rustc_version v0.4.1 (*)
+│   │   │   │       ├── re_build_tools v0.22.1 (*)
+│   │   │   │       ├── re_case v0.22.1 (*)
+│   │   │   │       ├── re_error v0.22.1
+│   │   │   │       ├── re_log v0.22.1 (*)
+│   │   │   │       ├── re_tracing v0.22.1 (*)
+│   │   │   │       ├── rust-format v0.3.4
+│   │   │   │       ├── serde v1.0.219 (*)
+│   │   │   │       ├── syn v2.0.100 (*)
+│   │   │   │       ├── tempfile v3.19.1 (*)
+│   │   │   │       ├── toml v0.8.20
+│   │   │   │       │   ├── indexmap v2.8.0 (*)
+│   │   │   │       │   ├── serde v1.0.219 (*)
+│   │   │   │       │   ├── serde_spanned v0.6.8
+│   │   │   │       │   │   └── serde v1.0.219 (*)
+│   │   │   │       │   ├── toml_datetime v0.6.8
+│   │   │   │       │   │   └── serde v1.0.219 (*)
+│   │   │   │       │   └── toml_edit v0.22.24
+│   │   │   │       │       ├── indexmap v2.8.0 (*)
+│   │   │   │       │       ├── serde v1.0.219 (*)
+│   │   │   │       │       ├── serde_spanned v0.6.8 (*)
+│   │   │   │       │       ├── toml_datetime v0.6.8 (*)
+│   │   │   │       │       └── winnow v0.7.4
+│   │   │   │       ├── unindent v0.2.4
+│   │   │   │       └── xshell v0.2.7
+│   │   │   │           └── xshell-macros v0.2.7 (proc-macro)
+│   │   │   │       [build-dependencies]
+│   │   │   │       ├── re_build_tools v0.22.1 (*)
+│   │   │   │       └── xshell v0.2.7 (*)
+│   │   │   ├── serde v1.0.219 (*)
+│   │   │   ├── serde_json v1.0.140 (*)
+│   │   │   ├── thiserror v1.0.69 (*)
+│   │   │   ├── uuid v1.16.0 (*)
+│   │   │   └── walkdir v2.5.0 (*)
+│   │   │   [build-dependencies]
+│   │   │   └── re_build_tools v0.22.1 (*)
+│   │   ├── re_log v0.22.1 (*)
+│   │   ├── re_log_encoding v0.22.1 (*)
+│   │   ├── re_log_types v0.22.1 (*)
+│   │   ├── re_memory v0.22.1 (*)
+│   │   ├── re_sdk_comms v0.22.1
+│   │   │   ├── ahash v0.8.11 (*)
+│   │   │   ├── crossbeam v0.8.4 (*)
+│   │   │   ├── document-features v0.2.11 (proc-macro) (*)
+│   │   │   ├── re_build_info v0.22.1 (*)
+│   │   │   ├── re_log v0.22.1 (*)
+│   │   │   ├── re_log_encoding v0.22.1 (*)
+│   │   │   ├── re_log_types v0.22.1 (*)
+│   │   │   ├── re_smart_channel v0.22.1 (*)
+│   │   │   └── thiserror v1.0.69 (*)
+│   │   ├── re_smart_channel v0.22.1 (*)
+│   │   ├── re_types_core v0.22.1 (*)
+│   │   └── thiserror v1.0.69 (*)
+│   │   [build-dependencies]
+│   │   └── re_build_tools v0.22.1 (*)
+│   ├── re_smart_channel v0.22.1 (*)
+│   ├── re_tracing v0.22.1 (*)
+│   ├── re_types v0.22.1 (*)
+│   ├── re_video v0.22.1 (*)
+│   └── similar-asserts v1.7.0 (*)
+│   [build-dependencies]
+│   └── re_build_tools v0.22.1 (*)
+├── ringbuffer v0.15.0
+├── serde v1.0.219 (*)
+├── thiserror v2.0.12
+│   └── thiserror-impl v2.0.12 (proc-macro)
+│       ├── proc-macro2 v1.0.94 (*)
+│       ├── quote v1.0.40 (*)
+│       └── syn v2.0.100 (*)
+└── toml v0.8.20
+    ├── serde v1.0.219 (*)
+    ├── serde_spanned v0.6.8 (*)
+    ├── toml_datetime v0.6.8 (*)
+    └── toml_edit v0.22.24
+        ├── indexmap v2.8.0 (*)
+        ├── serde v1.0.219 (*)
+        ├── serde_spanned v0.6.8 (*)
+        ├── toml_datetime v0.6.8 (*)
+        └── winnow v0.7.4
+[dev-dependencies]
+├── approx v0.5.1 (*)
+└── pretty_assertions v1.4.1
+    ├── diff v0.1.13
+    └── yansi v1.0.1
+
+flight v0.1.0 (/home/luca/code/crater/quadcopter/crater/flight)
+
+miosix v0.1.0 (/home/luca/code/crater/quadcopter/crater/miosix)
+├── crossbeam-channel v0.5.14 (*)
+├── nalgebra v0.33.2 (*)
+└── thiserror v2.0.12 (*)

@@ -1,0 +1,11 @@
+[package]
+name = "flight"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+miosix = { path = "../miosix" }
+crater_core = { path = "../core_lib", features = ["miosix"] }
+
+[lib]
+crate-type = ["staticlib"]

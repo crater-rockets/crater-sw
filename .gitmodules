@@ -1,5 +1,5 @@
 [submodule "fsw/miosix-kernel"]
-	path = fsw/embedded/miosix-kernel
+	path = crater/flight/cpp/miosix-kernel
 	url = https://github.com/crater-rockets/miosix-kernel.git
 [submodule "fsw/shared/libs/expected-lite"]
 	path = fsw/shared/libs/expected-lite
