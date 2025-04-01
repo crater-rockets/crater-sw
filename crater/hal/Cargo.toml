@@ -7,8 +7,3 @@ edition = "2024"
 # crossbeam-channel = { version = "0.5.14", default-features = false }
 # nalgebra = { version = "0.33.2", default-features = false, features = ["macros", "libm"]}
 # thiserror = { version = "2.0.12", default-features = false }
-
-
-[features]
-miosix = []
-

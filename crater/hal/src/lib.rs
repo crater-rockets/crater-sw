@@ -1,36 +1,36 @@
 #![no_std]
 
-#[cfg(feature = "miosix")]
+#[cfg(target_os = "none")]
 use core::panic::PanicInfo;
 
-#[cfg(feature = "miosix")]
+#[cfg(target_os = "none")]
 extern crate alloc;
 
-#[cfg(feature = "miosix")]
+#[cfg(target_os = "none")]
 mod miosix;
 
-#[cfg(not(feature = "miosix"))]
+#[cfg(not(target_os = "none"))]
 extern crate std;
 
 pub mod hal {
-    #[cfg(feature = "miosix")]
+    #[cfg(target_os = "none")]
     pub use crate::miosix::*;
 
-    #[cfg(not(feature = "miosix"))]
+    #[cfg(not(target_os = "none"))]
     pub use std::*;
 }
 
-#[cfg(not(feature = "miosix"))]
+#[cfg(not(target_os = "none"))]
 pub use std::print as mprint;
 
-#[cfg(not(feature = "miosix"))]
+#[cfg(not(target_os = "none"))]
 pub use std::println as mprintln;
 
-#[cfg(feature = "miosix")]
+#[cfg(target_os = "none")]
 #[global_allocator]
 static ALLOCATOR: hal::alloc::MiosixAllocator = hal::alloc::MiosixAllocator;
 
-#[cfg(feature = "miosix")]
+#[cfg(target_os = "none")]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop {} // Halt the program indefinitely

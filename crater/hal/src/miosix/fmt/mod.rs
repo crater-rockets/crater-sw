@@ -18,7 +18,6 @@ pub fn print(args: fmt::Arguments) {
     PutcWriter.write_fmt(args).unwrap();
 }
 
-#[cfg(feature = "miosix")]
 #[macro_export]
 macro_rules! mprint {
     ($($arg:tt)*) => {{
@@ -26,7 +25,6 @@ macro_rules! mprint {
     }};
 }
 
-#[cfg(feature = "miosix")]
 #[macro_export]
 macro_rules! mprintln {
     () => {{

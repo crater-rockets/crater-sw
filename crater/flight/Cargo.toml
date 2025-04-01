@@ -5,13 +5,7 @@ edition = "2024"
 
 [dependencies]
 crater_core = { path = "../core" }
-
-[target.'cfg(target_arch = "x86_64")'.dependencies]
 crater_hal = { path = "../hal" }
 
-[target.'cfg(target_arch = "arm")'.dependencies]
-crater_hal = { path = "../hal", features = ["miosix"] }
-
-
-[target.'cfg(target_arch = "arm")'.lib]
-crate-type = ["staticlib"]
+# [target.'cfg(target_os = "none")'.lib]
+# crate-type = ["staticlib"]
