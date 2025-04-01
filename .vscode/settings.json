@@ -1,0 +1,7 @@
+{    
+    // "rust-analyzer.cargo.target": "thumbv7em-none-eabihf",
+    // "rust-analyzer.cargo.allTargets": false,
+    // "rust-analyzer.linkedProjects": ["crater/flight/Cargo.toml"],
+
+    "rust-analyzer.linkedProjects": ["crater/plant/Cargo.toml"],
+}
