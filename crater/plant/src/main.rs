@@ -33,8 +33,9 @@ fn build_model(nm: &mut NodeManager) -> Result<()> {
 }
 
 fn main() -> Result<()> {
-    let x: crater_core::MyLinkTest = crater_core::MyLinkTest(213);
-    println!("{}", x.0);
+    crater_hal::mprintln!("Hello world");
+    
+    crater_flight::rust_main();
 
     // Default log level to "info"
     if env::var("RUST_LOG").is_err() {

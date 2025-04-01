@@ -6,7 +6,7 @@ use core::{
     ops::{Deref, DerefMut},
 };
 
-use crate::newlib::{self, EBUSY};
+use crate::hal::newlib::{self, EBUSY};
 
 #[derive(Debug)]
 pub struct PoisonError<T> {

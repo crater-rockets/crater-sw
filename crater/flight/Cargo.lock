@@ -5,18 +5,15 @@ version = 4
 [[package]]
 name = "crater_core"
 version = "0.1.0"
-dependencies = [
- "miosix",
-]
+
+[[package]]
+name = "crater_hal"
+version = "0.1.0"
 
 [[package]]
 name = "flight"
 version = "0.1.0"
 dependencies = [
  "crater_core",
- "miosix",
+ "crater_hal",
 ]
-
-[[package]]
-name = "miosix"
-version = "0.1.0"

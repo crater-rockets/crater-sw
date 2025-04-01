@@ -1,11 +1,17 @@
 [package]
-name = "flight"
+name = "crater_flight"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-miosix = { path = "../miosix" }
-crater_core = { path = "../core_lib", features = ["miosix"] }
+crater_core = { path = "../core" }
 
-[lib]
+[target.'cfg(target_arch = "x86_64")'.dependencies]
+crater_hal = { path = "../hal" }
+
+[target.'cfg(target_arch = "arm")'.dependencies]
+crater_hal = { path = "../hal", features = ["miosix"] }
+
+
+[target.'cfg(target_arch = "arm")'.lib]
 crate-type = ["staticlib"]

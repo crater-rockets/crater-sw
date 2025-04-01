@@ -1372,6 +1372,18 @@ name = "crater_core"
 version = "0.1.0"
 
 [[package]]
+name = "crater_flight"
+version = "0.1.0"
+dependencies = [
+ "crater_core",
+ "crater_hal",
+]
+
+[[package]]
+name = "crater_hal"
+version = "0.1.0"
+
+[[package]]
 name = "crater_plant"
 version = "0.1.0"
 dependencies = [
@@ -1380,6 +1392,8 @@ dependencies = [
  "bytes",
  "chrono",
  "crater_core",
+ "crater_flight",
+ "crater_hal",
  "egui",
  "itertools 0.14.0",
  "log",

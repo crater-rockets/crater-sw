@@ -1,45 +1,41 @@
-#[cfg(target_arch = "arm")]
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_main() -> core::ffi::c_int {
-    use alloc::{
-        boxed::Box,
-        string::{String, ToString},
-        sync::Arc,
+    use alloc::{string::ToString, sync::Arc};
+    use crater_hal::{
+        hal::{sync::Mutex, thread},
+        mprintln,
     };
-    use miosix::{mprintln, mprint, sync::mutex::Mutex, LinkTest};
-    
-    let lt: f32 = LinkTest(1.3f32).0;
 
-    mprint!("Hello world {}\n", lt);
+    let lt: f32 = 1.23f32;
+
+    mprintln!("Hello world {}", lt);
 
     let v_t1 = Arc::new(Mutex::new(1i32));
     let v_t2 = v_t1.clone();
 
-    let t1 = miosix::sync::thread::spawn(move || {
+    let t1 = thread::spawn(move || {
         for _ in 0..1000 {
             let mut val = v_t1.lock().unwrap();
             *val += 1;
-            mprint!("Thread 1 {}\n", *val);
+            mprintln!("Thread 1 {}", *val);
         }
 
         123
     });
 
-    let t2 = miosix::sync::thread::spawn(move || {
+    let t2 = thread::spawn(move || {
         for _ in 0..1000 {
             let mut val = v_t2.lock().unwrap();
             *val += 1;
-            mprint!("Thread 2 {}\n", *val);
+            mprintln!("Thread 2 {}", *val);
         }
 
         "T2 Hello!".to_string()
     });
 
-    mprint!("Joining!\n");
     let v1 = t1.join();
     let v2 = t2.join();
 
-    mprint!("Joined! t1={}, t2={}\n", v1.unwrap(), v2.unwrap());
-
+    mprintln!("Joined! t1={}, t2={}", v1.unwrap(), v2.unwrap());
     0
 }

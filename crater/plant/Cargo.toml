@@ -22,7 +22,10 @@ rerun = "0.22.1"
 map_3d = "0.1.5"
 pretty_env_logger = "0.5.0"
 log = "0.4.27"
-crater_core = { path = "../core_lib" }
+
+crater_hal = { path = "../hal" }
+crater_core = { path = "../core" }
+crater_flight = { path = "../flight" }
 
 # mavlink = "0.13.1"
 # mavlink-core = "0.13.1"

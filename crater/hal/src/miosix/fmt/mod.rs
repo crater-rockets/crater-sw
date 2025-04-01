@@ -1,7 +1,6 @@
 use alloc::fmt;
 use alloc::fmt::Write;
 
-#[cfg(target_arch = "arm")]
 pub fn print(args: fmt::Arguments) {
     struct PutcWriter;
 
@@ -9,7 +8,7 @@ pub fn print(args: fmt::Arguments) {
         fn write_str(&mut self, s: &str) -> fmt::Result {
             for c in s.chars() {
                 unsafe {
-                    crate::newlib::putchar(c as core::ffi::c_int);
+                    crate::hal::newlib::putchar(c as core::ffi::c_int);
                 }
             }
             Ok(())
@@ -19,22 +18,22 @@ pub fn print(args: fmt::Arguments) {
     PutcWriter.write_fmt(args).unwrap();
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "miosix")]
 #[macro_export]
 macro_rules! mprint {
     ($($arg:tt)*) => {{
-        $crate::fmt::print(::core::format_args!($($arg)*));
+        $crate::hal::fmt::print(::core::format_args!($($arg)*));
     }};
 }
 
-#[cfg(target_arch = "arm")]
+#[cfg(feature = "miosix")]
 #[macro_export]
 macro_rules! mprintln {
     () => {{
-        $crate::fmt::mprint!("\n");
+        $crate::mprint!("\n");
     }};
     ($($arg:tt)*) => {{
-        $crate::fmt::mprint!($($arg)*);
-        $crate::fmt::mprint!("\n");
+        $crate::mprint!($($arg)*);
+        $crate::mprint!("\n");
     }};
 }

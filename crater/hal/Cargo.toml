@@ -1,5 +1,5 @@
 [package]
-name = "miosix"
+name = "crater_hal"
 version = "0.1.0"
 edition = "2024"
 
@@ -9,4 +9,6 @@ edition = "2024"
 # thiserror = { version = "2.0.12", default-features = false }
 
 
+[features]
+miosix = []
 

@@ -1,0 +1,10 @@
+[package]
+name = "crater_core"
+version = "0.1.0"
+edition = "2024"
+
+[target.'cfg(target_arch = "x86_64")'.dependenceis]
+crater_hal = { path = "../hal" }
+
+[target.'cfg(target_arch = "arm")'.dependenceis]
+crater_hal = { path = "../hal", features = ["miosix"] }

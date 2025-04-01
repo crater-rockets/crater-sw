@@ -2,7 +2,7 @@ use core::{any::Any, cell::UnsafeCell, ffi::c_void, marker::PhantomData, mem::Ma
 
 use alloc::{boxed::Box, sync::Arc};
 
-use crate::newlib;
+use crate::hal::newlib;
 
 pub type Result<T> = core::result::Result<T, Box<dyn Any + Send + Sync + 'static>>;
 
