@@ -5,7 +5,6 @@ use super::{
     rocket_output::RocketOutput,
 };
 use crate::{
-    core::time::{Clock, Timestamp, TD},
     crater::sim::aero::{
         aerodynamics::{AeroCoefficients, AeroState, Aerodynamics},
         atmosphere::AtmosphereIsa,
@@ -17,6 +16,7 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use chrono::TimeDelta;
+use crater_core::time::{Clock, Timestamp, TD};
 use core::f64;
 use nalgebra::{Quaternion, SVector, Vector3, Vector4};
 

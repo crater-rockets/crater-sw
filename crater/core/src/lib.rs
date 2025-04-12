@@ -1,6 +1,4 @@
 #![no_std]
 
 
-pub fn printStuff() {
-    
-}
+pub mod time;

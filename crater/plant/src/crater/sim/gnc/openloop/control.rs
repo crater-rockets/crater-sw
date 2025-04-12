@@ -1,13 +1,13 @@
 use std::fs;
 
 use crate::{
-    core::time::{Clock, Timestamp},
     crater::sim::gnc::{datatypes::ServoPosition, MixedServoPosition},
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryDispatcher, TelemetrySender},
 };
 use anyhow::{Context, Result};
 use chrono::TimeDelta;
+use crater_core::time::{Clock, Timestamp};
 use nalgebra::Vector4;
 use rand::seq;
 use serde::Deserialize;

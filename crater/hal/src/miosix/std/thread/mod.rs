@@ -1,8 +1,17 @@
-use core::{any::Any, cell::UnsafeCell, ffi::c_void, marker::PhantomData, mem::ManuallyDrop};
+use core::{
+    any::Any,
+    cell::UnsafeCell,
+    ffi::{c_int, c_void},
+    marker::PhantomData,
+    mem::ManuallyDrop,
+    time::Duration,
+};
 
 use alloc::{boxed::Box, sync::Arc};
 
 use crate::hal::newlib;
+
+use super::newlib::{clockid_t, timespec};
 
 pub type Result<T> = core::result::Result<T, Box<dyn Any + Send + Sync + 'static>>;
 
@@ -97,4 +106,22 @@ where
     }
 
     core::ptr::null_mut::<c_void>()
+}
+
+pub fn sleep(dur: Duration) {
+    if dur == Duration::ZERO {
+        return;
+    }
+
+    let t = timespec {
+        tv_sec: dur.as_secs() as i64,
+        tv_nsec: dur.subsec_nanos() as i32,
+    };
+
+    let clock_monotonic = 4 as clockid_t;
+
+    let res =
+        unsafe { newlib::clock_nanosleep(clock_monotonic, 0 as c_int, &t, core::ptr::null_mut()) };
+
+    debug_assert!(res == 0, "Couldn't sleep! errno={}", res);
 }

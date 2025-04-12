@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+embassy-stm32 = {version = "0.2.0", default-features = false, features = ["stm32f756vg"]}
 # crossbeam-channel = { version = "0.5.14", default-features = false }
 # nalgebra = { version = "0.33.2", default-features = false, features = ["macros", "libm"]}
 # thiserror = { version = "2.0.12", default-features = false }

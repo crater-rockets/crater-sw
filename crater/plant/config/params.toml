@@ -1,6 +1,6 @@
 [sim]
 t0 = { val = 0, dtype = "f64" }
-dt = { val = 0.01, dtype = "f64" }
+dt = { val = 0.002, dtype = "f64" }
 max_t = { val = 120, dtype = "f64" }
 
 [sim.rocket.crater]

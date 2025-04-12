@@ -1,5 +1,4 @@
 use crate::{
-    core::time::Timestamp,
     nodes::NodeTelemetry,
     telemetry::{TelemetryDispatcher, TelemetrySender},
 };
@@ -11,6 +10,7 @@ use super::{
     rocket_data::{AeroAngles, RocketActions, RocketParams, RocketState},
 };
 use anyhow::Result;
+use crater_core::time::Timestamp;
 use nalgebra::Vector3;
 
 // Outputs of the Rocket node

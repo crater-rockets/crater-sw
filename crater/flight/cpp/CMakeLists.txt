@@ -18,7 +18,7 @@ target_compile_definitions(miosix PUBLIC -D_GLIBCXX_USE_WCHAR_T)
 
 add_library(rust_lib STATIC IMPORTED)
 set_target_properties(rust_lib PROPERTIES
-    IMPORTED_LOCATION "${CMAKE_CURRENT_LIST_DIR}/../target/thumbv7em-none-eabihf/debug/libflight.a"
+    IMPORTED_LOCATION "${CMAKE_CURRENT_LIST_DIR}/../target/thumbv7em-none-eabihf/debug/libcrater_flight.a"
 )
 
 add_executable(rust_main entrypoints/rust_main.cpp)

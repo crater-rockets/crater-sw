@@ -3,9 +3,11 @@ name = "crater_flight"
 version = "0.1.0"
 edition = "2024"
 
+
 [dependencies]
 crater_core = { path = "../core" }
 crater_hal = { path = "../hal" }
 
-# [target.'cfg(target_os = "none")'.lib]
-# crate-type = ["staticlib"]
+# [lib]
+[target.'cfg(target_os = "none")'.lib]
+crate-type = ["staticlib"]

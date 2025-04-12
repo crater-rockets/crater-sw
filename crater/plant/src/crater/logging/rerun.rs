@@ -1,5 +1,4 @@
 use crate::{
-    core::time::Timestamp,
     crater::sim::{
         gnc::ServoPosition,
         rocket_data::{AeroAngles, RocketActions, RocketState},
@@ -8,6 +7,7 @@ use crate::{
     utils::{capacity::Capacity, ringchannel::Select},
 };
 use anyhow::Result;
+use crater_core::time::Timestamp;
 use map_3d::ned2geodetic;
 use nalgebra::Vector3;
 use rerun::{components::RotationQuat, Quaternion, RecordingStream};

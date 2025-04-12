@@ -1,5 +1,4 @@
 use crate::{
-    core::time::{Clock, Timestamp},
     crater::sim::{rocket_data::RocketState, sensors::datatypes::GPSSample},
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetrySender, Timestamped},
@@ -7,6 +6,7 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::TimeDelta;
+use crater_core::time::{Clock, Timestamp};
 
 #[derive(Debug)]
 pub struct IdealGPS {

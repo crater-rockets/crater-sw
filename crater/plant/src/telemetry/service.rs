@@ -1,18 +1,16 @@
 use std::{
-    any::{type_name, Any},
+    any::{Any, type_name},
     collections::HashMap,
     sync::{Arc, Mutex, Weak},
 };
 
+use crater_core::time::Timestamp;
 use thiserror::Error;
 
-use crate::{
-    core::time::Timestamp,
-    utils::{
-        capacity::Capacity,
-        ringchannel::{
-            channel, Channel, ChannelError, ReadyList, Receiver, SelectToken, Selectable, Sender,
-        },
+use crate::utils::{
+    capacity::Capacity,
+    ringchannel::{
+        Channel, ChannelError, ReadyList, Receiver, SelectToken, Selectable, Sender, channel,
     },
 };
 

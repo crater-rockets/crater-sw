@@ -14,7 +14,7 @@ extern crate std;
 
 pub mod hal {
     #[cfg(target_os = "none")]
-    pub use crate::miosix::*;
+    pub use crate::miosix::std::*;
 
     #[cfg(not(target_os = "none"))]
     pub use std::*;

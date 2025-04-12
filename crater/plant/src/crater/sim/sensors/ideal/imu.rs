@@ -1,7 +1,7 @@
 use anyhow::Result;
 use chrono::TimeDelta;
+use crater_core::time::{Clock, Timestamp};
 use crate::{
-    core::time::{Clock, Timestamp},
     crater::sim::{
         rocket_data::{RocketActions, RocketState},
         sensors::datatypes::IMUSample,

@@ -1,9 +1,10 @@
 use chrono::TimeDelta;
+use crater_core::time::Clock;
 use std::collections::HashMap;
 use thiserror::Error;
 
 use crate::{
-    core::{path::Path, time::Clock},
+    core::path::Path,
     parameters::ParameterService,
     telemetry::{
         TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetrySender, TelemetryService,
@@ -165,17 +166,15 @@ impl TelemetryDispatcher for NodeTelemetry {
 #[cfg(test)]
 mod tests {
     use std::sync::{
-        mpsc::{channel, Sender},
         Arc,
+        mpsc::{Sender, channel},
     };
 
-    use crate::{
-        core::time::{SystemClock, Timestamp},
-        telemetry::Timestamped,
-    };
+    use crate::{core::time::SystemClock, telemetry::Timestamped};
 
     use super::*;
     use anyhow::Result;
+    use crater_core::time::Timestamp;
 
     #[test]
     fn test_input_remap() -> Result<()> {
