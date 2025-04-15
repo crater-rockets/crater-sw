@@ -41,19 +41,21 @@ struct StepState {
 impl Rocket {
     pub fn new(name: &str, ctx: NodeContext) -> Result<Self> {
         // Base path for the parameters of this Rocket
-        let param_path = format!("/sim/rocket/{name}");
+        let rocket_params = ctx.parameters().get_map("sim.rocket")?;
 
         // Select which engine to use based on the config file (currently only one option)
-        let engine = match ctx
-            .parameters()
-            .get_string(format!("{param_path}/engine/engine_type").as_str())?
+        let engine = match rocket_params
+            .get_param("engine.engine_type")?
+            .value_string()?
             .as_str()
         {
             "simple" => Ok(Box::new(SimpleRocketEngine::from_impulse(
-                ctx.parameters()
-                    .get_f64(format!("{param_path}/engine/simple/total_impulse").as_str())?,
-                ctx.parameters()
-                    .get_f64(format!("{param_path}/engine/simple/thrust_duration").as_str())?,
+                rocket_params
+                    .get_param("engine.simple.total_impulse")?
+                    .value_float()?,
+                rocket_params
+                    .get_param("engine.simple.thrust_duration")?
+                    .value_float()?,
             ))),
             unknown => Err(anyhow!(
                 "Unknown engine type selected for rocket '{name}': {unknown}"
@@ -61,14 +63,15 @@ impl Rocket {
         }?;
 
         // Read parameters
-        let params = RocketParams::from_service(&param_path, &ctx.parameters())?;
+        let params = RocketParams::from_params(rocket_params)?;
 
         // Initialize state with initial conditions from parameters
         let state = RocketState::from_params(&params);
 
         let atmosphere = Box::new(AtmosphereIsa::default());
 
-        let aero_coefficients = AeroCoefficients::from_params(&param_path, &ctx.parameters())?;
+        let aero_params = rocket_params.get_map("aero")?;
+        let aero_coefficients = AeroCoefficients::from_params(aero_params)?;
         let aerodynamics = Aerodynamics::new(
             params.diameter,
             params.surface,

@@ -6,7 +6,7 @@ use crater::{
         sim::{actuators::ideal::IdealServo, gnc::openloop::OpenloopControl, rocket::Rocket},
     },
     nodes::{FtlOrderedExecutor, NodeConfig, NodeManager},
-    parameters::ParameterService,
+    parameters,
     telemetry::TelemetryService,
 };
 use log::info;
@@ -47,7 +47,7 @@ fn main() -> Result<()> {
         info!("Reading parameters from '{params_file}'");
 
         let params_toml = fs::read_to_string(params_file)?;
-        let params = ParameterService::from_toml(&params_toml)?;
+        let params = parameters::parse_string(params_toml)?;
 
         info!("Initalizing node manager");
         let mut nm = NodeManager::new(
@@ -61,7 +61,7 @@ fn main() -> Result<()> {
         );
         build_model(&mut nm).expect("Error building model");
 
-        let dt_sec = params.get_f64("/sim/dt")?;
+        let dt_sec = params.get_param("sim.dt")?.value_float()?;
         let dt = (dt_sec * 1000000.0) as i64;
 
         let dt_msec = dt_sec * 1000.0;

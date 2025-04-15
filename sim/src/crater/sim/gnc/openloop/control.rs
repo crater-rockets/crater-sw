@@ -87,7 +87,8 @@ impl OpenloopControl {
 
         let sequence_file = ctx
             .parameters()
-            .get_string("/sim/rocket/crater/gnc/openloop/sequence")?;
+            .get_param("sim.rocket.gnc.openloop.sequence")?
+            .value_string()?;
 
         let sequence_string =
             fs::read_to_string(sequence_file.clone()).context(format!("path={sequence_file}"))?;

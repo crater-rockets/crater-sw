@@ -1,10 +1,10 @@
 use chrono::TimeDelta;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use thiserror::Error;
 
 use crate::{
     core::{path::Path, time::Clock},
-    parameters::ParameterService,
+    parameters::ParameterMap,
     telemetry::{
         TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetrySender, TelemetryService,
     },
@@ -32,7 +32,7 @@ pub trait Node {
 #[derive(Default)]
 pub struct NodeManager {
     telemetry: TelemetryService,
-    parameters: ParameterService,
+    parameters: Arc<ParameterMap>,
     node_configs: HashMap<String, NodeConfig>,
     pub(super) nodes: Vec<(String, Box<dyn Node + Send>)>,
 }
@@ -40,12 +40,12 @@ pub struct NodeManager {
 impl NodeManager {
     pub fn new(
         telemetry: TelemetryService,
-        parameters: ParameterService,
+        parameters: ParameterMap,
         node_configs: HashMap<String, NodeConfig>,
     ) -> Self {
         NodeManager {
             telemetry,
-            parameters,
+            parameters: Arc::new(parameters),
             node_configs: node_configs,
             nodes: vec![],
         }
@@ -92,22 +92,22 @@ pub struct NodeConfig {
 #[derive(Debug)]
 pub struct NodeContext {
     tm_dispatcher: NodeTelemetry,
-    parameters: ParameterService,
+    parameters: Arc<ParameterMap>,
 }
 
 impl NodeContext {
-    fn new(tm_dispatcher: NodeTelemetry, parameters: ParameterService) -> Self {
+    fn new(tm_dispatcher: NodeTelemetry, parameters: Arc<ParameterMap>) -> Self {
         Self {
             tm_dispatcher,
             parameters,
         }
     }
 
-    pub fn telemetry<'a>(&'a self) -> &'a NodeTelemetry {
+    pub fn telemetry(&self) -> &NodeTelemetry {
         &self.tm_dispatcher
     }
 
-    pub fn parameters<'a>(&'a self) -> &'a ParameterService {
+    pub fn parameters(&self) -> &ParameterMap {
         &self.parameters
     }
 }
@@ -294,7 +294,7 @@ mod tests {
     fn test_add_node_ok() -> Result<()> {
         let mut nm = NodeManager::new(
             TelemetryService::default(),
-            ParameterService::default(),
+            ParameterMap::default(),
             HashMap::from([
                 (
                     "node_s".to_string(),

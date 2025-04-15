@@ -3,10 +3,7 @@ use core::f64;
 use nalgebra::{vector, Vector3};
 use num_traits::Pow;
 
-use crate::{
-    crater::sim::gnc::{MixedServoPosition, ServoPosition},
-    parameters::ParameterService,
-};
+use crate::{crater::sim::gnc::MixedServoPosition, parameters::ParameterMap};
 
 use super::atmosphere::Atmosphere;
 
@@ -42,35 +39,35 @@ pub struct AeroCoefficients {
 }
 
 impl AeroCoefficients {
-    pub fn from_params(basepath: &str, params: &ParameterService) -> Result<Self> {
+    pub fn from_params(params: &ParameterMap) -> Result<Self> {
         Ok(Self {
-            cA_0: params.get_f64(format!("{basepath}/aero/cA_0").as_str())?,
-            cA_a: params.get_f64(format!("{basepath}/aero/cA_a").as_str())?,
-            cA_b: params.get_f64(format!("{basepath}/aero/cA_b").as_str())?,
-            cA_dy: params.get_f64(format!("{basepath}/aero/cA_dy").as_str())?,
-            cA_dp: params.get_f64(format!("{basepath}/aero/cA_dp").as_str())?,
-            cA_dr: params.get_f64(format!("{basepath}/aero/cA_dr").as_str())?,
-            cA_ds: params.get_f64(format!("{basepath}/aero/cA_ds").as_str())?,
+            cA_0: params.get_param("cA_0")?.value_float()?,
+            cA_a: params.get_param("cA_a")?.value_float()?,
+            cA_b: params.get_param("cA_b")?.value_float()?,
+            cA_dy: params.get_param("cA_dy")?.value_float()?,
+            cA_dp: params.get_param("cA_dp")?.value_float()?,
+            cA_dr: params.get_param("cA_dr")?.value_float()?,
+            cA_ds: params.get_param("cA_ds")?.value_float()?,
 
-            cY_b: params.get_f64(format!("{basepath}/aero/cY_b").as_str())?,
-            cY_r: params.get_f64(format!("{basepath}/aero/cY_r").as_str())?,
-            cY_dy: params.get_f64(format!("{basepath}/aero/cY_dy").as_str())?,
+            cY_b: params.get_param("cY_b")?.value_float()?,
+            cY_r: params.get_param("cY_r")?.value_float()?,
+            cY_dy: params.get_param("cY_dy")?.value_float()?,
 
-            cN_a: params.get_f64(format!("{basepath}/aero/cN_a").as_str())?,
-            cN_q: params.get_f64(format!("{basepath}/aero/cN_q").as_str())?,
-            cN_dp: params.get_f64(format!("{basepath}/aero/cN_dp").as_str())?,
+            cN_a: params.get_param("cN_a")?.value_float()?,
+            cN_q: params.get_param("cN_q")?.value_float()?,
+            cN_dp: params.get_param("cN_dp")?.value_float()?,
 
-            cl_0: params.get_f64(format!("{basepath}/aero/cl_0").as_str())?,
-            cl_p: params.get_f64(format!("{basepath}/aero/cl_p").as_str())?,
-            cl_dr: params.get_f64(format!("{basepath}/aero/cl_dr").as_str())?,
+            cl_0: params.get_param("cl_0")?.value_float()?,
+            cl_p: params.get_param("cl_p")?.value_float()?,
+            cl_dr: params.get_param("cl_dr")?.value_float()?,
 
-            cm_a: params.get_f64(format!("{basepath}/aero/cm_a").as_str())?,
-            cm_q: params.get_f64(format!("{basepath}/aero/cm_q").as_str())?,
-            cm_dp: params.get_f64(format!("{basepath}/aero/cm_dp").as_str())?,
+            cm_a: params.get_param("cm_a")?.value_float()?,
+            cm_q: params.get_param("cm_q")?.value_float()?,
+            cm_dp: params.get_param("cm_dp")?.value_float()?,
 
-            cn_b: params.get_f64(format!("{basepath}/aero/cn_b").as_str())?,
-            cn_r: params.get_f64(format!("{basepath}/aero/cn_r").as_str())?,
-            cn_dy: params.get_f64(format!("{basepath}/aero/cn_dy").as_str())?,
+            cn_b: params.get_param("cn_b")?.value_float()?,
+            cn_r: params.get_param("cn_r")?.value_float()?,
+            cn_dy: params.get_param("cn_dy")?.value_float()?,
         })
     }
 }
