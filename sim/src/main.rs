@@ -53,11 +53,6 @@ fn main() -> Result<()> {
         let mut nm = NodeManager::new(
             ts.clone(),
             params.clone(),
-            HashMap::from([
-                ("rocket".to_string(), NodeConfig::default()),
-                ("openloop_control".to_string(), NodeConfig::default()),
-                ("ideal_servo".to_string(), NodeConfig::default()),
-            ]),
         );
         build_model(&mut nm).expect("Error building model");
 
