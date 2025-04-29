@@ -37,6 +37,7 @@ pub enum FloatDistribution {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RandFloat {
     val: f64,
+    sampled: Option<f64>,
     dist: FloatDistribution,
 }
 
@@ -588,6 +589,7 @@ mod tests {
                     path: ".rand_float".to_string(),
                     value: ParameterValue::RandFloat(RandFloat {
                         val: 1.0,
+                        sampled: None,
                         dist: FloatDistribution::Normal {
                             mean: 1.0,
                             variance: 1.0,
@@ -608,6 +610,7 @@ mod tests {
                     path: ".rand_float".to_string(),
                     value: ParameterValue::RandFloat(RandFloat {
                         val: 1.0,
+                        sampled: None,
                         dist: FloatDistribution::Uniform { min: 1.0, max: 1.0 },
                     }),
                 }),
