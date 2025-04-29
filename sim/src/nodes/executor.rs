@@ -79,7 +79,7 @@ impl FtlOrderedExecutor {
         while !stop {
             clock.step(simulated_step_period);
 
-            for (name, node) in node_mgr.nodes.iter_mut() {
+            for (name, node) in node_mgr.nodes_mut().iter_mut() {
                 let res = node
                     .step(i, simulated_step_period, &clock)
                     .with_context(|| format!("Node {}: step() reported an error", name));

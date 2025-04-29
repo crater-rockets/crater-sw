@@ -40,25 +40,18 @@ pub trait Node {
 pub struct NodeManager {
     telemetry: TelemetryService,
     parameters: Arc<ParameterMap>,
-    pub(super) nodes: Vec<(String, Box<dyn Node + Send>)>,
+    nodes: Vec<(String, Box<dyn Node + Send>)>,
     rng: Arc<Mutex<SplitMix64>>,
 }
 
 impl NodeManager {
-    pub fn new(
-        telemetry: TelemetryService,
-        parameters: ParameterMap,
-    ) -> Self {
+    pub fn new(telemetry: TelemetryService, parameters: ParameterMap) -> Self {
         let seed = rand::RngCore::next_u64(&mut OsRng);
 
         Self::new_from_seed(telemetry, parameters, seed)
     }
 
-    pub fn new_from_seed(
-        telemetry: TelemetryService,
-        parameters: ParameterMap,
-        seed: u64,
-    ) -> Self {
+    pub fn new_from_seed(telemetry: TelemetryService, parameters: ParameterMap, seed: u64) -> Self {
         NodeManager {
             telemetry,
             parameters: Arc::new(parameters),
@@ -67,21 +60,15 @@ impl NodeManager {
         }
     }
 
-    pub fn add_node<
+    pub fn add_node<F>(&mut self, name: &str, creator: F) -> Result<(), Error>
+    where
         F: FnOnce(
             NodeContext,
-        ) -> Result<Box<dyn Node + Send>, Box<dyn std::error::Error + Send + Sync>>,
-    >(
-        &mut self,
-        name: &str,
-        creator: F,
-    ) -> Result<(), Error> {
+        )
+            -> Result<Box<dyn Node + Send>, Box<dyn std::error::Error + Send + Sync>>,
+    {
         let context = NodeContext::new(
-            NodeTelemetry::new(
-                self.telemetry.clone(),
-                HashMap::new(),
-                HashMap::new(),
-            ),
+            NodeTelemetry::new(self.telemetry.clone(), HashMap::new(), HashMap::new()),
             self.parameters.clone(),
             self.rng.clone(),
         );
@@ -92,6 +79,18 @@ impl NodeManager {
         ));
 
         Ok(())
+    }
+
+    pub fn nodes(&self) -> &[(String, Box<dyn Node + Send>)] {
+        &self.nodes
+    }
+
+    pub fn nodes_mut(&mut self) -> &mut [(String, Box<dyn Node + Send>)] {
+        &mut self.nodes
+    }
+
+    pub fn parameters(&self) -> Arc<ParameterMap> {
+        self.parameters.clone()
     }
 }
 
@@ -190,4 +189,3 @@ impl TelemetryDispatcher for NodeTelemetry {
         self.telemetry.subscribe::<T>(path.as_str(), capacity)
     }
 }
-
