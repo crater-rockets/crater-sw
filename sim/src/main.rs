@@ -1,34 +1,10 @@
 use anyhow::Result;
-use chrono::TimeDelta;
 use crater::{
-    crater::{
-        logging::RerunLogger,
-        sim::{actuators::ideal::IdealServo, gnc::openloop::OpenloopControl, rocket::Rocket},
-    },
     model::OpenLoopCrater,
-    nodes::{FtlOrderedExecutor, NodeConfig, NodeManager},
-    parameters,
     runner::{RngSeed, SingleThreadedRunner},
-    telemetry::TelemetryService,
 };
 use log::info;
-use std::{
-    collections::HashMap,
-    env, fs,
-    path::Path,
-    thread::{self},
-    time::Instant,
-};
-
-fn build_model(nm: &mut NodeManager) -> Result<()> {
-    nm.add_node("rocket", |ctx| Ok(Box::new(Rocket::new("crater", ctx)?)))?;
-    nm.add_node("openloop_control", |ctx| {
-        Ok(Box::new(OpenloopControl::new(ctx)?))
-    })?;
-    nm.add_node("ideal_servo", |ctx| Ok(Box::new(IdealServo::new(ctx)?)))?;
-
-    Ok(())
-}
+use std::{env, path::Path};
 
 fn main() -> Result<()> {
     // Default log level to "info"
