@@ -247,6 +247,49 @@ impl ParameterMap {
             iter: self.map.iter(),
         }
     }
+
+    pub fn resample(&mut self, mut rng: impl Rng) {
+        self.resample_inner(&mut rng);
+    }
+
+    fn resample_inner<R>(&mut self, rng: &mut R)
+    where
+        R: Rng,
+    {
+        for (_, param) in self.map.iter_mut() {
+            match param {
+                ParameterTree::Node(map) => {
+                    map.resample_inner(rng);
+                }
+                ParameterTree::Leaf(param) => match &mut param.value {
+                    ParameterValue::RandFloat(rnd_float) => {
+                        rnd_float.sampled = Some(rnd_float.dist.sample(rng));
+                        info!(
+                            "value={}, sampled={}",
+                            rnd_float.val,
+                            rnd_float.sampled.unwrap()
+                        );
+                    }
+                    _ => {}
+                },
+            }
+        }
+    }
+    pub fn resample_perfect(&mut self) {
+        for (_, param) in self.map.iter_mut() {
+            match param {
+                ParameterTree::Node(map) => {
+                    map.resample_perfect();
+                }
+                ParameterTree::Leaf(param) => match &mut param.value {
+                    ParameterValue::RandFloat(rnd_float) => {
+                        rnd_float.sampled = Some(rnd_float.val);
+                    }
+                    _ => {}
+                },
+            }
+        }
+    }
 }
 
 #[derive(Default)]
