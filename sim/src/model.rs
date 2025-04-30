@@ -3,8 +3,6 @@ use anyhow::Result;
 
 pub trait ModelBuilder {
     fn build(&self, node_manager: &mut NodeManager) -> Result<()>;
-
-    // TODO: Logger configuration
 }
 
 pub struct OpenLoopCrater {}
