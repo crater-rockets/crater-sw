@@ -109,14 +109,16 @@ pub struct RocketParams {
 
 impl RocketParams {
     pub fn from_params(params: &ParameterMap) -> Result<Self> {
-        let inertia = params.get_param("inertia")?.value_float_arr()?;
+        let i_xx = params.get_param("inertia_xx")?.value_randfloat()?.sampled();
+        let i_yy = params.get_param("inertia_yy")?.value_randfloat()?.sampled();
+        let i_zz = params.get_param("inertia_zz")?.value_randfloat()?.sampled();
 
-        let inertia = Matrix3::from_diagonal(&Vector3::from_column_slice(inertia));
+        let inertia = Matrix3::from_diagonal(&Vector3::new(i_xx, i_yy, i_zz));
         let inv_inertia = inertia
             .try_inverse()
             .ok_or(anyhow!("The intertia matrix is not invertible"))?;
 
-        let diameter = params.get_param("diameter")?.value_float()?;
+        let diameter = params.get_param("diameter")?.value_randfloat()?.sampled();
         let surface = f64::consts::PI * (diameter / 2.0).powf(2.0);
 
         let p0_n = params.get_param("init.p0_n")?.value_float_arr()?;
@@ -125,16 +127,19 @@ impl RocketParams {
         let v0_b = params.get_param("init.v0_b")?.value_float_arr()?;
         let v0_b = Vector3::from_column_slice(&v0_b);
 
-        let mut w0_b = params.get_param("init.w0_b_deg")?.value_float_arr()?.to_owned();
+        let mut w0_b = params
+            .get_param("init.w0_b_deg")?
+            .value_float_arr()?
+            .to_owned();
         w0_b.iter_mut().for_each(|w| *w = w.to_radians());
-        
+
         let w0_b = Vector3::from_column_slice(&w0_b);
 
         let g_n = params.get_param("g_n")?.value_float_arr()?;
         let g_n = Vector3::from_column_slice(&g_n);
 
         Ok(RocketParams {
-            mass: params.get_param("mass")?.value_float()?,
+            mass: params.get_param("mass")?.value_randfloat()?.sampled(),
             inertia,
             inv_inertia,
             p0_n,
@@ -146,11 +151,13 @@ impl RocketParams {
             max_t: params.get_param("max_t")?.value_float()?,
             azimuth: params
                 .get_param("init.azimuth")?
-                .value_float()?
+                .value_randfloat()?
+                .sampled()
                 .to_radians(),
             elevation: params
                 .get_param("init.elevation")?
-                .value_float()?
+                .value_randfloat()?
+                .sampled()
                 .to_radians(),
         })
     }

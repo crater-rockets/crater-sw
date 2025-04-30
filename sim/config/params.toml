@@ -5,14 +5,18 @@ dt = { val = 0.01, type = "float" }
 [sim.rocket]
 max_t = { val = 120, type = "float" }
 
-mass = { val = 2, type = "float" }
-inertia = { val = [0.005, 0.26, 0.26], type = "float[]" }
-diameter = { val = 0.08, type = "float" }
+mass = { val = 2, type = "randfloat", dist = { type = "normal", mean = 2, std_dev = 0.1 } }
+inertia_xx = { val = 0.005, type = "randfloat", dist = { type = "normal", mean = 0.005, std_dev = 0.00016 } }
+inertia_yy = { val = 0.26, type = "randfloat", dist = { type = "normal", mean = 0.26, std_dev = 0.0086 } }
+inertia_zz = { val = 0.26, type = "randfloat", dist = { type = "normal", mean = 0.26, std_dev = 0.0086 } }
+
+diameter = { val = 0.08, type = "randfloat", dist = { type = "normal", mean = 0.08, std_dev = 0.00026 } }
 g_n = { val = [0, 0, 9.81], type = "float[]" }
 
 [sim.rocket.init]
-azimuth = { val = 170, type = "float" }
-elevation = { val = 84, type = "float" }
+azimuth = { val = 170, type = "randfloat", dist = { type = "normal", mean = 170, std_dev = 3 } }
+elevation = { val = 84, type = "randfloat", dist = { type = "normal", mean = 84, std_dev = 0.5 } }
+
 p0_n = { val = [0, 0, 0], type = "float[]" }
 v0_b = { val = [0, 0, 0], type = "float[]" }
 w0_b_deg = { val = [0, 0, 0], type = "float[]" }
