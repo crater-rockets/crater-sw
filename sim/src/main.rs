@@ -13,7 +13,11 @@ use crater::{
 };
 use log::info;
 use std::{
-    collections::HashMap, env, fs, path::Path, thread::{self}, time::Instant
+    collections::HashMap,
+    env, fs,
+    path::Path,
+    thread::{self},
+    time::Instant,
 };
 
 fn build_model(nm: &mut NodeManager) -> Result<()> {
@@ -35,8 +39,12 @@ fn main() -> Result<()> {
     pretty_env_logger::init();
     crater();
 
-    let runner =
-        SingleThreadedRunner::new(OpenLoopCrater {}, &Path::new("config/params.toml"), RngSeed::Rand)?;
+    let runner = SingleThreadedRunner::new(
+        OpenLoopCrater {},
+        &Path::new("config/params.toml"),
+        crater::nodes::ParameterSampling::Random,
+        RngSeed::Rand,
+    )?;
 
     runner.run_blocking()?;
 
