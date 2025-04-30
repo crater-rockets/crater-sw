@@ -1,5 +1,11 @@
-use std::collections::{btree_map, BTreeMap};
+use std::{
+    collections::{btree_map, BTreeMap},
+    ops::DerefMut,
+};
 
+use log::info;
+use rand::Rng;
+use rand_distr::{Distribution, Normal, Uniform};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use toml::{Table, Value};
@@ -29,9 +35,27 @@ pub enum Error {
 #[serde(tag = "type")]
 pub enum FloatDistribution {
     #[serde(rename = "normal")]
-    Normal { mean: f64, variance: f64 },
+    Normal { mean: f64, std_dev: f64 },
     #[serde(rename = "uniform")]
     Uniform { min: f64, max: f64 },
+}
+
+impl FloatDistribution {
+    pub fn sample<R>(&self, rng: &mut R) -> f64
+    where
+        R: Rng,
+    {
+        match self {
+            FloatDistribution::Normal { mean, std_dev } => {
+                let dist = Normal::new(*mean, *std_dev).unwrap();
+                dist.sample(rng)
+            }
+            FloatDistribution::Uniform { min, max } => {
+                let dist = Uniform::new(*min, *max).unwrap();
+                dist.sample(rng)
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -39,6 +63,20 @@ pub struct RandFloat {
     val: f64,
     sampled: Option<f64>,
     dist: FloatDistribution,
+}
+
+impl RandFloat {
+    pub fn value(&self) -> f64 {
+        self.val
+    }
+
+    pub fn sampled(&self) -> f64 {
+        self.sampled.unwrap()
+    }
+
+    pub fn distribution(&self) -> FloatDistribution {
+        self.dist.clone()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -623,7 +661,7 @@ mod tests {
 
     #[test]
     fn test_rand_float() {
-        let str = "rand_float = { val = 1.0, type = \"randfloat\", dist = { type=\"normal\", mean = 1.0, variance = 1.0 } }";
+        let str = "rand_float = { val = 1.0, type = \"randfloat\", dist = { type=\"normal\", mean = 1.0, std_dev = 1.0 } }";
         let expected = ParameterMap {
             path: "".to_string(),
             map: BTreeMap::from_iter(vec![(
@@ -635,7 +673,7 @@ mod tests {
                         sampled: None,
                         dist: FloatDistribution::Normal {
                             mean: 1.0,
-                            variance: 1.0,
+                            std_dev: 1.0,
                         },
                     }),
                 }),
