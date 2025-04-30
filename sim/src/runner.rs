@@ -12,7 +12,7 @@ use log::info;
 use crate::{
     crater::logging::RerunLogger,
     model::ModelBuilder,
-    nodes::{FtlOrderedExecutor, NodeManager},
+    nodes::{FtlOrderedExecutor, NodeManager, ParameterSampling},
     parameters::parameters,
     telemetry::TelemetryService,
 };
@@ -37,10 +37,11 @@ impl SingleThreadedRunner {
         model: impl ModelBuilder,
         params: &Path,
         // log_out: LogOutput,
+        param_sampling: ParameterSampling,
         seed: RngSeed,
     ) -> Result<Self> {
         info!("Reading parameters from '{}'", params.display());
-        
+
         let params_toml = fs::read_to_string(params)?;
         let params = parameters::parse_string(params_toml)?;
 
@@ -48,8 +49,10 @@ impl SingleThreadedRunner {
 
         info!("Initalizing node manager");
         let mut nm = match seed {
-            RngSeed::Fixed(seed) => NodeManager::new_from_seed(ts.clone(), params.clone(), seed),
-            RngSeed::Rand => NodeManager::new(ts.clone(), params.clone()),
+            RngSeed::Fixed(seed) => {
+                NodeManager::new_from_seed(ts.clone(), params.clone(), param_sampling, seed)
+            }
+            RngSeed::Rand => NodeManager::new(ts.clone(), params.clone(), param_sampling),
         };
 
         model.build(&mut nm)?;

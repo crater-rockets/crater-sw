@@ -1,8 +1,8 @@
 use chrono::TimeDelta;
-use rand::rngs::OsRng;
+use rand::{rngs::OsRng, TryRngCore};
 use rand_xoshiro::{
     rand_core::{RngCore, SeedableRng},
-    SplitMix64,
+    SplitMix64, Xoshiro256StarStar,
 };
 use std::{
     collections::HashMap,
@@ -37,6 +37,11 @@ pub trait Node {
     fn step(&mut self, i: usize, dt: TimeDelta, clock: &dyn Clock) -> anyhow::Result<StepResult>;
 }
 
+pub enum ParameterSampling {
+    Perfect,
+    Random,
+}
+
 pub struct NodeManager {
     telemetry: TelemetryService,
     parameters: Arc<ParameterMap>,
@@ -45,18 +50,42 @@ pub struct NodeManager {
 }
 
 impl NodeManager {
-    pub fn new(telemetry: TelemetryService, parameters: ParameterMap) -> Self {
-        let seed = rand::RngCore::next_u64(&mut OsRng);
+    pub fn new(
+        telemetry: TelemetryService,
+        parameters: ParameterMap,
+        parameter_sampling: ParameterSampling,
+    ) -> Self {
+        let seed = OsRng{}.try_next_u64().unwrap();
 
-        Self::new_from_seed(telemetry, parameters, seed)
+        Self::new_from_seed(telemetry, parameters, parameter_sampling, seed)
     }
 
-    pub fn new_from_seed(telemetry: TelemetryService, parameters: ParameterMap, seed: u64) -> Self {
+    pub fn new_from_seed(
+        telemetry: TelemetryService,
+        mut parameters: ParameterMap,
+        parameter_sampling: ParameterSampling,
+        seed: u64,
+    ) -> Self {
+        let rng = Arc::new(Mutex::new(SplitMix64::seed_from_u64(seed)));
+
+        match parameter_sampling {
+            ParameterSampling::Perfect => {
+                parameters.resample_perfect();
+            }
+            ParameterSampling::Random => {
+                let mut params_seed: [u8; 32] = [0; 32];
+                rng.lock().unwrap().fill_bytes(&mut params_seed);
+
+                let param_rng = Xoshiro256StarStar::from_seed(params_seed);
+                parameters.resample(param_rng);
+            }
+        }
+
         NodeManager {
             telemetry,
             parameters: Arc::new(parameters),
             nodes: vec![],
-            rng: Arc::new(Mutex::new(SplitMix64::seed_from_u64(seed))),
+            rng,
         }
     }
 
