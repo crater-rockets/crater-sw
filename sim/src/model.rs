@@ -5,6 +5,7 @@ pub trait ModelBuilder {
     fn build(&self, node_manager: &mut NodeManager) -> Result<()>;
 }
 
+#[derive(Debug, Clone)]
 pub struct OpenLoopCrater {}
 
 impl ModelBuilder for OpenLoopCrater {

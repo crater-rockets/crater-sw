@@ -1,9 +1,9 @@
 use anyhow::Result;
 use crater::{
-    crater::logging::rerun::CraterUiLogConfig, model::OpenLoopCrater, runner::SingleThreadedRunner,
+    crater::logging::rerun::CraterUiLogConfig, model::OpenLoopCrater, montecarlorunner::MonteCarloRunner, runner::SingleThreadedRunner
 };
 use log::info;
-use std::{env, path::Path};
+use std::{env, path::{Path, PathBuf}};
 
 fn main() -> Result<()> {
     // Default log level to "info"
@@ -14,12 +14,25 @@ fn main() -> Result<()> {
     pretty_env_logger::init();
     crater();
 
-    let runner = SingleThreadedRunner::new(
+    let mut out_dir = PathBuf::from("out");
+    // Create a directory with the current date and time
+    out_dir.push(
+        chrono::Local::now()
+            .format("%Y_%m_%d_%H-%M-%S")
+            .to_string(),
+    );
+
+    if !out_dir.exists() {
+        std::fs::create_dir_all(&out_dir)?;
+    }
+
+    let runner = MonteCarloRunner::new(
         OpenLoopCrater {},
         &Path::new("config/params.toml"),
-        Box::new(CraterUiLogConfig),
-        crater::nodes::ParameterSampling::Random,
+        CraterUiLogConfig,
+        500,
         None,
+        out_dir
     )?;
 
     runner.run_blocking()?;

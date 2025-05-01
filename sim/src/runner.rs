@@ -8,6 +8,7 @@ use std::{
 pub use anyhow::Result;
 use chrono::TimeDelta;
 use log::info;
+use rand::{rngs::OsRng, TryRngCore};
 
 use crate::{
     crater::logging::rerun::{RerunLogConfig, RerunLoggerBuilder},
@@ -22,11 +23,6 @@ pub enum LogOutput {
     File(PathBuf),
 }
 
-pub enum RngSeed {
-    Rand,
-    Fixed(u64),
-}
-
 pub struct SingleThreadedRunner {
     nm: NodeManager,
     log_config: Box<dyn RerunLogConfig>,
@@ -39,7 +35,7 @@ impl SingleThreadedRunner {
         params: &Path,
         log_config: Box<dyn RerunLogConfig>,
         param_sampling: ParameterSampling,
-        seed: RngSeed,
+        seed: Option<u64>,
     ) -> Result<Self> {
         info!("Reading parameters from '{}'", params.display());
 
@@ -49,12 +45,9 @@ impl SingleThreadedRunner {
         let ts = TelemetryService::default();
 
         info!("Initalizing node manager");
-        let mut nm = match seed {
-            RngSeed::Fixed(seed) => {
-                NodeManager::new_from_seed(ts.clone(), params.clone(), param_sampling, seed)
-            }
-            RngSeed::Rand => NodeManager::new(ts.clone(), params.clone(), param_sampling),
-        };
+
+        let seed = seed.unwrap_or(OsRng {}.try_next_u64().unwrap());
+        let mut nm = NodeManager::new(ts.clone(), params.clone(), param_sampling, seed);
 
         model.build(&mut nm)?;
 

@@ -14,6 +14,7 @@ use super::{
     rerun_logger::{RerunLogConfig, RerunLoggerBuilder},
 };
 
+#[derive(Debug, Clone)]
 pub struct CraterUiLogConfig;
 
 impl RerunLogConfig for CraterUiLogConfig {
