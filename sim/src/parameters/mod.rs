@@ -1,4 +1,2 @@
-mod parameters;
-mod deser;
-
+pub mod parameters;
 pub use parameters::*;

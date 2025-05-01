@@ -1,10 +1,18 @@
 use chrono::TimeDelta;
-use std::collections::HashMap;
+use rand::{rngs::OsRng, TryRngCore};
+use rand_xoshiro::{
+    rand_core::{RngCore, SeedableRng},
+    SplitMix64, Xoshiro256StarStar,
+};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 use thiserror::Error;
 
 use crate::{
     core::{path::Path, time::Clock},
-    parameters::ParameterService,
+    parameters::ParameterMap,
     telemetry::{
         TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetrySender, TelemetryService,
     },
@@ -29,49 +37,61 @@ pub trait Node {
     fn step(&mut self, i: usize, dt: TimeDelta, clock: &dyn Clock) -> anyhow::Result<StepResult>;
 }
 
-#[derive(Default)]
+pub enum ParameterSampling {
+    Perfect,
+    Random,
+}
+
 pub struct NodeManager {
     telemetry: TelemetryService,
-    parameters: ParameterService,
-    node_configs: HashMap<String, NodeConfig>,
-    pub(super) nodes: Vec<(String, Box<dyn Node + Send>)>,
+    parameters: Arc<ParameterMap>,
+    nodes: Vec<(String, Box<dyn Node + Send>)>,
+    rng: Arc<Mutex<SplitMix64>>,
+    seed: u64
 }
 
 impl NodeManager {
     pub fn new(
         telemetry: TelemetryService,
-        parameters: ParameterService,
-        node_configs: HashMap<String, NodeConfig>,
+        mut parameters: ParameterMap,
+        parameter_sampling: ParameterSampling,
+        seed: u64,
     ) -> Self {
+        let rng = Arc::new(Mutex::new(SplitMix64::seed_from_u64(seed)));
+
+        match parameter_sampling {
+            ParameterSampling::Perfect => {
+                parameters.resample_perfect();
+            }
+            ParameterSampling::Random => {
+                let mut params_seed: [u8; 32] = [0; 32];
+                rng.lock().unwrap().fill_bytes(&mut params_seed);
+
+                let param_rng = Xoshiro256StarStar::from_seed(params_seed);
+                parameters.resample(param_rng);
+            }
+        }
+
         NodeManager {
             telemetry,
-            parameters,
-            node_configs: node_configs,
+            parameters: Arc::new(parameters),
             nodes: vec![],
+            rng,
+            seed,
         }
     }
 
-    pub fn add_node<
+    pub fn add_node<F>(&mut self, name: &str, creator: F) -> Result<(), Error>
+    where
         F: FnOnce(
             NodeContext,
-        ) -> Result<Box<dyn Node + Send>, Box<dyn std::error::Error + Send + Sync>>,
-    >(
-        &mut self,
-        name: &str,
-        creator: F,
-    ) -> Result<(), Error> {
-        let config = self
-            .node_configs
-            .get(name)
-            .ok_or(Error::MissingConfig(name.to_string()))?;
-
+        )
+            -> Result<Box<dyn Node + Send>, Box<dyn std::error::Error + Send + Sync>>,
+    {
         let context = NodeContext::new(
-            NodeTelemetry::new(
-                self.telemetry.clone(),
-                config.tm_input_map.clone(),
-                config.tm_output_map.clone(),
-            ),
+            NodeTelemetry::new(self.telemetry.clone(), HashMap::new(), HashMap::new()),
             self.parameters.clone(),
+            self.rng.clone(),
         );
 
         self.nodes.push((
@@ -80,6 +100,22 @@ impl NodeManager {
         ));
 
         Ok(())
+    }
+
+    pub fn nodes(&self) -> &[(String, Box<dyn Node + Send>)] {
+        &self.nodes
+    }
+
+    pub fn nodes_mut(&mut self) -> &mut [(String, Box<dyn Node + Send>)] {
+        &mut self.nodes
+    }
+
+    pub fn parameters(&self) -> Arc<ParameterMap> {
+        self.parameters.clone()
+    }
+
+    pub fn seed(&self) -> u64 {
+        self.seed
     }
 }
 
@@ -92,23 +128,40 @@ pub struct NodeConfig {
 #[derive(Debug)]
 pub struct NodeContext {
     tm_dispatcher: NodeTelemetry,
-    parameters: ParameterService,
+    parameters: Arc<ParameterMap>,
+    rng: Arc<Mutex<SplitMix64>>,
 }
 
 impl NodeContext {
-    fn new(tm_dispatcher: NodeTelemetry, parameters: ParameterService) -> Self {
+    fn new(
+        tm_dispatcher: NodeTelemetry,
+        parameters: Arc<ParameterMap>,
+        rng: Arc<Mutex<SplitMix64>>,
+    ) -> Self {
         Self {
             tm_dispatcher,
             parameters,
+            rng,
         }
     }
 
-    pub fn telemetry<'a>(&'a self) -> &'a NodeTelemetry {
+    pub fn telemetry(&self) -> &NodeTelemetry {
         &self.tm_dispatcher
     }
 
-    pub fn parameters<'a>(&'a self) -> &'a ParameterService {
+    pub fn parameters(&self) -> &ParameterMap {
         &self.parameters
+    }
+
+    pub fn get_rng_256<R>(&self) -> R
+    where
+        R: SeedableRng<Seed = [u8; 32]>,
+    {
+        let mut seed: [u8; 32] = [0; 32];
+
+        self.rng.lock().unwrap().fill_bytes(&mut seed);
+
+        R::from_seed(seed)
     }
 }
 
@@ -159,196 +212,5 @@ impl TelemetryDispatcher for NodeTelemetry {
         };
 
         self.telemetry.subscribe::<T>(path.as_str(), capacity)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::sync::{
-        mpsc::{channel, Sender},
-        Arc,
-    };
-
-    use crate::{
-        core::time::{SystemClock, Timestamp},
-        telemetry::Timestamped,
-    };
-
-    use super::*;
-    use anyhow::Result;
-
-    #[test]
-    fn test_input_remap() -> Result<()> {
-        let nt = NodeTelemetry::new(
-            TelemetryService::default(),
-            HashMap::from([
-                ("i1".to_string(), Path::from_str("/a/b/i1")?),
-                ("i2".to_string(), Path::from_str("/a/b/i2")?),
-            ]),
-            HashMap::from([
-                ("o1".to_string(), Path::from_str("/a/b/i1")?),
-                ("o2".to_string(), Path::from_str("/a/b/i2")?),
-            ]),
-        );
-
-        let r1 = nt.subscribe::<i32>("i1", 1usize.into())?;
-        let r1_2 = nt.subscribe::<i32>("/a/b/i1", 1usize.into())?;
-
-        assert!(nt.subscribe::<i32>("o2", 1usize.into()).is_err());
-        assert!(nt.subscribe::<i32>("no_remap", 1usize.into()).is_err());
-
-        let r2 = nt.subscribe::<i32>("i2", 1usize.into())?;
-
-        let p1 = nt.publish::<i32>("/a/b/i1")?;
-        let p2 = nt.publish::<i32>("/a/b/i2")?;
-
-        let ts = Timestamp::now(&SystemClock::default());
-
-        p1.send(ts, 1);
-        assert_eq!(r1.try_recv(), Ok(Timestamped(ts, 1)));
-        assert_eq!(r1_2.try_recv(), Ok(Timestamped(ts, 1)));
-
-        p2.send(ts, 1);
-        assert_eq!(r2.try_recv(), Ok(Timestamped(ts, 1)));
-        Ok(())
-    }
-
-    #[test]
-    fn test_output_remap() -> Result<()> {
-        let nt = NodeTelemetry::new(
-            TelemetryService::default(),
-            HashMap::from([
-                ("i1".to_string(), Path::from_str("/a/b/i1")?),
-                ("i2".to_string(), Path::from_str("/a/b/i2")?),
-            ]),
-            HashMap::from([
-                ("o1".to_string(), Path::from_str("/a/b/i1")?),
-                ("o2".to_string(), Path::from_str("/a/b/i2")?),
-            ]),
-        );
-
-        let r1 = nt.subscribe::<i32>("/a/b/i1", 1usize.into())?;
-        let r2 = nt.subscribe::<i32>("/a/b/i2", 1usize.into())?;
-
-        assert!(nt.publish::<i32>("i1").is_err());
-        assert!(nt.publish::<i32>("no_remap").is_err());
-
-        let p1 = nt.publish::<i32>("o1")?;
-        let p2 = nt.publish::<i32>("/a/b/i2")?;
-
-        let ts = Timestamp::now(&SystemClock::default());
-        p1.send(ts, 1);
-        assert_eq!(r1.try_recv(), Ok(Timestamped(ts, 1)));
-
-        p2.send(ts, 1);
-        assert_eq!(r2.try_recv(), Ok(Timestamped(ts, 1)));
-        Ok(())
-    }
-
-    struct MockNodeS {
-        sender: TelemetrySender<i32>,
-        cnt: i32,
-    }
-
-    impl MockNodeS {
-        fn new(ctx: NodeContext) -> Result<Self> {
-            let sender = ctx.telemetry().publish::<i32>("o1")?;
-            Ok(MockNodeS { sender, cnt: 0 })
-        }
-    }
-    impl Node for MockNodeS {
-        fn step(&mut self, _: usize, _: TimeDelta, clock: &dyn Clock) -> Result<StepResult> {
-            self.sender.send(Timestamp::now(clock), self.cnt);
-            self.cnt += 1;
-
-            Ok(StepResult::Continue)
-        }
-    }
-
-    struct MockNodeR {
-        receiver: TelemetryReceiver<i32>,
-        cnt: i32,
-        feedback: Sender<i32>,
-    }
-
-    impl MockNodeR {
-        fn new(ctx: NodeContext, feedback: Sender<i32>) -> Result<Self> {
-            let receiver = ctx.telemetry().subscribe::<i32>("i1", 1usize.into())?;
-            Ok(MockNodeR {
-                receiver,
-                cnt: 0,
-                feedback,
-            })
-        }
-    }
-    impl Node for MockNodeR {
-        fn step(&mut self, _: usize, _: TimeDelta, _: &dyn Clock) -> Result<StepResult> {
-            self.cnt = self.receiver.recv().unwrap().1;
-            self.feedback.send(self.cnt).unwrap();
-
-            Ok(StepResult::Continue)
-        }
-    }
-
-    #[test]
-    fn test_add_node_ok() -> Result<()> {
-        let mut nm = NodeManager::new(
-            TelemetryService::default(),
-            ParameterService::default(),
-            HashMap::from([
-                (
-                    "node_s".to_string(),
-                    NodeConfig {
-                        tm_input_map: HashMap::default(),
-                        tm_output_map: HashMap::from([(
-                            "o1".to_string(),
-                            Path::from_str("/a/b/c")?,
-                        )]),
-                    },
-                ),
-                (
-                    "node_r".to_string(),
-                    NodeConfig {
-                        tm_input_map: HashMap::from([(
-                            "i1".to_string(),
-                            Path::from_str("/a/b/c")?,
-                        )]),
-                        tm_output_map: HashMap::default(),
-                    },
-                ),
-            ]),
-        );
-
-        nm.add_node(
-            "node_s",
-            |ctx| -> Result<Box<dyn Node + Send>, Box<dyn std::error::Error + Send + Sync>> {
-                Ok(Box::new(MockNodeS::new(ctx)?))
-            },
-        )?;
-
-        let (fb_sender, fb_receiver) = channel();
-        nm.add_node(
-            "node_r",
-            |ctx| -> Result<Box<dyn Node + Send>, Box<dyn std::error::Error + Send + Sync>> {
-                Ok(Box::new(MockNodeR::new(ctx, fb_sender)?))
-            },
-        )?;
-
-        assert_eq!(nm.nodes.len(), 2);
-
-        let clock = Arc::new(SystemClock {});
-        let dt = TimeDelta::milliseconds(5);
-
-        nm.nodes[0].1.step(0, dt, clock.as_ref()).unwrap();
-        nm.nodes[1].1.step(1, dt, clock.as_ref()).unwrap();
-
-        assert_eq!(fb_receiver.try_recv(), Ok(0));
-
-        nm.nodes[0].1.step(2, dt, clock.as_ref()).unwrap();
-        nm.nodes[1].1.step(99, dt, clock.as_ref()).unwrap();
-
-        assert_eq!(fb_receiver.try_recv(), Ok(1));
-
-        Ok(())
     }
 }

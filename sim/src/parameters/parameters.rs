@@ -1,894 +1,698 @@
-use super::deser::{self};
-use crate::{
-    parameters::deser::parse_str,
-    core::path::{Path, PathError},
-};
-use itertools::join;
 use std::{
     collections::{btree_map, BTreeMap},
-    fmt::Display,
-    mem,
-    sync::{Arc, Mutex},
+    ops::DerefMut,
 };
+
+use log::info;
+use rand::Rng;
+use rand_distr::{Distribution, Normal, Uniform};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use toml::{Table, Value};
 
 #[derive(Debug, Clone, Error, PartialEq, Eq)]
 pub enum Error {
-    #[error("Trying to set a parameter whose parent is not a map")]
-    NonMapParent,
+    #[error("Error deserializing parameters")]
+    Deserialize(#[from] toml::de::Error),
 
-    #[error("Cannot overwrite root parameter")]
-    RootOverwrite,
+    #[error("Parameter toml does not have the right structure (error in '{0}')")]
+    BadToml(String),
 
-    #[error("Error parsing parameter from toml")]
-    Toml(#[from] deser::Error),
+    #[error("Element '{path}' not found")]
+    NotFound { path: String },
 
-    #[error("Invalid path")]
-    Path(#[from] PathError),
+    #[error("Cannot cast parameter '{path}' to {dtype}")]
+    BadCast { path: String, dtype: String },
 
-    #[error("No parameter found for path '{0}'")]
-    NotFound(Path),
+    #[error("Element '{path}' is not a parameter")]
+    NotAParameter { path: String },
 
-    #[error("Requested type '{0}' for parameter '{1}', but is a '{2}")]
-    TypeMismatch(String, Path, String),
+    #[error("Element '{path}' is not a map")]
+    NotAMap { path: String },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type")]
+pub enum FloatDistribution {
+    #[serde(rename = "normal")]
+    Normal { mean: f64, std_dev: f64 },
+    #[serde(rename = "uniform")]
+    Uniform { min: f64, max: f64 },
+}
+
+impl FloatDistribution {
+    pub fn sample<R>(&self, rng: &mut R) -> f64
+    where
+        R: Rng,
+    {
+        match self {
+            FloatDistribution::Normal { mean, std_dev } => {
+                let dist = Normal::new(*mean, *std_dev).unwrap();
+                dist.sample(rng)
+            }
+            FloatDistribution::Uniform { min, max } => {
+                let dist = Uniform::new(*min, *max).unwrap();
+                dist.sample(rng)
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RandFloat {
+    val: f64,
+    sampled: Option<f64>,
+    dist: FloatDistribution,
+}
+
+impl RandFloat {
+    pub fn value(&self) -> f64 {
+        self.val
+    }
+
+    pub fn sampled(&self) -> f64 {
+        self.sampled.unwrap()
+    }
+
+    pub fn distribution(&self) -> FloatDistribution {
+        self.dist.clone()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type")]
+pub enum ParameterValue {
+    #[serde(rename = "bool")]
+    Bool { val: bool },
+    #[serde(rename = "int")]
+    Int { val: i64 },
+    #[serde(rename = "float")]
+    Float { val: f64 },
+    #[serde(rename = "str")]
+    String { val: String },
+    #[serde(rename = "randfloat")]
+    RandFloat(RandFloat),
+
+    #[serde(rename = "bool[]")]
+    BoolArray { val: Vec<bool> },
+    #[serde(rename = "int[]")]
+    IntArray { val: Vec<i64> },
+    #[serde(rename = "float[]")]
+    FloatArray { val: Vec<f64> },
+    #[serde(rename = "str[]")]
+    StringArray { val: Vec<String> },
+    #[serde(rename = "randfloat[]")]
+    RandFloatArray { val: Vec<RandFloat> },
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Parameter {
-    Bool(bool),
-
-    U8(u8),
-    U16(u16),
-    U32(u32),
-    U64(u64),
-
-    I8(i8),
-    I16(i16),
-    I32(i32),
-    I64(i64),
-
-    F32(f32),
-    F64(f64),
-
-    String(String),
-    List(Vec<Parameter>),
-    Map(BTreeMap<String, Parameter>),
+pub struct Parameter {
+    path: String,
+    value: ParameterValue,
 }
 
 impl Parameter {
-    pub fn iter(&self) -> ParameterIter<'_> {
-        ParameterIter {
-            iter: if let Parameter::Map(m) = &self {
-                m.iter()
-            } else {
-                Default::default()
-            },
-            parent: None,
-            path: "".to_string(),
-        }
+    pub fn path(&self) -> &str {
+        &self.path
     }
 
-    fn type_string(&self) -> &str {
-        match self {
-            Parameter::Bool(_) => "bool",
-            Parameter::U8(_) => "u8",
-            Parameter::U16(_) => "u16",
-            Parameter::U32(_) => "u32",
-            Parameter::U64(_) => "u64",
-            Parameter::I8(_) => "i8",
-            Parameter::I16(_) => "i16",
-            Parameter::I32(_) => "i32",
-            Parameter::I64(_) => "i64",
-            Parameter::F32(_) => "f32",
-            Parameter::F64(_) => "f64",
-            Parameter::String(_) => "string",
-            Parameter::List(_) => "list",
-            Parameter::Map(_) => "map",
-        }
-    }
-
-    pub fn as_bool(&self) -> Option<&bool> {
-        if let Parameter::Bool(v) = self {
-            Some(v)
+    pub fn value_bool(&self) -> Result<bool, Error> {
+        if let ParameterValue::Bool { val } = self.value {
+            Ok(val)
         } else {
-            None
+            Err(Error::BadCast {
+                path: self.path.clone(),
+                dtype: "bool".to_string(),
+            })
         }
     }
 
-    pub fn as_u8(&self) -> Option<&u8> {
-        if let Parameter::U8(v) = self {
-            Some(v)
+    pub fn value_int(&self) -> Result<i64, Error> {
+        if let ParameterValue::Int { val } = self.value {
+            Ok(val)
         } else {
-            None
+            Err(Error::BadCast {
+                path: self.path.clone(),
+                dtype: "int".to_string(),
+            })
         }
     }
 
-    pub fn as_u16(&self) -> Option<&u16> {
-        if let Parameter::U16(v) = self {
-            Some(v)
+    pub fn value_float(&self) -> Result<f64, Error> {
+        if let ParameterValue::Float { val } = self.value {
+            Ok(val)
         } else {
-            None
+            Err(Error::BadCast {
+                path: self.path.clone(),
+                dtype: "float".to_string(),
+            })
         }
     }
 
-    pub fn as_u32(&self) -> Option<&u32> {
-        if let Parameter::U32(v) = self {
-            Some(v)
+    pub fn value_string(&self) -> Result<String, Error> {
+        if let ParameterValue::String { val } = &self.value {
+            Ok(val.clone())
         } else {
-            None
+            Err(Error::BadCast {
+                path: self.path.clone(),
+                dtype: "str".to_string(),
+            })
         }
     }
 
-    pub fn as_u64(&self) -> Option<&u64> {
-        if let Parameter::U64(v) = self {
-            Some(v)
+    pub fn value_randfloat(&self) -> Result<RandFloat, Error> {
+        if let ParameterValue::RandFloat(val) = &self.value {
+            Ok(val.clone())
         } else {
-            None
+            Err(Error::BadCast {
+                path: self.path.clone(),
+                dtype: "randfloat".to_string(),
+            })
         }
     }
 
-    pub fn as_i8(&self) -> Option<&i8> {
-        if let Parameter::I8(v) = self {
-            Some(v)
+    pub fn value_bool_arr(&self) -> Result<&[bool], Error> {
+        if let ParameterValue::BoolArray { val } = &self.value {
+            Ok(val)
         } else {
-            None
+            Err(Error::BadCast {
+                path: self.path.clone(),
+                dtype: "bool[]".to_string(),
+            })
         }
     }
 
-    pub fn as_i16(&self) -> Option<&i16> {
-        if let Parameter::I16(v) = self {
-            Some(v)
+    pub fn value_int_arr(&self) -> Result<&[i64], Error> {
+        if let ParameterValue::IntArray { val } = &self.value {
+            Ok(val)
         } else {
-            None
+            Err(Error::BadCast {
+                path: self.path.clone(),
+                dtype: "int[]".to_string(),
+            })
         }
     }
 
-    pub fn as_i32(&self) -> Option<&i32> {
-        if let Parameter::I32(v) = self {
-            Some(v)
+    pub fn value_float_arr(&self) -> Result<&[f64], Error> {
+        if let ParameterValue::FloatArray { val } = &self.value {
+            Ok(val)
         } else {
-            None
+            Err(Error::BadCast {
+                path: self.path.clone(),
+                dtype: "float[]".to_string(),
+            })
         }
     }
 
-    pub fn as_i64(&self) -> Option<&i64> {
-        if let Parameter::I64(v) = self {
-            Some(v)
+    pub fn value_string_arr(&self) -> Result<&[String], Error> {
+        if let ParameterValue::StringArray { val } = &self.value {
+            Ok(val)
         } else {
-            None
+            Err(Error::BadCast {
+                path: self.path.clone(),
+                dtype: "str[]".to_string(),
+            })
         }
     }
 
-    pub fn as_f32(&self) -> Option<&f32> {
-        if let Parameter::F32(v) = self {
-            Some(v)
+    pub fn value_randfloat_arr(&self) -> Result<&[RandFloat], Error> {
+        if let ParameterValue::RandFloatArray { val } = &self.value {
+            Ok(val)
         } else {
-            None
-        }
-    }
-
-    pub fn as_f64(&self) -> Option<&f64> {
-        if let Parameter::F64(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn as_string(&self) -> Option<&String> {
-        if let Parameter::String(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn as_list(&self) -> Option<&Vec<Parameter>> {
-        if let Parameter::List(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn as_map(&self) -> Option<&BTreeMap<String, Parameter>> {
-        if let Parameter::Map(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    pub fn is_bool(&self) -> bool {
-        if let Parameter::Bool(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_u8(&self) -> bool {
-        if let Parameter::U8(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_u16(&self) -> bool {
-        if let Parameter::U16(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_u32(&self) -> bool {
-        if let Parameter::U32(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_u64(&self) -> bool {
-        if let Parameter::U64(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_i8(&self) -> bool {
-        if let Parameter::I8(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_i16(&self) -> bool {
-        if let Parameter::I16(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_i32(&self) -> bool {
-        if let Parameter::I32(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_i64(&self) -> bool {
-        if let Parameter::I64(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_f32(&self) -> bool {
-        if let Parameter::F32(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_f64(&self) -> bool {
-        if let Parameter::F64(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_string(&self) -> bool {
-        if let Parameter::String(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_list(&self) -> bool {
-        if let Parameter::List(_) = self {
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn is_map(&self) -> bool {
-        if let Parameter::Map(_) = self {
-            true
-        } else {
-            false
+            Err(Error::BadCast {
+                path: self.path.clone(),
+                dtype: "randfloat[]".to_string(),
+            })
         }
     }
 }
 
-impl Display for Parameter {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Parameter::Bool(v) => write!(f, "{}", v),
-            Parameter::U8(v) => write!(f, "{}", v),
-            Parameter::U16(v) => write!(f, "{}", v),
-            Parameter::U32(v) => write!(f, "{}", v),
-            Parameter::U64(v) => write!(f, "{}", v),
-            Parameter::I8(v) => write!(f, "{}", v),
-            Parameter::I16(v) => write!(f, "{}", v),
-            Parameter::I32(v) => write!(f, "{}", v),
-            Parameter::I64(v) => write!(f, "{}", v),
-            Parameter::F32(v) => write!(f, "{}", v),
-            Parameter::F64(v) => write!(f, "{}", v),
-            Parameter::String(v) => write!(f, "{}", v),
-            Parameter::List(v) => write!(f, "[{}]", join(v.iter().map(|v| v.to_string()), ", ")),
-            Parameter::Map(v) => {
-                write!(
-                    f,
-                    "{{{}}}",
-                    join(v.iter().map(|(k, v)| format!("'{}': {}", k, v)), ", ")
-                )
-            }
-        }
-    }
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct ParameterMap {
+    path: String,
+    map: BTreeMap<String, ParameterTree>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ParameterService {
-    inner: Arc<Mutex<ParameterServiceInner>>,
-}
-
-#[derive(Debug, Clone)]
-struct ParameterServiceInner {
-    root: Parameter,
-}
-
-impl Default for ParameterService {
-    fn default() -> Self {
-        ParameterService {
-            inner: Arc::new(Mutex::new(ParameterServiceInner {
-                root: Parameter::Map(BTreeMap::default()),
-            })),
-        }
-    }
-}
-
-impl ParameterService {
-    pub fn from_toml(toml: &str) -> Result<Self, Error> {
-        let parsed: Vec<(String, Parameter)> = parse_str(toml)?;
-
-        Self::from_list(parsed)
+impl ParameterMap {
+    pub fn contains_key(&self, key: &str) -> bool {
+        self.map.contains_key(key)
     }
 
-    fn from_list(value: Vec<(String, Parameter)>) -> Result<Self, Error> {
-        let mut ps = ParameterService::default();
-        for (path, val) in value {
-            ps.set(&path.into(), val)?;
-        }
-
-        Ok(ps)
+    pub fn get_from_key(&self, key: &str) -> Result<&ParameterTree, Error> {
+        self.map.get(key).ok_or(Error::NotFound {
+            path: append_path(&self.path, key),
+        })
     }
 
-    #[allow(dead_code)]
-    fn from_root(root: Parameter) -> Self {
-        ParameterService {
-            inner: Arc::new(Mutex::new(ParameterServiceInner { root })),
-        }
-    }
+    pub fn get(&self, rel_path: &str) -> Result<&ParameterTree, Error> {
+        let mut parts = rel_path.split(".");
 
-    pub fn get(&self, path: &Path) -> Option<Parameter> {
-        let mut root = &self.inner.lock().unwrap().root;
+        let mut elem = self
+            .map
+            .get(parts.next().expect("Split cannot return an empty iterator"))
+            .ok_or(Error::NotFound {
+                path: append_path(&self.path, rel_path),
+            })?;
 
-        for part in path.iter_parts() {
-            match root {
-                Parameter::Map(m) => {
-                    root = m.get(part)?;
+        for part in parts {
+            match elem {
+                ParameterTree::Node(n) => {
+                    elem = n.map.get(part).ok_or(Error::NotFound {
+                        path: append_path(&self.path, rel_path),
+                    })?;
                 }
-                _ => {
-                    return None;
+                ParameterTree::Leaf(_) => {
+                    return Err(Error::NotFound {
+                        path: append_path(&self.path, rel_path),
+                    });
                 }
             }
         }
 
-        Some(root.clone())
+        Ok(elem)
     }
 
-    pub fn get_bool(&self, path: &str) -> Result<bool, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-        Ok(*param.as_bool().ok_or(Error::TypeMismatch(
-            "bool".to_string(),
-            path,
-            param.type_string().to_string(),
-        ))?)
+    pub fn get_param(&self, rel_path: &str) -> Result<&Parameter, Error> {
+        Ok(self.get(rel_path)?.as_param()?)
     }
 
-    pub fn get_u8(&self, path: &str) -> Result<u8, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-        Ok(*param.as_u8().ok_or(Error::TypeMismatch(
-            "u8".to_string(),
-            path,
-            param.type_string().to_string(),
-        ))?)
+    pub fn get_map(&self, rel_path: &str) -> Result<&ParameterMap, Error> {
+        Ok(self.get(rel_path)?.as_map()?)
     }
 
-    pub fn get_u16(&self, path: &str) -> Result<u16, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-        Ok(*param.as_u16().ok_or(Error::TypeMismatch(
-            "u16".to_string(),
-            path,
-            param.type_string().to_string(),
-        ))?)
-    }
-
-    pub fn get_u32(&self, path: &str) -> Result<u32, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-        Ok(*param.as_u32().ok_or(Error::TypeMismatch(
-            "u32".to_string(),
-            path,
-            param.type_string().to_string(),
-        ))?)
-    }
-
-    pub fn get_u64(&self, path: &str) -> Result<u64, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-        Ok(*param.as_u64().ok_or(Error::TypeMismatch(
-            "u64".to_string(),
-            path,
-            param.type_string().to_string(),
-        ))?)
-    }
-
-    pub fn get_i8(&self, path: &str) -> Result<i8, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-        Ok(*param.as_i8().ok_or(Error::TypeMismatch(
-            "i8".to_string(),
-            path,
-            param.type_string().to_string(),
-        ))?)
-    }
-
-    pub fn get_i16(&self, path: &str) -> Result<i16, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-        Ok(*param.as_i16().ok_or(Error::TypeMismatch(
-            "i16".to_string(),
-            path,
-            param.type_string().to_string(),
-        ))?)
-    }
-
-    pub fn get_i32(&self, path: &str) -> Result<i32, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-        Ok(*param.as_i32().ok_or(Error::TypeMismatch(
-            "i32".to_string(),
-            path,
-            param.type_string().to_string(),
-        ))?)
-    }
-
-    pub fn get_i64(&self, path: &str) -> Result<i64, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-        Ok(*param.as_i64().ok_or(Error::TypeMismatch(
-            "i64".to_string(),
-            path,
-            param.type_string().to_string(),
-        ))?)
-    }
-
-    pub fn get_f32(&self, path: &str) -> Result<f32, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-        Ok(*param.as_f32().ok_or(Error::TypeMismatch(
-            "f32".to_string(),
-            path,
-            param.type_string().to_string(),
-        ))?)
-    }
-
-    pub fn get_f64(&self, path: &str) -> Result<f64, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-        Ok(*param.as_f64().ok_or(Error::TypeMismatch(
-            "f64".to_string(),
-            path,
-            param.type_string().to_string(),
-        ))?)
-    }
-
-    pub fn get_string(&self, path: &str) -> Result<String, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-        Ok(param
-            .as_string()
-            .ok_or(Error::TypeMismatch(
-                "String".to_string(),
-                path,
-                param.type_string().to_string(),
-            ))?
-            .clone())
-    }
-
-    fn get_vec<T: Clone>(
-        &self,
-        path: &str,
-        request_typename: &str,
-        extract: impl Fn(&Parameter) -> Option<&T>,
-    ) -> Result<Vec<T>, Error> {
-        let path = Path::from_str(path)?;
-        let param = self.get(&path).ok_or(Error::NotFound(path.clone()))?;
-
-        let list = param.as_list().ok_or(Error::TypeMismatch(
-            format!("list<{}>", request_typename),
-            path.clone(),
-            param.type_string().to_string(),
-        ))?;
-
-        let mut out = vec![];
-        for v in list {
-            out.push(
-                extract(v)
-                    .ok_or_else(|| {
-                        Error::TypeMismatch(
-                            format!("list<{}>", request_typename),
-                            path.clone(),
-                            param.type_string().to_string(),
-                        )
-                    })?
-                    .clone(),
-            );
+    pub fn iter(&self) -> ParameterMapIter<'_> {
+        ParameterMapIter {
+            iter: self.map.iter(),
         }
-
-        Ok(out)
     }
 
-    pub fn get_vec_u8(&self, path: &str) -> Result<Vec<u8>, Error> {
-        self.get_vec::<u8>(path, "u8", |p| p.as_u8())
+    pub fn resample(&mut self, mut rng: impl Rng) {
+        self.resample_inner(&mut rng);
     }
 
-    pub fn get_vec_u16(&self, path: &str) -> Result<Vec<u16>, Error> {
-        self.get_vec::<u16>(path, "u16", |p| p.as_u16())
-    }
-
-    pub fn get_vec_u32(&self, path: &str) -> Result<Vec<u32>, Error> {
-        self.get_vec::<u32>(path, "u32", |p| p.as_u32())
-    }
-
-    pub fn get_vec_u64(&self, path: &str) -> Result<Vec<u64>, Error> {
-        self.get_vec::<u64>(path, "u64", |p| p.as_u64())
-    }
-
-    pub fn get_vec_i8(&self, path: &str) -> Result<Vec<i8>, Error> {
-        self.get_vec::<i8>(path, "i8", |p| p.as_i8())
-    }
-
-    pub fn get_vec_i16(&self, path: &str) -> Result<Vec<i16>, Error> {
-        self.get_vec::<i16>(path, "i16", |p| p.as_i16())
-    }
-
-    pub fn get_vec_i32(&self, path: &str) -> Result<Vec<i32>, Error> {
-        self.get_vec::<i32>(path, "i32", |p| p.as_i32())
-    }
-
-    pub fn get_vec_i64(&self, path: &str) -> Result<Vec<i64>, Error> {
-        self.get_vec::<i64>(path, "i64", |p| p.as_i64())
-    }
-
-    pub fn get_vec_f32(&self, path: &str) -> Result<Vec<f32>, Error> {
-        self.get_vec::<f32>(path, "f32", |p| p.as_f32())
-    }
-
-    pub fn get_vec_f64(&self, path: &str) -> Result<Vec<f64>, Error> {
-        self.get_vec::<f64>(path, "f64", |p| p.as_f64())
-    }
-
-    pub fn get_vec_string(&self, path: &str) -> Result<Vec<String>, Error> {
-        self.get_vec::<String>(path, "string", |p| p.as_string())
-    }
-
-    pub fn set(&mut self, path: &Path, val: Parameter) -> Result<Option<Parameter>, Error> {
-        if path.is_root() {
-            return Err(Error::RootOverwrite);
-        }
-
-        let mut root = &mut self.inner.lock().unwrap().root;
-
-        for part in Self::skip_last(path.iter_parts()) {
-            root = match root {
-                Parameter::Map(m) => {
-                    if m.contains_key(part) {
-                        m.get_mut(part).unwrap()
-                    } else {
-                        m.insert(part.to_string(), Parameter::Map(BTreeMap::new()));
-                        m.get_mut(part).unwrap()
+    fn resample_inner<R>(&mut self, rng: &mut R)
+    where
+        R: Rng,
+    {
+        for (_, param) in self.map.iter_mut() {
+            match param {
+                ParameterTree::Node(map) => {
+                    map.resample_inner(rng);
+                }
+                ParameterTree::Leaf(param) => match &mut param.value {
+                    ParameterValue::RandFloat(rnd_float) => {
+                        rnd_float.sampled = Some(rnd_float.dist.sample(rng));
                     }
+                    _ => {}
+                },
+            }
+        }
+    }
+    pub fn resample_perfect(&mut self) {
+        for (_, param) in self.map.iter_mut() {
+            match param {
+                ParameterTree::Node(map) => {
+                    map.resample_perfect();
                 }
-                _ => {
-                    return Err(Error::NonMapParent);
-                }
-            };
+                ParameterTree::Leaf(param) => match &mut param.value {
+                    ParameterValue::RandFloat(rnd_float) => {
+                        rnd_float.sampled = Some(rnd_float.val);
+                    }
+                    _ => {}
+                },
+            }
         }
-
-        if let Parameter::Map(root) = root {
-            Ok(root.insert(path.iter_parts().last().unwrap().to_string(), val))
-        } else {
-            return Err(Error::NonMapParent);
-        }
-    }
-
-    #[allow(dead_code)]
-    fn as_vec(&self) -> Vec<(String, Parameter)> {
-        self.inner
-            .lock()
-            .unwrap()
-            .iter()
-            .map(|(p, par)| (p, par.clone()))
-            .collect::<Vec<_>>()
-    }
-
-    fn skip_last<T>(mut iter: impl Iterator<Item = T>) -> impl Iterator<Item = T> {
-        let last = iter.next();
-        iter.scan(last, |state, item| std::mem::replace(state, Some(item)))
-    }
-}
-
-impl ParameterServiceInner {
-    pub fn iter(&self) -> ParameterIter<'_> {
-        self.root.iter()
-    }
-}
-
-impl Display for ParameterService {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let inner = self.inner.lock().unwrap();
-        for (path, v) in inner.iter() {
-            write!(f, "{}: {}  = {}", path, v.type_string(), v)?;
-        }
-
-        Ok(())
     }
 }
 
 #[derive(Default)]
-pub struct ParameterIter<'a> {
-    iter: btree_map::Iter<'a, String, Parameter>,
-    parent: Option<Box<ParameterIter<'a>>>,
-    path: String,
+pub struct ParameterMapIter<'a> {
+    iter: btree_map::Iter<'a, String, ParameterTree>,
 }
 
-impl<'a> Iterator for ParameterIter<'a> {
-    type Item = (String, &'a Parameter);
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.next() {
-            None => match self.parent.take() {
-                Some(p) => {
-                    *self = *p;
-                    self.next()
-                }
-                None => None,
-            },
-            Some((name, Parameter::Map(m))) => {
-                let path = format!("{}/{}", self.path, name);
-                *self = ParameterIter {
-                    iter: m.iter(),
-                    parent: Some(Box::new(mem::take(self))),
-                    path,
-                };
-                self.next()
-            }
+impl<'a> Iterator for ParameterMapIter<'a> {
+    type Item = (&'a String, &'a ParameterTree);
 
-            Some((name, param)) => Some((format!("{}/{}", self.path, name), param)),
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParameterTree {
+    Node(ParameterMap),
+    Leaf(Parameter),
+}
+
+impl Default for ParameterTree {
+    fn default() -> Self {
+        ParameterTree::Node(ParameterMap::default())
+    }
+}
+
+impl ParameterTree {
+    fn as_param(&self) -> Result<&Parameter, Error> {
+        match self {
+            Self::Leaf(p) => Ok(p),
+            Self::Node(m) => Err(Error::NotAParameter {
+                path: m.path.clone(),
+            }),
         }
     }
+
+    fn as_map(&self) -> Result<&ParameterMap, Error> {
+        match self {
+            Self::Node(m) => Ok(m),
+            Self::Leaf(p) => Err(Error::NotAMap {
+                path: p.path.clone(),
+            }),
+        }
+    }
+}
+
+pub fn parse_string(toml_str: String) -> Result<ParameterMap, Error> {
+    let table = toml::from_str::<Table>(toml_str.as_str())?;
+
+    parse_table(table)
+}
+
+pub fn parse_table(table: Table) -> Result<ParameterMap, Error> {
+    parse_table_recursive(table, "".to_string())
+}
+
+fn parse_table_recursive(table: Table, root: String) -> Result<ParameterMap, Error> {
+    let mut nodes = BTreeMap::new();
+
+    for (key, val) in table.into_iter() {
+        let path = append_path(root.as_str(), key.as_str());
+        match val {
+            Value::Table(val) => {
+                if let Ok(value) = val.clone().try_into::<ParameterValue>() {
+                    let param = Parameter { path, value };
+                    nodes.insert(key, ParameterTree::Leaf(param));
+                } else {
+                    nodes.insert(key, ParameterTree::Node(parse_table_recursive(val, path)?));
+                }
+            }
+            _ => {
+                return Err(Error::BadToml(root));
+            }
+        }
+    }
+
+    Ok(ParameterMap {
+        path: root.clone(),
+        map: nodes,
+    })
+}
+
+fn append_path(root: &str, key: &str) -> String {
+    format!("{root}.{key}")
 }
 
 #[cfg(test)]
 mod tests {
+    use core::f64;
+
+    use toml::Value;
+
     use super::*;
 
-    /// Builds the following parameter tree:
-    /// ```
-    /// {
-    ///     "a1": F32(1.23)
-    ///     "a2": String("hello param")
-    ///     "a3": {
-    ///         "b1": {
-    ///             "c1": I32(123),
-    ///             "c2": I32(-123)
-    ///         },
-    ///         "b2": F64(1.23)
-    ///     }
-    /// }
-    /// ```
-    fn build_params() -> Parameter {
-        Parameter::Map(BTreeMap::from([
-            ("a1".to_string(), Parameter::F32(1.23)),
-            (
-                "a2".to_string(),
-                Parameter::String("hello param".to_string()),
-            ),
-            (
-                "a3".to_string(),
-                Parameter::Map(BTreeMap::from([
-                    (
-                        "b1".to_string(),
-                        Parameter::Map(BTreeMap::from([
-                            ("c1".to_string(), Parameter::I32(123)),
-                            ("c2".to_string(), Parameter::I32(-123)),
-                        ])),
-                    ),
-                    ("b2".to_string(), Parameter::F64(1.23)),
-                ])),
-            ),
-        ]))
+    #[test]
+    fn test_empty() {
+        let str = "".to_string();
+        assert_eq!(parse_string(str), Ok(ParameterMap::default()))
     }
 
-    #[test]
-    fn test_get() {
-        let root = build_params();
-
-        let ps = ParameterService::from_root(root.clone());
-
-        assert_eq!(ps.get(&Path::from_str("/").unwrap()), Some(root));
-
-        assert_eq!(
-            ps.get(&Path::from_str("/a1").unwrap()),
-            Some(Parameter::F32(1.23))
-        );
-
-        assert_eq!(
-            ps.get(&Path::from_str("/a3/b1/c1").unwrap()),
-            Some(Parameter::I32(123))
-        );
-
-        assert_eq!(
-            ps.get(&Path::from_str("/a3/b1/").unwrap()),
-            Some(Parameter::Map(BTreeMap::from([
-                ("c1".to_string(), Parameter::I32(123)),
-                ("c2".to_string(), Parameter::I32(-123)),
-            ])))
-        );
-
-        assert_eq!(ps.get(&Path::from_str("/a99").unwrap()), None);
-        assert_eq!(ps.get(&Path::from_str("/a3/b1/c1/d1").unwrap()), None);
-
-        assert_eq!(ps.get(&Path::from_str("/a3/b1/c99").unwrap()), None);
-    }
-
-    #[test]
-    fn test_set() {
-        // root = {
-        //     "a1": F32(1.23)
-        //     "a2": String("hello param")
-        //     "a3": {
-        //         "b1": {
-        //             "c1": I32(123),
-        //             "c2": I32(-123)
-        //         },
-        //         "b2": F64(1.23)
-        //     }
-        // }
-        let mut ps = ParameterService::from_root(build_params());
-
-        let mut flattened: BTreeMap<&str, Parameter> = BTreeMap::from([
-            ("/a1", Parameter::F32(1.23)),
-            ("/a2", Parameter::String("hello param".to_string())),
-            ("/a3/b1/c1", Parameter::I32(123)),
-            ("/a3/b1/c2", Parameter::I32(-123)),
-            ("/a3/b2", Parameter::F64(1.23)),
-        ]);
-
-        fn check_parameters(ps: &ParameterService, flattened: &BTreeMap<&str, Parameter>) {
-            for (path, param) in flattened.iter() {
-                assert_eq!(ps.get(&(*path).into()), Some(param.clone()));
-            }
+    fn test_type(
+        expected: Vec<(toml::Value, ParameterValue)>,
+        good_value: toml::Value,
+        good_type: &str,
+        bad_values: Vec<toml::Value>,
+        bad_type: &str,
+    ) {
+        for (val, expected) in expected {
+            let str = format!("val = {{ val = {val}, type = \"{good_type}\" }}");
+            assert_eq!(
+                parse_string(str),
+                Ok(ParameterMap {
+                    path: "".to_string(),
+                    map: BTreeMap::from_iter(vec![(
+                        "val".to_string(),
+                        ParameterTree::Leaf(Parameter {
+                            path: ".val".to_string(),
+                            value: expected
+                        })
+                    )])
+                })
+            );
         }
+        let str = format!("val = {{ val = {good_value}, type = \"badtype\" }}");
+        assert_eq!(parse_string(str), Err(Error::BadToml(".val".to_string())));
 
-        check_parameters(&ps, &flattened);
+        let str = format!("val = {{ val = {good_value}, type = \"{bad_type}\" }}",);
+        assert_eq!(parse_string(str), Err(Error::BadToml(".val".to_string())));
 
-        assert_eq!(
-            ps.set(
-                &"/a4".into(),
-                Parameter::List(vec![Parameter::I8(1), Parameter::I8(2)]),
-            ),
-            Ok(None)
-        );
-        flattened.insert(
-            "/a4",
-            Parameter::List(vec![Parameter::I8(1), Parameter::I8(2)]),
-        );
-        check_parameters(&ps, &flattened);
-
-        assert_eq!(ps.set(&"/a3/b1/c3".into(), Parameter::Bool(true)), Ok(None));
-        flattened.insert("/a3/b1/c3", Parameter::Bool(true));
-        check_parameters(&ps, &flattened);
-
-        assert_eq!(
-            ps.set(&"/a3/b1/c4/d1/e1".into(), Parameter::Bool(true)),
-            Ok(None)
-        );
-        flattened.insert("/a3/b1/c4/d1/e1", Parameter::Bool(true));
-        check_parameters(&ps, &flattened);
-
-        assert_eq!(
-            ps.set(&"/a3/b1/c1".into(), Parameter::Bool(true)),
-            Ok(Some(Parameter::I32(123)))
-        );
-        flattened.insert("/a3/b1/c1", Parameter::Bool(true));
-        check_parameters(&ps, &flattened);
-
-        assert_eq!(
-            ps.set(&"/a3/b1/c1/d1".into(), Parameter::Bool(true)),
-            Err(Error::NonMapParent)
-        );
-        check_parameters(&ps, &flattened);
-
-        assert_eq!(
-            ps.set(&"/".into(), Parameter::Bool(true)),
-            Err(Error::RootOverwrite)
-        );
-        check_parameters(&ps, &flattened);
+        for bad_value in bad_values {
+            let str = format!("val = {{ val = {bad_value}, type = \"{good_type}\" }}");
+            assert_eq!(parse_string(str), Err(Error::BadToml(".val".to_string())));
+        }
     }
 
     #[test]
-    fn test_iter() {
-        let ps = ParameterService::from_root(build_params());
-
-        let flattened: Vec<(String, Parameter)> = vec![
-            ("/a1".to_string(), Parameter::F32(1.23)),
-            (
-                "/a2".to_string(),
-                Parameter::String("hello param".to_string()),
-            ),
-            ("/a3/b1/c1".to_string(), Parameter::I32(123)),
-            ("/a3/b1/c2".to_string(), Parameter::I32(-123)),
-            ("/a3/b2".to_string(), Parameter::F64(1.23)),
-        ];
-
-        assert_eq!(ps.as_vec(), flattened);
+    fn test_bool() {
+        test_type(
+            vec![
+                (Value::Boolean(true), ParameterValue::Bool { val: true }),
+                (Value::Boolean(false), ParameterValue::Bool { val: false }),
+            ],
+            Value::Boolean(false),
+            "bool",
+            vec![Value::Float(1.0), Value::Integer(1)],
+            "float",
+        );
     }
 
     #[test]
-    fn test_from_toml() -> Result<(), Error> {
-        let ps = ParameterService::from_toml(
-            "a1 = {val=1.23, dtype=\"f32\"}
-                a2 = {val=\"hello param\", dtype=\"string\"}
+    fn test_int() {
+        test_type(
+            vec![
+                (Value::Integer(-1), ParameterValue::Int { val: -1 }),
+                (Value::Integer(1), ParameterValue::Int { val: 1 }),
+                (Value::Integer(2), ParameterValue::Int { val: 2 }),
+            ],
+            Value::Integer(1),
+            "int",
+            vec![
+                Value::Float(1.0),
+                Value::Boolean(true),
+                Value::String("hello".to_string()),
+            ],
+            "bool",
+        );
+    }
 
-                [a3]
-                b2 = {val=1.23, dtype=\"f64\"}
-                [a3.b1]
-                c1 = {val=123, dtype=\"i32\"}
-                c2 = {val=-123, dtype=\"i32\"}
+    #[test]
+    fn test_float() {
+        test_type(
+            vec![
+                (
+                    Value::Float(f64::INFINITY),
+                    ParameterValue::Float { val: f64::INFINITY },
+                ),
+                (Value::Float(-1.0), ParameterValue::Float { val: -1.0 }),
+                (Value::Integer(1), ParameterValue::Float { val: 1.0 }),
+                (Value::Float(1.0), ParameterValue::Float { val: 1.0 }),
+                (Value::Float(2.0), ParameterValue::Float { val: 2.0 }),
+            ],
+            Value::Float(1.0),
+            "float",
+            vec![Value::Boolean(true), Value::String("hello".to_string())],
+            "bool",
+        );
+    }
 
-                ",
-        )?;
+    #[test]
+    fn test_string() {
+        test_type(
+            vec![
+                (
+                    Value::String("hello".to_string()),
+                    ParameterValue::String {
+                        val: "hello".to_string(),
+                    },
+                ),
+                (
+                    Value::String("".to_string()),
+                    ParameterValue::String {
+                        val: "".to_string(),
+                    },
+                ),
+            ],
+            Value::String("hello".to_string()),
+            "str",
+            vec![Value::Float(1.123), Value::Integer(1), Value::Boolean(true)],
+            "bool",
+        );
+    }
 
-        let flattened: Vec<(String, Parameter)> = vec![
-            ("/a1".to_string(), Parameter::F32(1.23)),
-            (
-                "/a2".to_string(),
-                Parameter::String("hello param".to_string()),
-            ),
-            ("/a3/b1/c1".to_string(), Parameter::I32(123)),
-            ("/a3/b1/c2".to_string(), Parameter::I32(-123)),
-            ("/a3/b2".to_string(), Parameter::F64(1.23)),
-        ];
+    #[test]
+    fn test_good_structure() {
+        let str = "hello_float = { val = 1.23, type = \"float\" }
+        hello_int = { val = 1, type = \"int\" }
+        hello_bool = { val = true, type = \"bool\" }
 
-        assert_eq!(ps.as_vec(), flattened);
+        [nested]
+        hello_int = { val = 1, type = \"int\" }
 
-        Ok(())
+        [nested.double]
+        hello_bool = { val = true, type = \"bool\" }
+        ";
+
+        let parsed = parse_string(str.to_string());
+
+        let expected = ParameterMap {
+            path: "".to_string(),
+            map: BTreeMap::from_iter(vec![
+                (
+                    "hello_float".to_string(),
+                    ParameterTree::Leaf(Parameter {
+                        path: ".hello_float".to_string(),
+                        value: ParameterValue::Float { val: 1.23 },
+                    }),
+                ),
+                (
+                    "hello_int".to_string(),
+                    ParameterTree::Leaf(Parameter {
+                        path: ".hello_int".to_string(),
+                        value: ParameterValue::Int { val: 1 },
+                    }),
+                ),
+                (
+                    "hello_bool".to_string(),
+                    ParameterTree::Leaf(Parameter {
+                        path: ".hello_bool".to_string(),
+                        value: ParameterValue::Bool { val: true },
+                    }),
+                ),
+                (
+                    "nested".to_string(),
+                    ParameterTree::Node(ParameterMap {
+                        path: ".nested".to_string(),
+                        map: BTreeMap::from_iter(vec![
+                            (
+                                "hello_int".to_string(),
+                                ParameterTree::Leaf(Parameter {
+                                    path: ".nested.hello_int".to_string(),
+                                    value: ParameterValue::Int { val: 1 },
+                                }),
+                            ),
+                            (
+                                "double".to_string(),
+                                ParameterTree::Node(ParameterMap {
+                                    path: ".nested.double".to_string(),
+                                    map: BTreeMap::from_iter(vec![(
+                                        "hello_bool".to_string(),
+                                        ParameterTree::Leaf(Parameter {
+                                            path: ".nested.double.hello_bool".to_string(),
+                                            value: ParameterValue::Bool { val: true },
+                                        }),
+                                    )]),
+                                }),
+                            ),
+                        ]),
+                    }),
+                ),
+            ]),
+        };
+
+        assert_eq!(parsed, Ok(expected));
+    }
+
+    #[test]
+    fn test_array_float() {
+        let str = "array = { val = [ 1.0, 2.0, 3 ], type = \"float[]\" }";
+        let expected = ParameterMap {
+            path: "".to_string(),
+            map: BTreeMap::from_iter(vec![(
+                "array".to_string(),
+                ParameterTree::Leaf(Parameter {
+                    path: ".array".to_string(),
+                    value: ParameterValue::FloatArray {
+                        val: vec![1.0, 2.0, 3.0],
+                    },
+                }),
+            )]),
+        };
+
+        assert_eq!(parse_string(str.to_string()), Ok(expected));
+
+        let str = "array = { val = [ ], type = \"float[]\" }";
+        let expected = ParameterMap {
+            path: "".to_string(),
+            map: BTreeMap::from_iter(vec![(
+                "array".to_string(),
+                ParameterTree::Leaf(Parameter {
+                    path: ".array".to_string(),
+                    value: ParameterValue::FloatArray { val: vec![] },
+                }),
+            )]),
+        };
+
+        assert_eq!(parse_string(str.to_string()), Ok(expected));
+
+        let str = "array = { val = [ 1.0, 2.0 ], type = \"float\" }";
+        assert_eq!(
+            parse_string(str.to_string()),
+            Err(Error::BadToml(".array".to_string()))
+        );
+
+        let str = "array = { val = [ 1.0, 2.0, \"3.0\" ], type = \"float[]\" }";
+        assert_eq!(
+            parse_string(str.to_string()),
+            Err(Error::BadToml(".array".to_string()))
+        );
+    }
+
+    #[test]
+    fn test_rand_float() {
+        let str = "rand_float = { val = 1.0, type = \"randfloat\", dist = { type=\"normal\", mean = 1.0, std_dev = 1.0 } }";
+        let expected = ParameterMap {
+            path: "".to_string(),
+            map: BTreeMap::from_iter(vec![(
+                "rand_float".to_string(),
+                ParameterTree::Leaf(Parameter {
+                    path: ".rand_float".to_string(),
+                    value: ParameterValue::RandFloat(RandFloat {
+                        val: 1.0,
+                        sampled: None,
+                        dist: FloatDistribution::Normal {
+                            mean: 1.0,
+                            std_dev: 1.0,
+                        },
+                    }),
+                }),
+            )]),
+        };
+
+        assert_eq!(parse_string(str.to_string()), Ok(expected));
+
+        let str = "rand_float = { val = 1.0, type = \"randfloat\", dist = { type=\"uniform\", min = 1.0, max = 1.0 } }";
+        let expected = ParameterMap {
+            path: "".to_string(),
+            map: BTreeMap::from_iter(vec![(
+                "rand_float".to_string(),
+                ParameterTree::Leaf(Parameter {
+                    path: ".rand_float".to_string(),
+                    value: ParameterValue::RandFloat(RandFloat {
+                        val: 1.0,
+                        sampled: None,
+                        dist: FloatDistribution::Uniform { min: 1.0, max: 1.0 },
+                    }),
+                }),
+            )]),
+        };
+
+        assert_eq!(parse_string(str.to_string()), Ok(expected));
     }
 }

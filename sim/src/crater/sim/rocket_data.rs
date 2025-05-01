@@ -3,7 +3,7 @@ use core::f64;
 use anyhow::{anyhow, Result};
 use nalgebra::{Matrix3, Quaternion, SVector, UnitQuaternion, Vector3, Vector4};
 
-use crate::parameters::ParameterService;
+use crate::parameters::ParameterMap;
 
 #[derive(Debug, Default, Clone)]
 pub struct RocketState(pub SVector<f64, 13>);
@@ -108,31 +108,38 @@ pub struct RocketParams {
 }
 
 impl RocketParams {
-    pub fn from_service(path: &str, param_service: &ParameterService) -> Result<Self> {
-        let inertia = param_service.get_vec_f64(format!("{path}/inertia").as_str())?;
+    pub fn from_params(params: &ParameterMap) -> Result<Self> {
+        let i_xx = params.get_param("inertia_xx")?.value_randfloat()?.sampled();
+        let i_yy = params.get_param("inertia_yy")?.value_randfloat()?.sampled();
+        let i_zz = params.get_param("inertia_zz")?.value_randfloat()?.sampled();
 
-        let inertia = Matrix3::from_diagonal(&Vector3::from_column_slice(&inertia));
-        let var_name = anyhow!("The intertia matrix is not invertible");
-        let inv_inertia = inertia.try_inverse().ok_or(var_name)?;
+        let inertia = Matrix3::from_diagonal(&Vector3::new(i_xx, i_yy, i_zz));
+        let inv_inertia = inertia
+            .try_inverse()
+            .ok_or(anyhow!("The intertia matrix is not invertible"))?;
 
-        let diameter = param_service.get_f64(format!("{path}/diameter").as_str())?;
+        let diameter = params.get_param("diameter")?.value_randfloat()?.sampled();
         let surface = f64::consts::PI * (diameter / 2.0).powf(2.0);
 
-        let p0_n = param_service.get_vec_f64(format!("{path}/init/p0_n").as_str())?;
+        let p0_n = params.get_param("init.p0_n")?.value_float_arr()?;
         let p0_n = Vector3::from_column_slice(&p0_n);
 
-        let v0_b = param_service.get_vec_f64(format!("{path}/init/v0_b").as_str())?;
+        let v0_b = params.get_param("init.v0_b")?.value_float_arr()?;
         let v0_b = Vector3::from_column_slice(&v0_b);
 
-        let mut w0_b = param_service.get_vec_f64(format!("{path}/init/w0_b_deg").as_str())?;
+        let mut w0_b = params
+            .get_param("init.w0_b_deg")?
+            .value_float_arr()?
+            .to_owned();
         w0_b.iter_mut().for_each(|w| *w = w.to_radians());
+
         let w0_b = Vector3::from_column_slice(&w0_b);
 
-        let g_n = param_service.get_vec_f64(format!("{path}/g_n").as_str())?;
+        let g_n = params.get_param("g_n")?.value_float_arr()?;
         let g_n = Vector3::from_column_slice(&g_n);
 
         Ok(RocketParams {
-            mass: param_service.get_f64(format!("{path}/mass").as_str())?,
+            mass: params.get_param("mass")?.value_randfloat()?.sampled(),
             inertia,
             inv_inertia,
             p0_n,
@@ -141,12 +148,16 @@ impl RocketParams {
             g_n,
             diameter,
             surface,
-            max_t: param_service.get_f64(format!("/sim/max_t").as_str())?,
-            azimuth: param_service
-                .get_f64(format!("{path}/init/azimuth").as_str())?
+            max_t: params.get_param("max_t")?.value_float()?,
+            azimuth: params
+                .get_param("init.azimuth")?
+                .value_randfloat()?
+                .sampled()
                 .to_radians(),
-            elevation: param_service
-                .get_f64(format!("{path}/init/elevation").as_str())?
+            elevation: params
+                .get_param("init.elevation")?
+                .value_randfloat()?
+                .sampled()
                 .to_radians(),
         })
     }

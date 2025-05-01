@@ -4,4 +4,4 @@ mod select;
 
 pub use channel::*;
 
-pub use select::{ReadyList, Select, SelectToken, Selectable};
+pub use select::{ReadyList, Select, SelectToken, Selectable, SelectedReceiverState};

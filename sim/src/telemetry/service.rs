@@ -11,7 +11,7 @@ use crate::{
     utils::{
         capacity::Capacity,
         ringchannel::{
-            channel, Channel, ChannelError, ReadyList, Receiver, SelectToken, Selectable, Sender,
+            channel, Channel, ChannelError, ReadyList, Receiver, SelectToken, Selectable, SelectedReceiverState, Sender
         },
     },
 };
@@ -235,6 +235,14 @@ impl<T> Selectable for TelemetryReceiver<T> {
 
     fn unregister(&self) {
         self.receiver.unregister()
+    }
+
+    fn state(&self) -> SelectedReceiverState {
+        self.receiver.state()
+    }
+
+    fn num_elem(&self) -> usize {
+        self.receiver.num_elem()
     }
 }
 
