@@ -10,7 +10,7 @@ use chrono::TimeDelta;
 use log::info;
 
 use crate::{
-    crater::logging::RerunLogger,
+    crater::logging::rerun::{RerunLogConfig, RerunLoggerBuilder},
     model::ModelBuilder,
     nodes::{FtlOrderedExecutor, NodeManager, ParameterSampling},
     parameters::parameters,
@@ -29,14 +29,15 @@ pub enum RngSeed {
 
 pub struct SingleThreadedRunner {
     nm: NodeManager,
-    logger: RerunLogger,
+    log_config: Box<dyn RerunLogConfig>,
+    log_builder: RerunLoggerBuilder,
 }
 
 impl SingleThreadedRunner {
     pub fn new(
         model: impl ModelBuilder,
         params: &Path,
-        // log_out: LogOutput,
+        log_config: Box<dyn RerunLogConfig>,
         param_sampling: ParameterSampling,
         seed: RngSeed,
     ) -> Result<Self> {
@@ -57,15 +58,21 @@ impl SingleThreadedRunner {
 
         model.build(&mut nm)?;
 
-        let logger = RerunLogger::new(&ts)?;
+        let mut log_builder = RerunLoggerBuilder::new(&ts);
+        log_config.subscribe_telem(&mut log_builder)?;
 
-        Ok(Self { nm, logger })
+        Ok(Self {
+            nm,
+            log_builder,
+            log_config,
+        })
     }
 
     pub fn run_blocking(self) -> Result<()> {
         let params = self.nm.parameters();
         let nm = self.nm;
-        let logger = self.logger;
+        let log_builder = self.log_builder;
+        let log_config = self.log_config;
 
         let simulation = thread::spawn(move || -> Result<()> {
             let dt_sec = params.get_param("sim.dt")?.value_float()?;
@@ -87,10 +94,13 @@ impl SingleThreadedRunner {
         });
 
         info!("Connecting to Rerun interface...");
-        let mut log_conn = logger.connect()?;
+        let mut rec = rerun::RecordingStreamBuilder::new("crater").connect_tcp()?;
 
         info!("Rerun connected!");
-        log_conn.log_blocking()?;
+        log_config.init_rec(&mut rec)?;
+
+        let logger = log_builder.build(rec)?;
+        logger.log_blocking()?;
 
         info!("Rerun log completed");
         simulation.join().unwrap()?;

@@ -1,7 +1,6 @@
 use anyhow::Result;
 use crater::{
-    model::OpenLoopCrater,
-    runner::{RngSeed, SingleThreadedRunner},
+    crater::logging::rerun::CraterUiLogConfig, model::OpenLoopCrater, runner::{RngSeed, SingleThreadedRunner}
 };
 use log::info;
 use std::{env, path::Path};
@@ -18,6 +17,7 @@ fn main() -> Result<()> {
     let runner = SingleThreadedRunner::new(
         OpenLoopCrater {},
         &Path::new("config/params.toml"),
+        Box::new(CraterUiLogConfig),
         crater::nodes::ParameterSampling::Random,
         RngSeed::Rand,
     )?;

@@ -16,6 +16,7 @@ pub struct RerunLogger {
     receivers: Receivers,
 }
 
+
 struct Receivers {
     rocket_state: TelemetryReceiver<RocketState>,
     rocket_actions: TelemetryReceiver<RocketActions>,
