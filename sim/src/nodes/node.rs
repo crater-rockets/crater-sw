@@ -47,20 +47,11 @@ pub struct NodeManager {
     parameters: Arc<ParameterMap>,
     nodes: Vec<(String, Box<dyn Node + Send>)>,
     rng: Arc<Mutex<SplitMix64>>,
+    seed: u64
 }
 
 impl NodeManager {
     pub fn new(
-        telemetry: TelemetryService,
-        parameters: ParameterMap,
-        parameter_sampling: ParameterSampling,
-    ) -> Self {
-        let seed = OsRng{}.try_next_u64().unwrap();
-
-        Self::new_from_seed(telemetry, parameters, parameter_sampling, seed)
-    }
-
-    pub fn new_from_seed(
         telemetry: TelemetryService,
         mut parameters: ParameterMap,
         parameter_sampling: ParameterSampling,
@@ -86,6 +77,7 @@ impl NodeManager {
             parameters: Arc::new(parameters),
             nodes: vec![],
             rng,
+            seed,
         }
     }
 
@@ -120,6 +112,10 @@ impl NodeManager {
 
     pub fn parameters(&self) -> Arc<ParameterMap> {
         self.parameters.clone()
+    }
+
+    pub fn seed(&self) -> u64 {
+        self.seed
     }
 }
 
