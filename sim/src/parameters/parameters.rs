@@ -302,11 +302,6 @@ impl ParameterMap {
                 ParameterTree::Leaf(param) => match &mut param.value {
                     ParameterValue::RandFloat(rnd_float) => {
                         rnd_float.sampled = Some(rnd_float.dist.sample(rng));
-                        info!(
-                            "value={}, sampled={}",
-                            rnd_float.val,
-                            rnd_float.sampled.unwrap()
-                        );
                     }
                     _ => {}
                 },
