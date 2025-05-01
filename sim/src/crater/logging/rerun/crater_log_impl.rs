@@ -250,67 +250,67 @@ impl RerunWrite for RocketActionsLog {
         rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
-            "timeseries/actions/body/thrust/x",
+            format!("{ent_path}/thrust_b/x"),
             &rerun::Scalar::new(actions.thrust_b[0]),
         )?;
         rec.log(
-            "timeseries/actions/body/thrust/y",
+            format!("{ent_path}/thrust_b/y"),
             &rerun::Scalar::new(actions.thrust_b[1]),
         )?;
         rec.log(
-            "timeseries/actions/body/thrust/z",
+            format!("{ent_path}/thrust_b/z"),
             &rerun::Scalar::new(actions.thrust_b[2]),
         )?;
 
         rec.log(
-            "timeseries/actions/body/aero_force/x",
+            format!("{ent_path}/aero_force_b/x"),
             &rerun::Scalar::new(actions.aero_force_b[0]),
         )?;
         rec.log(
-            "timeseries/actions/body/aero_force/y",
+            format!("{ent_path}/aero_force_b/y"),
             &rerun::Scalar::new(actions.aero_force_b[1]),
         )?;
         rec.log(
-            "timeseries/actions/body/aero_force/z",
+            format!("{ent_path}/aero_force_b/z"),
             &rerun::Scalar::new(actions.aero_force_b[2]),
         )?;
 
         rec.log(
-            "timeseries/actions/body/aero_torque/x",
+            format!("{ent_path}/aero_torque_b/x"),
             &rerun::Scalar::new(actions.aero_torque_b[0]),
         )?;
         rec.log(
-            "timeseries/actions/body/aero_torque/y",
+            format!("{ent_path}/aero_torque_b/y"),
             &rerun::Scalar::new(actions.aero_torque_b[1]),
         )?;
         rec.log(
-            "timeseries/actions/body/aero_torque/z",
+            format!("{ent_path}/aero_torque_b/z"),
             &rerun::Scalar::new(actions.aero_torque_b[2]),
         )?;
 
         rec.log(
-            "timeseries/actions/body/acc/x",
+            format!("{ent_path}/acc_b/x"),
             &rerun::Scalar::new(actions.acc_b[0]),
         )?;
         rec.log(
-            "timeseries/actions/body/acc/y",
+            format!("{ent_path}/acc_b/y"),
             &rerun::Scalar::new(actions.acc_b[1]),
         )?;
         rec.log(
-            "timeseries/actions/body/acc/z",
+            format!("{ent_path}/acc_b/z"),
             &rerun::Scalar::new(actions.acc_b[2]),
         )?;
 
         rec.log(
-            "timeseries/actions/ned/acc/x",
+            format!("{ent_path}/acc_n/x"),
             &rerun::Scalar::new(actions.acc_n[0]),
         )?;
         rec.log(
-            "timeseries/actions/ned/acc/y",
+            format!("{ent_path}/acc_n/y"),
             &rerun::Scalar::new(actions.acc_n[1]),
         )?;
         rec.log(
-            "timeseries/actions/ned/acc/z",
+            format!("{ent_path}/acc_n/z"),
             &rerun::Scalar::new(actions.acc_n[2]),
         )?;
 
