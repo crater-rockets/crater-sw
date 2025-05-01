@@ -13,7 +13,7 @@ pub struct SelectToken {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum SelectedReceiverState {
+pub enum SelectedReceiverState {
     Open,
     Closed,
     Removed,
@@ -47,6 +47,10 @@ pub trait Selectable {
     fn register(&self, token: SelectToken, ready_list: Arc<ReadyList>);
 
     fn unregister(&self);
+
+    fn state(&self) -> SelectedReceiverState;
+
+    fn num_elem(&self) -> usize;
 }
 
 pub struct Select<'a> {
@@ -93,7 +97,7 @@ impl<'a> Select<'a> {
 
         {
             let mut ready_list = self.ready_list.receivers_state.lock().unwrap();
-            ready_list.push((0, SelectedReceiverState::Open));
+            ready_list.push((0, selectable.state()));
         }
 
         selectable.register(tk, self.ready_list.clone());

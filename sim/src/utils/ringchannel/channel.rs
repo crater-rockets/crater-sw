@@ -9,7 +9,7 @@ use crate::utils::capacity::Capacity;
 
 use super::{
     buffer::Buffer,
-    select::{ReadyList, SelectToken, Selectable},
+    select::{ReadyList, SelectToken, Selectable, SelectedReceiverState},
 };
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -232,6 +232,19 @@ impl<T> Selectable for Receiver<T> {
         debug_assert!(inner.select_handle.is_some());
 
         inner.select_handle = None;
+    }
+
+    fn state(&self) -> SelectedReceiverState {
+        if self.is_closed() {
+            SelectedReceiverState::Closed
+        } else {
+            SelectedReceiverState::Open
+        }
+    }
+
+    fn num_elem(&self) -> usize {
+        let inner = self.shared.inner.lock().unwrap();
+        inner.buf.len()
     }
 }
 
