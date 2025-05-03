@@ -11,7 +11,7 @@ use crate::{
 use anyhow::Result;
 use chrono::TimeDelta;
 use map_3d::ned2geodetic;
-use nalgebra::{Matrix3, Vector3};
+use nalgebra::{Matrix3, Quaternion, UnitQuaternion, Vector3, Vector4};
 use num_traits::ToPrimitive;
 use world_magnetic_model::{
     time::OffsetDateTime,
@@ -25,8 +25,7 @@ use world_magnetic_model::{uom::si::angle::radian, GeomagneticField};
 
 #[derive(Debug)]
 pub struct MagParams {
-    mag_mis: Matrix3<f64>,
-    mag_rot: Matrix3<f64>,
+    quat_mag_b: UnitQuaternion<f64>,
 }
 
 #[derive(Debug)]
@@ -45,16 +44,12 @@ impl IdealMagnetometer {
 
         let mag_params = ctx.parameters().get_map("sim.rocket.magnetomer")?;
 
-        let mag_rot = mag_params.get_param("mag_rotation")?.value_float_arr()?;
-        let mag_rot: Matrix3<f64> = Matrix3::from_column_slice(&mag_rot);
+        let quat_mag_b = mag_params.get_param("quat_mag_b")?.value_float_arr()?;
+        let quat_mag_b = UnitQuaternion::from_quaternion(Quaternion::from_vector(
+            Vector4::from_column_slice(&quat_mag_b),
+        ));
 
-        let mag_mis = mag_params.get_param("mag_misalign")?.value_float_arr()?;
-        let mag_mis: Matrix3<f64> = Matrix3::from_column_slice(&mag_mis);
-
-        let mag_par: MagParams = MagParams {
-            mag_mis: mag_mis,
-            mag_rot: mag_rot,
-        };
+        let mag_par: MagParams = MagParams { quat_mag_b };
 
         Ok(Self {
             rx_state,
@@ -108,9 +103,10 @@ impl Node for IdealMagnetometer {
         let mag_ned: Vector3<f64> = Vector3::new(mag_n, mag_e, mag_n);
 
         let sample = MagnetometerSample {
-            magfield_b: self.mag_par.mag_mis
-                * self.mag_par.mag_rot
-                * state.quat_nb().inverse_transform_vector(&mag_ned),
+            magfield_b: self
+                .mag_par
+                .quat_mag_b
+                .transform_vector(&state.quat_nb().inverse_transform_vector(&mag_ned)),
         };
 
         self.tx_magn.send(Timestamp::now(clock), sample);
