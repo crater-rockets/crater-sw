@@ -15,7 +15,6 @@ use nalgebra::Vector3;
 
 // Outputs of the Rocket node
 pub struct RocketOutput {
-    snd_params: TelemetrySender<RocketParams>,
     snd_state: TelemetrySender<RocketState>,
     snd_actions: TelemetrySender<RocketActions>,
     snd_aeroangles: TelemetrySender<AeroAngles>,
@@ -26,7 +25,6 @@ pub struct RocketOutput {
 impl RocketOutput {
     pub fn new(telemetry: &NodeTelemetry) -> Result<Self> {
         Ok(Self {
-            snd_params: telemetry.publish("/rocket/params")?,
             snd_state: telemetry.publish("/rocket/state")?,
             snd_actions: telemetry.publish("/rocket/actions")?,
             snd_aeroangles: telemetry.publish("/rocket/aero_angles")?,
@@ -43,11 +41,9 @@ impl RocketOutput {
         d_state: &RocketState, // State derivative over time
         servo_pos: &ServoPosition,
         engine: &dyn RocketEngine,
-        params: &RocketParams,
         aerodynamics: &Aerodynamics,
         masses: &RocketMassProperties,
     ) {
-        self.snd_params.send(t, params.clone());
         self.snd_state.send(t, state.clone());
 
         let aero = aerodynamics.calc(&AeroState::new(
