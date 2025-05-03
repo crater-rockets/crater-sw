@@ -5,7 +5,7 @@ use rerun::{components::RotationQuat, Quaternion, RecordingStream};
 use crate::{
     core::time::Timestamp,
     crater::sim::{
-        engine::engine::RocketEngineMasses,
+        engine::engine::RocketEngineMassProperties,
         gnc::ServoPosition,
         rocket_data::{AeroAngles, RocketActions, RocketMassProperties, RocketParams, RocketState},
         sensors::{ideal::IdealIMU, IMUSample, MagnetometerSample},
@@ -422,7 +422,7 @@ impl RerunWrite for RocketMassPropertiesLog {
 
         rec.log(
             "timeseries/masses/mass_tot",
-            &rerun::Scalar::new(mass.mass_tot),
+            &rerun::Scalar::new(mass.mass),
         )?;
 
         rec.log(

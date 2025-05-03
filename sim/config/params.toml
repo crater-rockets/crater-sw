@@ -5,9 +5,12 @@ dt = { val = 0.01, type = "float" }
 [sim.rocket]
 max_t = { val = 120, type = "float" }
 mass = { val = 2, type = "randfloat", dist = { type = "normal", mean = 2, std_dev = 0.1 } }
-xcg_datcom = { val = [0.5, 0.0, 0.0], type = "float[]" }
-xcg_empty = { val = [0.55, 0.0, 0.0], type = "float[]" }
-xcg_motor_ref = { val = [0.70, 0.0, 0.0], type = "float[]" }
+
+datcom_ref_pos = { val = [0.5, 0.0, 0.0], type = "float[]" }
+engine_ref_pos = { val = [0.70, 0.0, 0.0], type = "float[]" }
+
+xcg_body = { val = [0.55, 0.0, 0.0], type = "float[]" }
+
 inertia_empty = { val = [
     0.005,
     0.0,
@@ -36,7 +39,9 @@ altitude = { val = 1411.211, type = "float" }
 
 [sim.rocket.engine]
 engine_type = { val = "tabulated", type = "str" }
-tabulated.json_path = { val = "config/motor.json", type = "str" }
+
+[sim.rocket.engine.tabulated]
+json_path = { val = "config/motor.json", type = "str" }
 
 [sim.rocket.engine.simple]
 total_impulse = { val = 320, type = "float" }

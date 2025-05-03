@@ -1,5 +1,4 @@
 use super::{
-    actuators::ideal,
     aero::aerodynamics::AerodynamicsResult,
     engine::{engine::RocketEngine, SimpleRocketEngine, TabRocketEngine},
     gnc::ServoPosition,
@@ -125,22 +124,21 @@ impl OdeProblem<f64, 13> for Rocket {
             -state.pos_n()[2],
         ));
 
-        let masses =
-            RocketMassProperties::calc_mass(self.engine.masses_prop(t), self.params.clone());
+        let mass_props = RocketMassProperties::calc_mass(&self.engine.mass(t), &self.params);
 
-        let f_n: Vector3<f64> = q_nb.transform_vector(
-            &(self.engine.thrust_b(t) + &aero.forces - masses.mass_dot * &state.vel_b(&state.quat_nb())),
-        );
+        let f_n: Vector3<f64> = q_nb.transform_vector(&(self.engine.thrust_b(t) + &aero.forces))
+            - mass_props.mass_dot * &state.vel_n();
+
         let m_b: Vector3<f64> = aero.moments;
 
-        let acc_n: Vector3<f64> = (f_n) / masses.mass_tot + self.params.g_n;
+        let acc_n: Vector3<f64> = (f_n) / mass_props.mass + self.params.g_n;
 
         let qw: Quaternion<f64> =
             Quaternion::from_vector(Vector4::new(w_b[0] / 2.0, w_b[1] / 2.0, w_b[2] / 2.0, 0.0));
         let qdot: Quaternion<f64> = q_nb.into_inner() * qw;
 
-        let w_dot: Vector3<f64> = masses.inertia.try_inverse().unwrap()
-            * (m_b - masses.inertia_dot * w_b + (masses.inertia * w_b).cross(&w_b));
+        let w_dot: Vector3<f64> = mass_props.inertia.try_inverse().unwrap()
+            * (m_b - mass_props.inertia_dot * w_b + (mass_props.inertia * w_b).cross(&w_b));
 
         dstate.set_pos_n(&state.vel_n());
         dstate.set_vel_n(&acc_n);
@@ -166,8 +164,8 @@ impl Node for Rocket {
                 &self.params,
                 &self.aerodynamics,
                 &RocketMassProperties::calc_mass(
-                    self.engine.masses_prop(t.monotonic.elapsed_seconds_f64()),
-                    self.params.clone(),
+                    &self.engine.mass(t.monotonic.elapsed_seconds_f64()),
+                    &self.params,
                 ),
             );
             return Ok(StepResult::Continue);
@@ -200,8 +198,8 @@ impl Node for Rocket {
             &self.params,
             &self.aerodynamics,
             &RocketMassProperties::calc_mass(
-                self.engine.masses_prop(t.monotonic.elapsed_seconds_f64()),
-                self.params.clone(),
+                &self.engine.mass(t.monotonic.elapsed_seconds_f64()),
+                &self.params,
             ),
         );
 
