@@ -181,7 +181,10 @@ pub struct RocketParams {
     pub surface: f64,
     pub max_t: f64,
     pub azimuth: f64,
-    pub elevation: f64
+    pub elevation: f64,
+
+    pub disturb_const_force_b: Vector3<f64>,
+    pub disturb_const_torque_b: Vector3<f64>,
 }
 
 impl RocketParams {
@@ -228,6 +231,17 @@ impl RocketParams {
         let g_n = params.get_param("g_n")?.value_float_arr()?;
         let g_n = Vector3::from_column_slice(&g_n);
 
+
+        let disturb_const_force_b = params
+            .get_param("disturbances.const_force_b")?
+            .value_float_arr()?;
+        let disturb_const_force_b = Vector3::from_column_slice(&disturb_const_force_b);
+
+        let disturb_const_torque_b = params
+            .get_param("disturbances.const_torque_b")?
+            .value_float_arr()?;
+        let disturb_const_torque_b = Vector3::from_column_slice(&disturb_const_torque_b);
+
         Ok(RocketParams {
             mass_body: params.get_param("mass")?.value_randfloat()?.sampled(),
             inertia_body_body_frame: inertia_empty,
@@ -253,6 +267,8 @@ impl RocketParams {
                 .value_randfloat()?
                 .sampled()
                 .to_radians(),
-        })
+            disturb_const_force_b,
+            disturb_const_torque_b
+        },)
     }
 }

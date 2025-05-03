@@ -126,10 +126,11 @@ impl OdeProblem<f64, 13> for Rocket {
 
         let mass_props = RocketMassProperties::calc_mass(&self.engine.mass(t), &self.params);
 
-        let f_n: Vector3<f64> = q_nb.transform_vector(&(self.engine.thrust_b(t) + &aero.forces))
-            - mass_props.mass_dot * &state.vel_n();
+        let f_n: Vector3<f64> = q_nb.transform_vector(
+            &(self.engine.thrust_b(t) + &aero.forces + &self.params.disturb_const_force_b),
+        ) - mass_props.mass_dot * &state.vel_n();
 
-        let m_b: Vector3<f64> = aero.moments;
+        let m_b: Vector3<f64> = aero.moments + self.params.disturb_const_torque_b;
 
         let acc_n: Vector3<f64> = (f_n) / mass_props.mass + self.params.g_n;
 

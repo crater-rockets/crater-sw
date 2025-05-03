@@ -37,6 +37,10 @@ latitude = { val = 41.8080239, type = "float" }
 longitude = { val = 14.0548082, type = "float" }
 altitude = { val = 1411.211, type = "float" }
 
+[sim.rocket.disturbances]
+const_force_b = { val = [0.0, 0.0, 0.0], type = "float[]" }
+const_torque_b = { val = [0.0, 0.0, 0.0], type = "float[]" }
+
 [sim.rocket.engine]
 engine_type = { val = "tabulated", type = "str" }
 
