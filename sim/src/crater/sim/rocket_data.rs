@@ -85,7 +85,7 @@ pub struct RocketActions {
 
     pub acc_n: Vector3<f64>, // Acceleration
     pub acc_b: Vector3<f64>, // Acceleration
-    pub ang_acc: Vector3<f64> // Angular acceleration
+    pub ang_acc_b: Vector3<f64> // Angular acceleration
 }
 
 #[derive(Debug, Clone)]

@@ -64,7 +64,7 @@ impl RocketOutput {
             aero_torque_b: aero.moments,
             acc_n: d_state.vel_n(),
             acc_b: d_state.vel_b(&state.quat_nb()),
-            ang_acc: d_state.angvel_b(),
+            ang_acc_b: d_state.angvel_b(),
         };
 
         self.snd_actions.send(t, actions);

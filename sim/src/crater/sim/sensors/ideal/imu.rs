@@ -91,6 +91,7 @@ impl Node for IdealIMU {
         let cg_to_imu = self.imu_parameters.imu_pos - masses.xcg_total;
         let angvel_b = state.angvel_b();
 
+        // From: https://ocw.mit.edu/courses/16-07-dynamics-fall-2009/419be4d742e628d70acfbc5496eab967_MIT16_07F09_Lec25.pdf
         let acc_imu_pos: Vector3<f64> = actions.acc_b
             + actions.ang_acc_b.cross(&cg_to_imu)
             + angvel_b.cross(&angvel_b.cross(&cg_to_imu))
