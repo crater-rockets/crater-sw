@@ -25,6 +25,9 @@ inertia_empty = { val = [
 diameter = { val = 0.08, type = "randfloat", dist = { type = "normal", mean = 0.08, std_dev = 0.00026 } }
 g_n = { val = [0, 0, 9.81], type = "float[]" }
 
+# Used for magnetic field model
+date = { val = "2025-09-14", type = "str" }
+
 [sim.rocket.init]
 azimuth = { val = 170, type = "randfloat", dist = { type = "normal", mean = 170, std_dev = 3 } }
 elevation = { val = 84, type = "randfloat", dist = { type = "normal", mean = 84, std_dev = 0.5 } }
