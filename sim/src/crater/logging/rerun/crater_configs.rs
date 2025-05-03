@@ -69,8 +69,13 @@ impl RerunLogConfig for CraterUiLogConfig {
             RocketMassPropertiesLog::default(),
         )?;
         builder.log_telemetry::<IMUSample>(
-            "/sensors/ideal_imu",
-            "timeseries/sensors/ideal_imu",
+            "/sensors/ideal_imu/translated",
+            "timeseries/sensors/ideal_imu/translated",
+            IMUSampleLog::default(),
+        )?;
+        builder.log_telemetry::<IMUSample>(
+            "/sensors/ideal_imu/cg",
+            "timeseries/sensors/ideal_imu/cg",
             IMUSampleLog::default(),
         )?;
         builder.log_telemetry::<MagnetometerSample>(

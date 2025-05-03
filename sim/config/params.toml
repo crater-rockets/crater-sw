@@ -48,53 +48,14 @@ total_impulse = { val = 320, type = "float" }
 thrust_duration = { val = 6, type = "float" }
 
 [sim.rocket.imu]
-imu_position = { val = [0.0, 0.0, 0.0], type = "float[]" }
-imu_rotation = { val = [
-    1.0,
-    0.0,
-    0.0,
-    0.0,
-    1.0,
-    0.0,
-    0.0,
-    0.0,
-    1.0,
-], type = "float[]" }
-imu_misalign = { val = [
-    0.995,
-    0.01,
-    0.005,
-    -0.001,
-    0.989,
-    0.0,
-    0.0,
-    0.0,
-    1.0,
-], type = "float[]" }
+pos_r = { val = [0.0, 0.0, 0.0], type = "float[]" }
+# Orientation of the IMU in the body frame (w component last)
+quat_imu_b = { val = [0.0, 0.0, 0.0, 1.0], type = "float[]" }
 
 [sim.rocket.magnetomer]
-mag_rotation = { val = [
-    1.0,
-    0.0,
-    0.0,
-    0.0,
-    1.0,
-    0.0,
-    0.0,
-    0.0,
-    1.0,
-], type = "float[]" }
-mag_misalign = { val = [
-    1.0,
-    0.0,
-    0.0,
-    0.0,
-    1.0,
-    0.0,
-    0.0,
-    0.0,
-    1.0,
-], type = "float[]" }
+# Orientation of the magnetometer in the body frame (w component last)
+quat_mag_b = { val = [0.0, 0.0, 0.0, 1.0], type = "float[]" }
+
 
 [sim.rocket.aero]
 cA_0 = { val = 0.3200, type = "float" }
@@ -114,7 +75,7 @@ cN_a = { val = 24.0744, type = "float" }
 cN_q = { val = 154.0, type = "float" }
 cN_dp = { val = 3.4045, type = "float" }
 
-cl_0 = { val = 0.0, type = "float" }
+cl_0 = { val = 0.01, type = "float" }
 cl_p = { val = -19.0, type = "float" }
 cl_dr = { val = 2.3963, type = "float" }
 

@@ -10,25 +10,24 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::TimeDelta;
-use nalgebra::{Matrix3, Vector3};
+use nalgebra::{Matrix3, Quaternion, UnitQuaternion, Vector3, Vector4};
 
 #[derive(Debug)]
 pub struct ImuParams {
-    imu_pos: Vector3<f64>,
-    imu_rot: Matrix3<f64>,
-    imu_mis: Matrix3<f64>,
+    pos_r: Vector3<f64>,
+    quat_imu_b: UnitQuaternion<f64>,
     g_n: Vector3<f64>,
 }
 
 /// Implementation of an Ideal IMU, without noise or errors
-/// TODO: Implement measurements offset from the CG
 #[derive(Debug)]
 pub struct IdealIMU {
     rx_state: TelemetryReceiver<RocketState>,
     rx_actions: TelemetryReceiver<RocketActions>,
     rx_masses: TelemetryReceiver<RocketMassProperties>,
-    imu_parameters: ImuParams,
-    tx_imu: TelemetrySender<IMUSample>,
+    params: ImuParams,
+    tx_imu_translated: TelemetrySender<IMUSample>,
+    tx_imu_cg: TelemetrySender<IMUSample>,
 }
 
 impl IdealIMU {
@@ -39,16 +38,16 @@ impl IdealIMU {
 
         let imu_params = ctx.parameters().get_map("sim.rocket.imu")?;
 
-        let tx_imu = ctx.telemetry().publish("/sensors/ideal_imu")?;
+        let tx_imu_translated = ctx.telemetry().publish("/sensors/ideal_imu/translated")?;
+        let tx_imu_cg = ctx.telemetry().publish("/sensors/ideal_imu/cg")?;
 
-        let imu_pos = imu_params.get_param("imu_position")?.value_float_arr()?;
-        let imu_pos = Vector3::from_column_slice(&imu_pos);
+        let pos_r = imu_params.get_param("pos_r")?.value_float_arr()?;
+        let pos_r = Vector3::from_column_slice(&pos_r);
 
-        let imu_rot = imu_params.get_param("imu_rotation")?.value_float_arr()?;
-        let imu_rot = Matrix3::from_column_slice(&imu_rot);
-
-        let imu_mis = imu_params.get_param("imu_misalign")?.value_float_arr()?;
-        let imu_mis = Matrix3::from_column_slice(&imu_mis);
+        let quat_imu_b = imu_params.get_param("quat_imu_b")?.value_float_arr()?;
+        let quat_imu_b = UnitQuaternion::from_quaternion(Quaternion::from_vector(
+            Vector4::from_column_slice(&quat_imu_b),
+        ));
 
         let g_n = ctx
             .parameters()
@@ -57,9 +56,8 @@ impl IdealIMU {
         let g_n = Vector3::from_column_slice(&g_n);
 
         let imu_parameters = ImuParams {
-            imu_pos,
-            imu_rot,
-            imu_mis,
+            pos_r,
+            quat_imu_b,
             g_n,
         };
 
@@ -67,8 +65,9 @@ impl IdealIMU {
             rx_state,
             rx_actions,
             rx_masses,
-            imu_parameters,
-            tx_imu,
+            params: imu_parameters,
+            tx_imu_translated,
+            tx_imu_cg,
         })
     }
 }
@@ -88,28 +87,44 @@ impl Node for IdealIMU {
             .try_recv()
             .expect("IMU step executed, but no /rocket/masses input available");
 
-        let cg_to_imu = self.imu_parameters.imu_pos - masses.xcg_total;
+        let cg_to_imu = self.params.pos_r - masses.xcg_total;
         let angvel_b = state.angvel_b();
 
         // From: https://ocw.mit.edu/courses/16-07-dynamics-fall-2009/419be4d742e628d70acfbc5496eab967_MIT16_07F09_Lec25.pdf
-        let acc_imu_pos: Vector3<f64> = actions.acc_b
-            + actions.ang_acc_b.cross(&cg_to_imu)
-            + angvel_b.cross(&angvel_b.cross(&cg_to_imu))
+
+        let meas_acc_cg_b = actions.acc_b
             - state
                 .quat_nb()
-                .inverse_transform_vector(&self.imu_parameters.g_n);
+                .inverse_transform_vector(&self.params.g_n);
 
-        let acc_rotated = self.imu_parameters.imu_mis * self.imu_parameters.imu_rot * acc_imu_pos;
+        let meas_acc_b: Vector3<f64> = meas_acc_cg_b
+            + actions.ang_acc_b.cross(&cg_to_imu)
+            + angvel_b.cross(&angvel_b.cross(&cg_to_imu));
 
-        let w_imu: Vector3<f64> =
-            self.imu_parameters.imu_mis * self.imu_parameters.imu_rot * state.angvel_b();
+        let meas_acc_cg_imu = self
+            .params
+            .quat_imu_b
+            .transform_vector(&meas_acc_cg_b);
+        let meas_acc_imu = self.params.quat_imu_b.transform_vector(&meas_acc_b);
 
-        let sample = IMUSample {
-            acc: acc_rotated,
-            gyro: w_imu,
-        };
+        let meas_angvel_imu: Vector3<f64> =
+            self.params.quat_imu_b.transform_vector(&angvel_b);
 
-        self.tx_imu.send(Timestamp::now(clock), sample);
+        self.tx_imu_cg.send(
+            Timestamp::now(clock),
+            IMUSample {
+                acc: meas_acc_cg_imu,
+                gyro: meas_angvel_imu,
+            },
+        );
+
+        self.tx_imu_translated.send(
+            Timestamp::now(clock),
+            IMUSample {
+                acc: meas_acc_imu,
+                gyro: meas_angvel_imu,
+            },
+        );
 
         Ok(StepResult::Continue)
     }
