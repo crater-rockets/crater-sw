@@ -1,9 +1,7 @@
-use std::panic::panic_any;
-
 use crate::{
     core::time::{Clock, Timestamp},
     crater::sim::{
-        rocket_data::{RocketActions, RocketMassProperties, RocketParams, RocketState},
+        rocket_data::{RocketActions, RocketMassProperties, RocketState},
         sensors::datatypes::IMUSample,
     },
     nodes::{Node, NodeContext, StepResult},
@@ -42,6 +40,7 @@ impl IdealIMU {
         let imu_params = ctx.parameters().get_map("sim.rocket.imu")?;
 
         let tx_imu = ctx.telemetry().publish("/sensors/ideal_imu")?;
+
         let imu_pos = imu_params.get_param("imu_position")?.value_float_arr()?;
         let imu_pos = Vector3::from_column_slice(&imu_pos);
 
@@ -89,21 +88,25 @@ impl Node for IdealIMU {
             .try_recv()
             .expect("IMU step executed, but no /rocket/masses input available");
 
-        let acc: Vector3<f64> = self.imu_parameters.imu_mis
-            * self.imu_parameters.imu_rot
-            * (actions.acc_b
-                + actions
-                    .ang_acc
-                    .cross(&(masses.xcg_total - &self.imu_parameters.imu_pos))
-                + state.angvel_b().cross(&state.angvel_b())
-                - state
-                    .quat_nb()
-                    .inverse_transform_vector(&self.imu_parameters.g_n));
+        let cg_to_imu = self.imu_parameters.imu_pos - masses.xcg_total;
+        let angvel_b = state.angvel_b();
+
+        let acc_imu_pos: Vector3<f64> = actions.acc_b
+            + actions.ang_acc_b.cross(&cg_to_imu)
+            + angvel_b.cross(&angvel_b.cross(&cg_to_imu))
+            - state
+                .quat_nb()
+                .inverse_transform_vector(&self.imu_parameters.g_n);
+
+        let acc_rotated = self.imu_parameters.imu_mis * self.imu_parameters.imu_rot * acc_imu_pos;
 
         let w_imu: Vector3<f64> =
             self.imu_parameters.imu_mis * self.imu_parameters.imu_rot * state.angvel_b();
 
-        let sample = IMUSample { acc, gyro: w_imu };
+        let sample = IMUSample {
+            acc: acc_rotated,
+            gyro: w_imu,
+        };
 
         self.tx_imu.send(Timestamp::now(clock), sample);
 
