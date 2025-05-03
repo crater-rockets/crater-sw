@@ -162,7 +162,6 @@ impl Node for Rocket {
                 &RocketState::default(),
                 &ServoPosition::default(),
                 &*self.engine,
-                &self.params,
                 &self.aerodynamics,
                 &RocketMassProperties::calc_mass(
                     &self.engine.mass(t.monotonic.elapsed_seconds_f64()),
@@ -196,7 +195,6 @@ impl Node for Rocket {
             )),
             &servo_pos,
             &*self.engine,
-            &self.params,
             &self.aerodynamics,
             &RocketMassProperties::calc_mass(
                 &self.engine.mass(t.monotonic.elapsed_seconds_f64()),

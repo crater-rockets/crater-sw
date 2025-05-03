@@ -31,7 +31,6 @@ pub struct MagParams {
 #[derive(Debug)]
 pub struct IdealMagnetometer {
     rx_state: TelemetryReceiver<RocketState>,
-    rx_params: TelemetryReceiver<RocketParams>,
     tx_magn: TelemetrySender<MagnetometerSample>,
     mag_par: MagParams,
     mag_ned: Vector3<f64>,
@@ -40,7 +39,6 @@ pub struct IdealMagnetometer {
 impl IdealMagnetometer {
     pub fn new(ctx: NodeContext) -> Result<Self> {
         let rx_state = ctx.telemetry().subscribe("/rocket/state", Unbounded)?;
-        let rx_params = ctx.telemetry().subscribe("/rocket/params", Unbounded)?;
         let tx_magn = ctx.telemetry().publish("/sensors/ideal_mag")?;
 
         let mag_params = ctx.parameters().get_map("sim.rocket.magnetomer")?;
@@ -90,7 +88,6 @@ impl IdealMagnetometer {
 
         Ok(Self {
             rx_state,
-            rx_params,
             tx_magn,
             mag_par,
             mag_ned,
@@ -106,22 +103,6 @@ impl Node for IdealMagnetometer {
             .try_recv()
             .expect("Magnetometer step executed, but no /rocket/state input available");
 
-        let Timestamped(_, params) = self
-            .rx_params
-            .try_recv()
-            .expect("Magnetometer step executed, but no /rocket/params input available");
-
-        let pos = state.pos_n();
-
-        let (lat, lon, _) = ned2geodetic(
-            pos[0],
-            pos[1],
-            pos[2],
-            params.origin_geo[0],
-            params.origin_geo[1],
-            params.origin_geo[2],
-            map_3d::Ellipsoid::WGS84,
-        );
 
         let sample = MagnetometerSample {
             magfield_b: self
