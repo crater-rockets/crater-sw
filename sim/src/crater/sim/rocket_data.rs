@@ -105,17 +105,17 @@ pub struct RocketMassProperties {
 
 impl RocketMassProperties {
     pub fn calc_mass(prop_mass: RocketEngineMasses, rocket: RocketParams) -> RocketMassProperties{
-        let mass_tot = rocket.mass_empty + prop_mass.mass;
+        let mass_tot = rocket.mass_body + prop_mass.mass;
 
         let mass_dot = prop_mass.mass_dot;
 
         let xcg_prop = rocket.xcg_motor_ref + Vector3::new(prop_mass.xcg, 0.0, 0.0);
 
-        let xcg_total = (prop_mass.mass * (xcg_prop) + rocket.mass_empty * (rocket.xcg_empty))
+        let xcg_total = (prop_mass.mass * (xcg_prop) + rocket.mass_body * (rocket.xcg_empty))
             / mass_tot;
 
-        let inertia_empt: Matrix3<f64> = rocket.inertia_empty
-            - rocket.mass_empty
+        let inertia_body: Matrix3<f64> = rocket.inertia_empty
+            - rocket.mass_body
                 * self::RocketMassProperties::parallel_axis_matrix(
                     xcg_total - rocket.xcg_empty,
                 );
@@ -124,7 +124,7 @@ impl RocketMassProperties {
             - prop_mass.mass
                 * self::RocketMassProperties::parallel_axis_matrix(xcg_total - xcg_prop);
 
-        let inertia = inertia_empt + inertia_mot;
+        let inertia = inertia_body + inertia_mot;
 
         let diff_prop_xcg: Vector3<f64> = xcg_total - xcg_prop;
 
@@ -135,8 +135,11 @@ impl RocketMassProperties {
 
         let inertia_dot = prop_mass.inertia_dot
             - prop_mass.mass
-                * (2.0 * skew_prop_xcg.transpose() * skew_prop_dot_xcg
-                    + skew_prop_dot_xcg.transpose() * skew_prop_xcg);
+                * (skew_prop_xcg.transpose() * skew_prop_dot_xcg
+                    + skew_prop_dot_xcg.transpose() * skew_prop_xcg)
+                    - mass_dot * self::RocketMassProperties::parallel_axis_matrix(
+                        xcg_total - xcg_prop,
+                    );
 
         RocketMassProperties{
             xcg_total,
@@ -161,7 +164,7 @@ impl RocketMassProperties {
 
 #[derive(Debug, Clone)]
 pub struct RocketParams {
-    pub mass_empty: f64,
+    pub mass_body: f64,
     pub inertia_empty: Matrix3<f64>,
     pub xcg_datcom: Vector3<f64>,
     pub xcg_empty: Vector3<f64>,
@@ -191,7 +194,7 @@ impl RocketParams {
         let xcg_empty = params.get_param("xcg_empty")?.value_float_arr()?;
         let xcg_empty = Vector3::from_column_slice(&xcg_empty);
 
-        let xcg_motor_ref = params.get_param("xcg_motor_ref")?.value_float_arr()?;;
+        let xcg_motor_ref = params.get_param("xcg_motor_ref")?.value_float_arr()?;
         let xcg_motor_ref = Vector3::from_column_slice(&xcg_motor_ref);
 
         let var_name = anyhow!("The intertia matrix is not invertible");
@@ -224,7 +227,7 @@ impl RocketParams {
         let g_n = Vector3::from_column_slice(&g_n);
 
         Ok(RocketParams {
-            mass_empty: params.get_param("mass")?.value_randfloat()?.sampled(),
+            mass_body: params.get_param("mass")?.value_randfloat()?.sampled(),
             inertia_empty,
             xcg_datcom,
             xcg_empty,
