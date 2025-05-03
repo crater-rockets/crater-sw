@@ -87,7 +87,7 @@ impl Node for IdealIMU {
             .try_recv()
             .expect("IMU step executed, but no /rocket/masses input available");
 
-        let cg_to_imu = self.params.pos_r - masses.xcg_total;
+        let imu_to_cg = masses.xcg_total - self.params.pos_r;
         let angvel_b = state.angvel_b();
 
         // From: https://ocw.mit.edu/courses/16-07-dynamics-fall-2009/419be4d742e628d70acfbc5496eab967_MIT16_07F09_Lec25.pdf
@@ -98,8 +98,8 @@ impl Node for IdealIMU {
                 .inverse_transform_vector(&self.params.g_n);
 
         let meas_acc_b: Vector3<f64> = meas_acc_cg_b
-            + actions.ang_acc_b.cross(&cg_to_imu)
-            + angvel_b.cross(&angvel_b.cross(&cg_to_imu));
+            + actions.ang_acc_b.cross(&imu_to_cg)
+            + angvel_b.cross(&angvel_b.cross(&imu_to_cg));
 
         let meas_acc_cg_imu = self
             .params
