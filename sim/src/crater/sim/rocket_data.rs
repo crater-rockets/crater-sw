@@ -115,13 +115,13 @@ impl RocketMassProperties {
             / mass_tot;
 
         let inertia_body: Matrix3<f64> = rocket.inertia_empty
-            - rocket.mass_body
+            + rocket.mass_body
                 * self::RocketMassProperties::parallel_axis_matrix(
                     xcg_total - rocket.xcg_empty,
                 );
 
         let inertia_mot: Matrix3<f64> = prop_mass.inertia
-            - prop_mass.mass
+            + prop_mass.mass
                 * self::RocketMassProperties::parallel_axis_matrix(xcg_total - xcg_prop);
 
         let inertia = inertia_body + inertia_mot;
@@ -134,10 +134,10 @@ impl RocketMassProperties {
             self::RocketMassProperties::skew_matrix(Vector3::new(prop_mass.xcg_dot, 0.0, 0.0));
 
         let inertia_dot = prop_mass.inertia_dot
-            - prop_mass.mass
+            + prop_mass.mass
                 * (skew_prop_xcg.transpose() * skew_prop_dot_xcg
                     + skew_prop_dot_xcg.transpose() * skew_prop_xcg)
-                    - mass_dot * self::RocketMassProperties::parallel_axis_matrix(
+                    + mass_dot * self::RocketMassProperties::parallel_axis_matrix(
                         xcg_total - xcg_prop,
                     );
 
