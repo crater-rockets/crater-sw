@@ -1,4 +1,4 @@
-use super::engine::{RocketEngine,RocketEngineMasses};
+use super::engine::{RocketEngine,RocketEngineMassProperties};
 use nalgebra::{Vector3,Matrix3};
 
 pub struct SimpleRocketEngine {
@@ -28,15 +28,15 @@ impl RocketEngine for SimpleRocketEngine {
         }
     }
 
-    fn masses_prop(&self, t: f64) -> RocketEngineMasses {
+    fn mass(&self, t: f64) -> RocketEngineMassProperties {
         let _ = t;
-        RocketEngineMasses {
-            xcg: 0.0,
-            xcg_dot: 0.0,
+        RocketEngineMassProperties {
+            xcg_eng_frame: 0.0,
+            xcg_dot_eng_frame: 0.0,
             mass: 0.0,
             mass_dot: 0.0,
-            inertia: Matrix3::zeros(),
-            inertia_dot: Matrix3::zeros(),
+            inertia_eng_frame: Matrix3::zeros(),
+            inertia_dot_eng_frame: Matrix3::zeros(),
         }
     }
 }

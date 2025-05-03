@@ -1,4 +1,4 @@
-use super::engine::{RocketEngine, RocketEngineMasses};
+use super::engine::{RocketEngine, RocketEngineMassProperties};
 use crate::math::interp::{find_index, interpolate, InterpPos};
 
 use nalgebra::{Matrix3, Vector3};
@@ -88,24 +88,24 @@ impl TabRocketEngine {
 }
 
 impl RocketEngine for TabRocketEngine {
-    fn thrust_b(&self, t: f64) -> Vector3<f64> {
-        let int = find_index(&self.thrust_time, t);
+    fn thrust_b(&self, t_sec: f64) -> Vector3<f64> {
+        let int = find_index(&self.thrust_time, t_sec);
         Vector3::new(interpolate(&self.thrust_value, int).0, 0.0, 0.0)
     }
 
-    fn masses_prop(&self, t: f64) -> RocketEngineMasses {
-        let int = find_index(&self.mass_time, t);
+    fn mass(&self, t_sec: f64) -> RocketEngineMassProperties {
+        let int = find_index(&self.mass_time, t_sec);
         let xcg_int = interpolate(&self.xcg_value, int);
         let mass_int = interpolate(&self.mass_value, int);
         let in_xx_int = interpolate(&self.inertia_xx_value, int);
         let in_yy_int = interpolate(&self.inertia_yy_value, int);
         let in_zz_int = interpolate(&self.inertia_zz_value, int);
-        RocketEngineMasses {
-            xcg: xcg_int.0,
-            xcg_dot: xcg_int.1,
+        RocketEngineMassProperties {
+            xcg_eng_frame: xcg_int.0,
+            xcg_dot_eng_frame: xcg_int.1,
             mass: mass_int.0,
             mass_dot: mass_int.1,
-            inertia: Matrix3::new(
+            inertia_eng_frame: Matrix3::new(
                 in_xx_int.0,
                 0.0,
                 0.0,
@@ -116,7 +116,7 @@ impl RocketEngine for TabRocketEngine {
                 0.0,
                 in_zz_int.0,
             ),
-            inertia_dot: Matrix3::new(
+            inertia_dot_eng_frame: Matrix3::new(
                 in_xx_int.1,
                 0.0,
                 0.0,
