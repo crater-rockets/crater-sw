@@ -14,7 +14,7 @@ use map_3d::ned2geodetic;
 use nalgebra::{Matrix3, Quaternion, UnitQuaternion, Vector3, Vector4};
 use num_traits::ToPrimitive;
 use world_magnetic_model::{
-    time::OffsetDateTime,
+    time::{macros::format_description, Date, OffsetDateTime},
     uom::si::{
         f32::{Angle, Length},
         length::meter,
@@ -34,6 +34,7 @@ pub struct IdealMagnetometer {
     rx_params: TelemetryReceiver<RocketParams>,
     tx_magn: TelemetrySender<MagnetometerSample>,
     mag_par: MagParams,
+    mag_ned: Vector3<f64>,
 }
 
 impl IdealMagnetometer {
@@ -51,11 +52,48 @@ impl IdealMagnetometer {
 
         let mag_par: MagParams = MagParams { quat_mag_b };
 
+        let latitude_rad = ctx
+            .parameters()
+            .get_param("sim.rocket.init.latitude")?
+            .value_float()?
+            .to_radians();
+        let longitude_rad = ctx
+            .parameters()
+            .get_param("sim.rocket.init.longitude")?
+            .value_float()?
+            .to_radians();
+        let altitude_m = ctx
+            .parameters()
+            .get_param("sim.rocket.init.altitude")?
+            .value_float()?;
+        let date_str = ctx
+            .parameters()
+            .get_param("sim.rocket.date")?
+            .value_string()?;
+
+        let format = format_description!("[year]-[month]-[day]");
+        let date = Date::parse(&date_str, format)?;
+
+        let mag_field = GeomagneticField::new(
+            Length::new::<meter>(altitude_m as f32),
+            Angle::new::<radian>(latitude_rad as f32),
+            Angle::new::<radian>(longitude_rad as f32),
+            date,
+        )
+        .unwrap();
+
+        let mag_n = mag_field.x().get::<nanotesla>().to_f64().unwrap();
+        let mag_e = mag_field.y().get::<nanotesla>().to_f64().unwrap();
+        let mag_d = mag_field.z().get::<nanotesla>().to_f64().unwrap();
+
+        let mag_ned: Vector3<f64> = Vector3::new(mag_n, mag_e, mag_d);
+
         Ok(Self {
             rx_state,
             rx_params,
             tx_magn,
             mag_par,
+            mag_ned,
         })
     }
 }
@@ -85,28 +123,11 @@ impl Node for IdealMagnetometer {
             map_3d::Ellipsoid::WGS84,
         );
 
-        let alt = (-state.pos_n().z + params.origin_geo.z).to_f32().unwrap();
-        let today = OffsetDateTime::now_utc().date();
-
-        let mag_field = GeomagneticField::new(
-            Length::new::<meter>(alt),
-            Angle::new::<radian>(lat.to_f32().unwrap()),
-            Angle::new::<radian>(lon.to_f32().unwrap()),
-            today,
-        )
-        .unwrap();
-
-        let mag_n = mag_field.x().get::<nanotesla>().to_f64().unwrap();
-        let mag_e = mag_field.y().get::<nanotesla>().to_f64().unwrap();
-        let mag_d = mag_field.z().get::<nanotesla>().to_f64().unwrap();
-
-        let mag_ned: Vector3<f64> = Vector3::new(mag_n, mag_e, mag_n);
-
         let sample = MagnetometerSample {
             magfield_b: self
                 .mag_par
                 .quat_mag_b
-                .transform_vector(&state.quat_nb().inverse_transform_vector(&mag_ned)),
+                .transform_vector(&state.quat_nb().inverse_transform_vector(&self.mag_ned)),
         };
 
         self.tx_magn.send(Timestamp::now(clock), sample);
