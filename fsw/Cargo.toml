@@ -10,7 +10,7 @@ embassy-stm32 = { version = "0.2.0", features = [
     "stm32f756zg",
     "memory-x",
     "unstable-pac",
-    "time-driver-tim2"
+    "time-driver-tim2",
 ] }
 embassy-sync = { version = "0.6.2", features = ["defmt"] }
 embassy-executor = { version = "0.7.0", features = [
@@ -55,9 +55,14 @@ uom = { version = "0.36.0", default-features = false, features = [
     "f32",
     "si",
 ] }
+embedded-alloc = "0.6.0"
+crater-gnc = { path = "../gnc", default-features = false, features = [
+    "mav_crater",
+    "embedded",
+] }
 
 
 [lib]
 [profile.dev]
-opt-level = 2               # Use slightly better optimizations.
-overflow-checks = false     # Disable integer overflow checks.
+opt-level = 2           # Use slightly better optimizations.
+overflow-checks = false # Disable integer overflow checks.
