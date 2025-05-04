@@ -1411,11 +1411,14 @@ name = "crater-gnc"
 version = "0.1.0"
 dependencies = [
  "bitflags 2.9.0",
+ "defmt-or-log",
+ "log",
  "mavlink",
  "mavlink-bindgen",
  "mavlink-core",
  "num-derive 0.4.2",
  "num-traits",
+ "serde",
  "thiserror 2.0.12",
 ]
 
@@ -1600,6 +1603,27 @@ name = "data-url"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c297a1c74b71ae29df00c3e22dd9534821d60eb9af5a0192823fa2acea70c2a"
+
+[[package]]
+name = "defmt-or-log"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8370630b4dee85ab47d9087813771c5c7fe88d24fdd48649bbdfe6089da4c53a"
+dependencies = [
+ "defmt-or-log-macros",
+ "log",
+]
+
+[[package]]
+name = "defmt-or-log-macros"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d675dd299edbb7c8e01d4e9f520a0d8f22a8fe4af812c211c3fad5e9dcf41763"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
 
 [[package]]
 name = "deranged"
@@ -3660,6 +3684,8 @@ dependencies = [
  "mavlink-core",
  "num-derive 0.3.3",
  "num-traits",
+ "serde",
+ "serde_arrays",
 ]
 
 [[package]]
@@ -3684,6 +3710,8 @@ checksum = "0e64d975ca3cf0ad8a7c278553f91d77de15fcde9b79bf6bc542e209dd0c7dee"
 dependencies = [
  "byteorder",
  "crc-any",
+ "serde",
+ "serde_arrays",
 ]
 
 [[package]]
@@ -7040,6 +7068,15 @@ dependencies = [
  "js-sys",
  "serde",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "serde_arrays"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38636132857f68ec3d5f3eb121166d2af33cb55174c4d5ff645db6165cbef0fd"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
