@@ -1,0 +1,28 @@
+{
+    "rust-analyzer.cargo.allTargets": false,
+
+    // Uncomment the following when using the simulator
+    "rust-analyzer.linkedProjects": [
+        "gnc/Cargo.toml",
+        "sim/Cargo.toml",
+    ]
+
+    // Uncomment the following when writing for gnc crate on an embedded target
+    // "rust-analyzer.cargo.target": "thumbv7em-none-eabihf",
+    // "rust-analyzer.linkedProjects": [
+    //     "gnc/Cargo.toml",
+    // ],
+    // "rust-analyzer.cargo.noDefaultFeatures": true,
+    // "rust-analyzer.cargo.features": [
+    //     "mav_crater",
+    //     "embedded",
+    //     "defmt"
+    // ],
+
+
+    // Uncomment the following when writing for fsw crate on an embedded target
+    // "rust-analyzer.cargo.target": "thumbv7em-none-eabihf",
+    // "rust-analyzer.linkedProjects": [
+    //     "fsw/Cargo.toml",
+    // ],
+}
