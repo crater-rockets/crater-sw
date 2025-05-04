@@ -4,5 +4,30 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bitflags = "2.9.0"
+mavlink = { version = "0.13.1", default-features = false }
+mavlink-core = { version = "0.13.1", default-features = false }
+num-derive = "0.4.2"
+num-traits = { version = "0.2.19", default-features = false }
+serde = { version = "1.0.219", optional = true, default-features = false, features = [
+    "derive",
+] }
+thiserror = { version = "2.0.12", default-features = false }
+
+[build-dependencies]
+mavlink-bindgen = "0.13.1"
 
 [lib]
+
+[features]
+default = ["mav_crater", "std"]
+mav_crater = []
+std = [
+    "mavlink/std",
+    "mavlink-core/std",
+    "num-traits/std",
+    "thiserror/std",
+    "serde/std",
+]
+serde = ["dep:serde", "mavlink/serde", "mavlink-core/serde"]
+embedded = ["mavlink-core/embedded"]
