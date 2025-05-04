@@ -155,10 +155,13 @@
             </entry>
         </enum>
 
-        <enum name="COMPONENT_IDS">
+        <enum name="COMPONENT_ID">
             <description>Crater component ids</description>
-            <entry name="MainFSM" value="1">
-                <description>Main crater state machine</description>
+            <entry name="All" value="0">
+                <description>Wildcard value matching any component</description>
+            </entry>
+            <entry name="FlightModeManager" value="1">
+                <description>Flight Mode Manager</description>
             </entry>
         </enum>
     </enums>

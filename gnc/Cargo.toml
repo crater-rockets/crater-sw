@@ -16,6 +16,9 @@ serde = { version = "1.0.219", optional = true, default-features = false, featur
     "derive",
 ] }
 thiserror = { version = "2.0.12", default-features = false }
+statig = "0.3.0"
+heapless = "0.8.0"
+fugit = "0.3.7"
 
 [build-dependencies]
 mavlink-bindgen = "0.13.1"

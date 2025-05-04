@@ -5,10 +5,8 @@ pub enum ReceiveError {
     #[error("No data available")]
     Empty,
 }
-pub trait Receiver {
-    type Item;
-
-    fn try_recv(&mut self) -> Result<Self::Item, ReceiveError>;
+pub trait Receiver<T> {
+    fn try_recv(&mut self) -> Result<T, ReceiveError>;
 
     fn len(&self) -> usize;
 
