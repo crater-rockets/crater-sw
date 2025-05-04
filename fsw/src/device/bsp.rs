@@ -1,11 +1,20 @@
 use embassy_stm32::{
-    gpio::{self, AnyPin, Output, Pin}, interrupt::typelevel::Interrupt, mode::Blocking, pac::{EXTI, SYSCFG}, spi::{self, Spi}, time::Hertz, usart::{self, Uart}, Config
+    Config,
+    gpio::{self, AnyPin, Output, Pin},
+    interrupt::typelevel::Interrupt,
+    mode::Blocking,
+    pac::{EXTI, SYSCFG},
+    spi::{self, Spi},
+    time::Hertz,
+    usart::{self, Uart},
 };
 use embassy_sync::{
     blocking_mutex::raw::{CriticalSectionRawMutex, ThreadModeRawMutex},
     mutex::Mutex,
 };
 use static_cell::StaticCell;
+
+use crate::HEAP;
 
 pub struct Bmp390 {
     pub cs: Output<'static>,
@@ -30,6 +39,14 @@ pub static INT_RESPONSE_PIN: Mutex<CriticalSectionRawMutex, Option<Output<'stati
 
 impl CraterBsp {
     pub async fn init() -> CraterBsp {
+        // Initalize the heap
+        {
+            use core::mem::MaybeUninit;
+            const HEAP_SIZE: usize = 1024 * 50;
+            static mut HEAP_MEM: [MaybeUninit<u8>; HEAP_SIZE] = [MaybeUninit::uninit(); HEAP_SIZE];
+            unsafe { HEAP.init(&raw mut HEAP_MEM as usize, HEAP_SIZE) }
+        }
+
         let p = embassy_stm32::init(Default::default());
 
         let exti_pin = p.PG2;
@@ -39,7 +56,7 @@ impl CraterBsp {
         critical_section::with(|_| {
             let pin = pin as usize;
             SYSCFG.exticr(pin / 4).modify(|w| w.set_exti(pin % 4, port));
-            
+
             EXTI.rtsr(0).modify(|w| w.set_line(pin, true));
             EXTI.ftsr(0).modify(|w| w.set_line(pin, false));
 
