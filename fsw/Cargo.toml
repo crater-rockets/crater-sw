@@ -59,6 +59,7 @@ embedded-alloc = "0.6.0"
 crater-gnc = { path = "../gnc", default-features = false, features = [
     "mav_crater",
     "embedded",
+    "defmt"
 ] }
 
 

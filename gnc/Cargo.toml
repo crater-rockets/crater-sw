@@ -5,6 +5,9 @@ edition = "2024"
 
 [dependencies]
 bitflags = "2.9.0"
+defmt-or-log = "0.2.1"
+defmt = {version = "1.0.1", optional = true }
+log = { version = "0.4.27", optional = true }
 mavlink = { version = "0.13.1", default-features = false }
 mavlink-core = { version = "0.13.1", default-features = false }
 num-derive = "0.4.2"
@@ -20,14 +23,16 @@ mavlink-bindgen = "0.13.1"
 [lib]
 
 [features]
-default = ["mav_crater", "std"]
+default = ["mav_crater", "std", "log"]
 mav_crater = []
 std = [
     "mavlink/std",
     "mavlink-core/std",
     "num-traits/std",
     "thiserror/std",
-    "serde/std",
+    "serde/std"
 ]
 serde = ["dep:serde", "mavlink/serde", "mavlink-core/serde"]
 embedded = ["mavlink-core/embedded"]
+defmt = ["defmt-or-log/defmt", "dep:defmt"]
+log = ["defmt-or-log/log", "dep:log"]
