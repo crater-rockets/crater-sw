@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 bitflags = "2.9.0"
 defmt-or-log = "0.2.1"
-defmt = {version = "1.0.1", optional = true }
+defmt = { version = "1.0.1", optional = true }
 log = { version = "0.4.27", optional = true }
 mavlink = { version = "0.13.1", default-features = false }
 mavlink-core = { version = "0.13.1", default-features = false }
@@ -16,9 +16,16 @@ serde = { version = "1.0.219", optional = true, default-features = false, featur
     "derive",
 ] }
 thiserror = { version = "2.0.12", default-features = false }
-statig = "0.3.0"
+statig = { git = "https://github.com/Hixos/statig.git" }
 heapless = "0.8.0"
 fugit = "0.3.7"
+uom = { version = "0.36.0", default-features = false, features = [
+    "f64",
+    "f32",
+    "i64",
+    "si",
+    "autoconvert",
+] }
 
 [build-dependencies]
 mavlink-bindgen = "0.13.1"
@@ -33,7 +40,7 @@ std = [
     "mavlink-core/std",
     "num-traits/std",
     "thiserror/std",
-    "serde/std"
+    "serde/std",
 ]
 serde = ["dep:serde", "mavlink/serde", "mavlink-core/serde"]
 embedded = ["mavlink-core/embedded"]

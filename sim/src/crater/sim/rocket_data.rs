@@ -1,7 +1,7 @@
 use core::f64;
 
 use anyhow::{anyhow, Result};
-use nalgebra::{matrix, Matrix3, Quaternion, SVector, UnitQuaternion, Vector3, Vector4};
+use nalgebra::{matrix, vector, Matrix3, Quaternion, SVector, UnitQuaternion, Vector3, Vector4};
 
 use crate::parameters::ParameterMap;
 
@@ -83,10 +83,18 @@ pub struct RocketActions {
     pub aero_force_b: Vector3<f64>,
     pub aero_torque_b: Vector3<f64>,
 
+    pub force_n: Vector3<f64>,
+    pub force_b: Vector3<f64>,
+    pub torque_b: Vector3<f64>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct RocketAccelerations {
     pub acc_n: Vector3<f64>, // Acceleration
     pub acc_b: Vector3<f64>, // Acceleration
     pub ang_acc_b: Vector3<f64> // Angular acceleration
 }
+
 
 #[derive(Debug, Clone)]
 pub struct AeroAngles {
@@ -182,6 +190,7 @@ pub struct RocketParams {
     pub max_t: f64,
     pub azimuth: f64,
     pub elevation: f64,
+    pub ramp_versor: Vector3<f64>,
 
     pub disturb_const_force_b: Vector3<f64>,
     pub disturb_const_torque_b: Vector3<f64>,
@@ -242,6 +251,22 @@ impl RocketParams {
             .value_float_arr()?;
         let disturb_const_torque_b = Vector3::from_column_slice(&disturb_const_torque_b);
 
+        let azimuth = params
+            .get_param("init.azimuth")?
+            .value_randfloat()?
+            .sampled()
+            .to_radians();
+
+        let elevation =  params
+            .get_param("init.elevation")?
+            .value_randfloat()?
+            .sampled()
+            .to_radians();
+
+        let q_nb = UnitQuaternion::from_euler_angles(0.0, elevation, azimuth);
+        let mut pad_versor_n = q_nb.transform_vector(&vector![1.0, 0.0, 0.0]);
+        pad_versor_n.normalize_mut();
+
         Ok(RocketParams {
             mass_body: params.get_param("mass")?.value_randfloat()?.sampled(),
             inertia_body_body_frame: inertia_empty,
@@ -257,16 +282,9 @@ impl RocketParams {
             diameter,
             surface,
             max_t: params.get_param("max_t")?.value_float()?,
-            azimuth: params
-                .get_param("init.azimuth")?
-                .value_randfloat()?
-                .sampled()
-                .to_radians(),
-            elevation: params
-                .get_param("init.elevation")?
-                .value_randfloat()?
-                .sampled()
-                .to_radians(),
+            azimuth,
+            elevation,
+            ramp_versor: pad_versor_n,
             disturb_const_force_b,
             disturb_const_torque_b
         },)

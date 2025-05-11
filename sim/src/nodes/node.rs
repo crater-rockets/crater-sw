@@ -1,5 +1,4 @@
 use chrono::TimeDelta;
-use rand::{rngs::OsRng, TryRngCore};
 use rand_xoshiro::{
     rand_core::{RngCore, SeedableRng},
     SplitMix64, Xoshiro256StarStar,
@@ -13,9 +12,7 @@ use thiserror::Error;
 use crate::{
     core::{path::Path, time::Clock},
     parameters::ParameterMap,
-    telemetry::{
-        TelemetryDispatcher, TelemetryError, TelemetryReceiver, TelemetrySender, TelemetryService,
-    },
+    telemetry::{TelemetryError, TelemetryReceiver, TelemetrySender, TelemetryService},
     utils::capacity::Capacity,
 };
 
@@ -47,7 +44,7 @@ pub struct NodeManager {
     parameters: Arc<ParameterMap>,
     nodes: Vec<(String, Box<dyn Node + Send>)>,
     rng: Arc<Mutex<SplitMix64>>,
-    seed: u64
+    seed: u64,
 }
 
 impl NodeManager {
@@ -184,33 +181,54 @@ impl NodeTelemetry {
             output_map,
         }
     }
-}
 
-impl TelemetryDispatcher for NodeTelemetry {
-    fn publish<T: 'static + Send>(
+    fn map_output(&self, channel_name: &str) -> Result<Path, TelemetryError> {
+        if self.output_map.contains_key(channel_name) {
+            Ok(self.output_map.get(channel_name).unwrap().clone())
+        } else {
+            Ok(Path::from_str(channel_name).map_err(|_| TelemetryError::InvalidChannelName)?)
+        }
+    }
+
+    fn map_input(&self, channel_name: &str) -> Result<Path, TelemetryError> {
+        if self.input_map.contains_key(channel_name) {
+            Ok(self.input_map.get(channel_name).unwrap().clone())
+        } else {
+            Ok(Path::from_str(channel_name).map_err(|_| TelemetryError::InvalidChannelName)?)
+        }
+    }
+
+    pub fn publish<T: 'static + Send>(
         &self,
         channel_name: &str,
     ) -> Result<TelemetrySender<T>, TelemetryError> {
-        let path = if self.output_map.contains_key(channel_name) {
-            self.output_map.get(channel_name).unwrap().clone()
-        } else {
-            Path::from_str(channel_name).map_err(|_| TelemetryError::InvalidChannelName)?
-        };
-
-        self.telemetry.publish::<T>(path.as_str())
+        self.telemetry
+            .publish::<T>(self.map_output(channel_name)?.as_str())
     }
 
-    fn subscribe<T: 'static + Send>(
+    pub fn publish_mp<T: 'static + Send>(
+        &self,
+        channel_name: &str,
+    ) -> Result<TelemetrySender<T>, TelemetryError> {
+        self.telemetry
+            .publish_mp::<T>(self.map_output(channel_name)?.as_str())
+    }
+
+    pub fn subscribe<T: 'static + Send>(
         &self,
         channel_name: &str,
         capacity: Capacity,
     ) -> Result<TelemetryReceiver<T>, TelemetryError> {
-        let path = if self.input_map.contains_key(channel_name) {
-            self.input_map.get(channel_name).unwrap().clone()
-        } else {
-            Path::from_str(channel_name).map_err(|_| TelemetryError::InvalidChannelName)?
-        };
+        self.telemetry
+            .subscribe::<T>(self.map_input(channel_name)?.as_str(), capacity)
+    }
 
-        self.telemetry.subscribe::<T>(path.as_str(), capacity)
+    pub fn subscribe_mp<T: 'static + Send>(
+        &self,
+        channel_name: &str,
+        capacity: Capacity,
+    ) -> Result<TelemetryReceiver<T>, TelemetryError> {
+        self.telemetry
+            .subscribe_mp::<T>(self.map_input(channel_name)?.as_str(), capacity)
     }
 }

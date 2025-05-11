@@ -1,2 +1,5 @@
-pub mod events;
-pub mod event_queue;
+mod event;
+mod event_queue;
+
+pub use event::Event;
+pub use event_queue::{EventItem, EventPublisher, EventQueue};

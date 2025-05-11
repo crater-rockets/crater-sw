@@ -17,3 +17,9 @@ pub struct GPSSample {
 pub struct MagnetometerSample {
     pub magfield_b: Vector3<f64>,
 }
+
+
+#[derive(Debug, Clone, Default)]
+pub struct PressureSample {
+    pub pressure_pa: f64
+}

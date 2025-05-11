@@ -1,25 +1,28 @@
 use core::sync::atomic::AtomicBool;
 
-use crate::mav_crater::ComponentId;
+use crate::{Instant, common::Ts, mav_crater::ComponentId};
 
-use super::events::Event;
+use super::event::Event;
 use alloc::sync::Arc;
 use heapless::mpmc::MpMcQueue;
 
 static QUEUE_SIZE: usize = 64;
 
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EventItem {
-    pub component_id: ComponentId,
+    pub src: ComponentId,
     pub event: Event,
 }
 
+#[derive(Default)]
 pub struct EventQueue {
     dispatcher: Arc<EventQueueInner>,
 }
 
 #[derive(Default)]
 struct EventQueueInner {
-    ev_queue: MpMcQueue<EventItem, QUEUE_SIZE>,
+    ev_queue: MpMcQueue<Ts<EventItem>, QUEUE_SIZE>,
     queue_full_signal: AtomicBool,
 }
 
@@ -30,13 +33,14 @@ impl EventQueue {
         }
     }
 
-    pub fn get_publisher(&self) -> EventPublisher {
+    pub fn get_publisher(&self, src: ComponentId) -> EventPublisher {
         EventPublisher {
             dispatcher: self.dispatcher.clone(),
+            src,
         }
     }
 
-    pub fn pop_event(&self) -> Option<EventItem> {
+    pub fn pop_event(&self) -> Option<Ts<EventItem>> {
         self.dispatcher.ev_queue.dequeue()
     }
 
@@ -55,16 +59,20 @@ impl EventQueue {
 
 pub struct EventPublisher {
     dispatcher: Arc<EventQueueInner>,
+    src: ComponentId,
 }
 
 impl EventPublisher {
-    pub fn publish(&self, component_id: ComponentId, event: Event) {
+    pub fn publish(&self, event: Event, ts: Instant) {
         if self
             .dispatcher
             .ev_queue
-            .enqueue(EventItem {
-                component_id,
-                event,
+            .enqueue(Ts {
+                t: ts,
+                v: EventItem {
+                    src: self.src,
+                    event,
+                },
             })
             .is_err()
         {

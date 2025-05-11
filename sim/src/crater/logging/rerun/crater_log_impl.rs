@@ -1,14 +1,19 @@
+use crater_gnc::components::ada::AdaResult;
 use map_3d::ned2geodetic;
 use nalgebra::Vector3;
-use rerun::{components::RotationQuat, Quaternion, RecordingStream};
+use rerun::{Quaternion, RecordingStream, TextLogLevel, components::RotationQuat};
+use uom::si::{length::meter, velocity::meter_per_second};
 
 use crate::{
     core::time::Timestamp,
     crater::sim::{
-        engine::engine::RocketEngineMassProperties,
+        events::{Event, GncEventItem, SimEvent},
         gnc::ServoPosition,
-        rocket_data::{AeroAngles, RocketActions, RocketMassProperties, RocketParams, RocketState},
-        sensors::{ideal::IdealIMU, IMUSample, MagnetometerSample},
+        rocket_data::{
+            AeroAngles, RocketAccelerations, RocketActions, RocketMassProperties, RocketParams,
+            RocketState,
+        },
+        sensors::{IMUSample, MagnetometerSample, ideal::IdealIMU},
     },
 };
 
@@ -288,32 +293,6 @@ impl RerunWrite for RocketActionsLog {
             &rerun::Scalar::new(actions.aero_torque_b[2]),
         )?;
 
-        rec.log(
-            format!("{ent_path}/acc_b/x"),
-            &rerun::Scalar::new(actions.acc_b[0]),
-        )?;
-        rec.log(
-            format!("{ent_path}/acc_b/y"),
-            &rerun::Scalar::new(actions.acc_b[1]),
-        )?;
-        rec.log(
-            format!("{ent_path}/acc_b/z"),
-            &rerun::Scalar::new(actions.acc_b[2]),
-        )?;
-
-        rec.log(
-            format!("{ent_path}/acc_n/x"),
-            &rerun::Scalar::new(actions.acc_n[0]),
-        )?;
-        rec.log(
-            format!("{ent_path}/acc_n/y"),
-            &rerun::Scalar::new(actions.acc_n[1]),
-        )?;
-        rec.log(
-            format!("{ent_path}/acc_n/z"),
-            &rerun::Scalar::new(actions.acc_n[2]),
-        )?;
-
         let thrust_scaled = actions.thrust_b / 20.0;
         let aero_force_scaled = actions.aero_force_b / 1.0;
 
@@ -329,6 +308,51 @@ impl RerunWrite for RocketActionsLog {
             &rerun::Arrows3D::from_vectors([vec3_to_slice(&aero_force_scaled)])
                 .with_colors([rerun::Color::from_rgb(0, 0, 255)])
                 .with_origins([[0.0, 0.0, 0.0]]),
+        )?;
+
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct RocketAccelLog;
+
+impl RerunWrite for RocketAccelLog {
+    type Telem = RocketAccelerations;
+
+    fn write(
+        &mut self,
+        rec: &mut RecordingStream,
+        ent_path: &str,
+        ts: Timestamp,
+        accel: RocketAccelerations,
+    ) -> Result<()> {
+        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+
+        rec.log(
+            format!("{ent_path}/acc_b/x"),
+            &rerun::Scalar::new(accel.acc_b[0]),
+        )?;
+        rec.log(
+            format!("{ent_path}/acc_b/y"),
+            &rerun::Scalar::new(accel.acc_b[1]),
+        )?;
+        rec.log(
+            format!("{ent_path}/acc_b/z"),
+            &rerun::Scalar::new(accel.acc_b[2]),
+        )?;
+
+        rec.log(
+            format!("{ent_path}/acc_n/x"),
+            &rerun::Scalar::new(accel.acc_n[0]),
+        )?;
+        rec.log(
+            format!("{ent_path}/acc_n/y"),
+            &rerun::Scalar::new(accel.acc_n[1]),
+        )?;
+        rec.log(
+            format!("{ent_path}/acc_n/z"),
+            &rerun::Scalar::new(accel.acc_n[2]),
         )?;
 
         Ok(())
@@ -420,10 +444,7 @@ impl RerunWrite for RocketMassPropertiesLog {
             &rerun::Scalar::new(mass.xcg_total[2]),
         )?;
 
-        rec.log(
-            "timeseries/masses/mass_tot",
-            &rerun::Scalar::new(mass.mass),
-        )?;
+        rec.log("timeseries/masses/mass_tot", &rerun::Scalar::new(mass.mass))?;
 
         rec.log(
             "timeseries/masses/mass_dot",
@@ -601,6 +622,84 @@ impl RerunWrite for MagnetometerSampleLog {
         rec.log(
             format!("{}/z", ent_path),
             &rerun::Scalar::new(mag.magfield_b.z),
+        )?;
+
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct GncEventLog;
+
+impl RerunWrite for GncEventLog {
+    type Telem = GncEventItem;
+
+    fn write(
+        &mut self,
+        rec: &mut RecordingStream,
+        ent_path: &str,
+        ts: Timestamp,
+        event: GncEventItem,
+    ) -> Result<()> {
+        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+
+        rec.log(
+            format!("{}", ent_path),
+            &rerun::TextLog::new(format!("{:?} from {:#?}", event.event, event.src))
+                .with_level(TextLogLevel::INFO),
+        )?;
+
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct SimEventLog;
+
+impl RerunWrite for SimEventLog {
+    type Telem = SimEvent;
+
+    fn write(
+        &mut self,
+        rec: &mut RecordingStream,
+        ent_path: &str,
+        ts: Timestamp,
+        event: SimEvent,
+    ) -> Result<()> {
+        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+
+        rec.log(
+            format!("{}", ent_path),
+            &rerun::TextLog::new(format!("{:?}", event)).with_level(TextLogLevel::TRACE),
+        )?;
+
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct AdaOutputLog;
+
+impl RerunWrite for AdaOutputLog {
+    type Telem = AdaResult;
+
+    fn write(
+        &mut self,
+        rec: &mut RecordingStream,
+        ent_path: &str,
+        ts: Timestamp,
+        ada: AdaResult,
+    ) -> Result<()> {
+        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+
+        rec.log(
+            format!("{}/altitude_m", ent_path),
+            &rerun::Scalar::new(ada.altitude.get::<meter>() as f64),
+        )?;
+
+        rec.log(
+            format!("{}/vertical_speed_m_s", ent_path),
+            &rerun::Scalar::new(ada.vertical_speed.get::<meter_per_second>() as f64),
         )?;
 
         Ok(())

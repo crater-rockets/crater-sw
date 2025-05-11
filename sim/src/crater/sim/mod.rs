@@ -7,3 +7,4 @@ pub mod rocket_data;
 pub mod actuators;
 pub mod gnc;
 pub mod sensors;
+pub mod events;

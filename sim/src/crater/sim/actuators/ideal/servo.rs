@@ -2,7 +2,7 @@ use crate::{
     core::time::{Clock, Timestamp},
     crater::sim::gnc::ServoPosition,
     nodes::{Node, NodeContext, StepResult},
-    telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetrySender, Timestamped},
+    telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
 };
 use anyhow::Result;

@@ -2,6 +2,14 @@
 #![no_main]
 
 use core::{fmt::Write, marker::PhantomData};
+use crater_fsw::{
+    device::{
+        bsp::{CraterBsp, INT_RESPONSE_PIN, SPI_1},
+        spi::{SpiDevice, SpiTransaction},
+    },
+    sensors::bmp390::{self, Bmp390},
+};
+use crater_gnc::main_loop::MainLoop;
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_stm32::{
@@ -17,16 +25,15 @@ use embassy_sync::{
     mutex::Mutex,
     signal::Signal,
 };
-use crater_fsw::{device::{
-    bsp::{CraterBsp, INT_RESPONSE_PIN, SPI_1},
-    spi::{SpiDevice, SpiTransaction},
-}, sensors::bmp390::{self, Bmp390}};
 use embassy_time::{Instant, Timer};
 use heapless::String;
 use static_cell::StaticCell;
 use uom::si::{pressure::pascal, thermodynamic_temperature::degree_celsius};
 use {defmt_rtt as _, panic_probe as _};
 // use {defmt_serial as _, panic_probe as _};
+extern crate alloc;
+use alloc::vec::Vec;
+
 
 struct TimestampInterruptHandler<I> {
     _phantom: PhantomData<I>,
@@ -73,6 +80,16 @@ async fn main(_spawner: Spawner) {
 
     Timer::after_millis(20).await;
 
+    let mut vec = Vec::new();
+
+    vec.push(0);
+    vec.push(1);
+
+    for v in &vec {
+        info!("Value: {}", v);
+    }
+
+    
     loop {
         let sample = bmp390.sample().await;
         info!(
