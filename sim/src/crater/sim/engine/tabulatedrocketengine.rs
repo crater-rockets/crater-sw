@@ -1,5 +1,5 @@
 use super::engine::{RocketEngine, RocketEngineMassProperties};
-use crate::math::interp::{find_index, interpolate, InterpPos};
+use crate::math::interp::{find_index, interpolate};
 
 use nalgebra::{Matrix3, Vector3};
 use serde_json::Value;

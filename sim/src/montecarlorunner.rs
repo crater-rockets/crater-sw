@@ -1,22 +1,22 @@
 use std::{
     fs,
     path::{Path, PathBuf},
-    sync::{atomic::AtomicUsize, mpsc::Sender, Arc},
+    sync::{Arc, atomic::AtomicUsize, mpsc::Sender},
     thread::available_parallelism,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use anyhow::Result;
-use chrono::{format, TimeDelta};
+use chrono::TimeDelta;
 use log::info;
-use rand::{rngs::OsRng, TryRngCore};
+use rand::{TryRngCore, rngs::OsRng};
 use serde::Serialize;
 
 use crate::{
     crater::logging::rerun::{RerunLogConfig, RerunLoggerBuilder},
     model::ModelBuilder,
     nodes::{FtlOrderedExecutor, NodeManager},
-    parameters::{parameters, ParameterMap},
+    parameters::{ParameterMap, parameters},
     telemetry::TelemetryService,
 };
 
@@ -63,14 +63,12 @@ fn worker(
 
         model.build(&mut nm)?;
 
-
         let dt_sec = params.get_param("sim.dt")?.value_float()?;
         let dt = (dt_sec * 1000000.0) as i64;
 
         let start_time = Instant::now();
         FtlOrderedExecutor::run_blocking(nm, TimeDelta::microseconds(dt))?;
         let sim_duration = Instant::now() - start_time;
-
 
         let start_time = Instant::now();
         let mut rec = rerun::RecordingStreamBuilder::new("crater")

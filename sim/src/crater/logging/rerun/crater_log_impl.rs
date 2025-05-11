@@ -7,13 +7,12 @@ use uom::si::{length::meter, velocity::meter_per_second};
 use crate::{
     core::time::Timestamp,
     crater::sim::{
-        events::{Event, GncEventItem, SimEvent},
+        events::{GncEventItem, SimEvent},
         gnc::ServoPosition,
         rocket_data::{
-            AeroAngles, RocketAccelerations, RocketActions, RocketMassProperties, RocketParams,
-            RocketState,
+            AeroAngles, RocketAccelerations, RocketActions, RocketMassProperties, RocketState,
         },
-        sensors::{IMUSample, MagnetometerSample, ideal::IdealIMU},
+        sensors::{IMUSample, MagnetometerSample},
     },
 };
 
@@ -423,7 +422,7 @@ impl RerunWrite for RocketMassPropertiesLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
-        ent_path: &str,
+        _ent_path: &str,
         ts: Timestamp,
         mass: RocketMassProperties,
     ) -> Result<()> {
