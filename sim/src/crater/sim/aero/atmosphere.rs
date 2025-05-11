@@ -30,7 +30,7 @@ impl Default for AtmosphereIsa {
 }
 
 impl AtmosphereIsa {
-    fn new(
+    pub fn new(
         pressure_0: f64,
         temperature_0: f64,
         density_0: f64,

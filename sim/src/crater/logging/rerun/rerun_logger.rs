@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use crate::{
     core::time::Timestamp,
     telemetry::{TelemetryReceiver, TelemetryService, Timestamped},
-    utils::{capacity::Capacity, ringchannel::Select},
+    utils::capacity::Capacity,
 };
 
 use anyhow::Result;

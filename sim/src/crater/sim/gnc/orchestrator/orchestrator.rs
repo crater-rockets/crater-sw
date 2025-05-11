@@ -34,10 +34,8 @@ impl Orchestrator {
 }
 
 impl Node for Orchestrator {
-    fn step(&mut self, i: usize, dt: TimeDelta, clock: &dyn Clock) -> Result<StepResult> {
+    fn step(&mut self, _i: usize, _dt: TimeDelta, clock: &dyn Clock) -> Result<StepResult> {
         let mut step_ctx = StepContext {
-            i,
-            dt,
             time: Timestamp::now(clock),
         };
 
@@ -52,8 +50,6 @@ impl Node for Orchestrator {
 }
 
 pub struct StepContext {
-    i: usize,
-    dt: TimeDelta,
     time: Timestamp,
 }
 
@@ -106,7 +102,7 @@ impl OrchestratorFsm {
         );
     }
 
-    #[state]
+    #[state(entry_action = "enter_arm")]
     fn arm(
         &mut self,
         entry_time: &mut Timestamp,

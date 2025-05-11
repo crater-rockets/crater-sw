@@ -1,7 +1,7 @@
 use crate::{
     core::time::{Clock, Timestamp},
     crater::sim::{
-        rocket_data::{RocketAccelerations, RocketActions, RocketMassProperties, RocketState},
+        rocket_data::{RocketAccelerations, RocketMassProperties, RocketState},
         sensors::datatypes::IMUSample,
     },
     nodes::{Node, NodeContext, StepResult},

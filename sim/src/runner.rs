@@ -2,13 +2,13 @@ use std::{
     fs,
     path::{Path, PathBuf},
     thread,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 pub use anyhow::Result;
 use chrono::TimeDelta;
 use log::info;
-use rand::{rngs::OsRng, TryRngCore};
+use rand::{TryRngCore, rngs::OsRng};
 
 use crate::{
     crater::logging::rerun::{RerunLogConfig, RerunLoggerBuilder},

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use crater::{
     crater::logging::rerun::CraterUiLogConfig, model::OpenLoopCrater,
-    montecarlorunner::MonteCarloRunner, runner::SingleThreadedRunner,
+    montecarlorunner::MonteCarloRunner,
 };
 use log::info;
 use std::{

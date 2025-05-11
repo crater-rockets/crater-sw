@@ -1,8 +1,8 @@
 use chrono::TimeDelta;
 use crater_gnc::{
+    InstantU64,
     common::Ts,
     hal::channel::{Full, Receiver, Sender},
-    Instant, InstantU64,
 };
 
 use crate::{

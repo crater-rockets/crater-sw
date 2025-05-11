@@ -1,9 +1,5 @@
-use std::{
-    collections::{btree_map, BTreeMap},
-    ops::DerefMut,
-};
+use std::collections::{BTreeMap, btree_map};
 
-use log::info;
 use rand::Rng;
 use rand_distr::{Distribution, Normal, Uniform};
 use serde::{Deserialize, Serialize};
