@@ -1,20 +1,16 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::sim::{
-        rocket_data::{RocketParams, RocketState},
-        sensors::datatypes::MagnetometerSample,
-    },
+    crater::sim::{rocket_data::RocketState, sensors::datatypes::MagnetometerSample},
     nodes::{Node, NodeContext, StepResult},
-    telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetrySender, Timestamped},
+    telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
 };
 use anyhow::Result;
 use chrono::TimeDelta;
-use map_3d::ned2geodetic;
-use nalgebra::{Matrix3, Quaternion, UnitQuaternion, Vector3, Vector4};
+use nalgebra::{Quaternion, UnitQuaternion, Vector3, Vector4};
 use num_traits::ToPrimitive;
 use world_magnetic_model::{
-    time::{macros::format_description, Date, OffsetDateTime},
+    time::{macros::format_description, Date},
     uom::si::{
         f32::{Angle, Length},
         length::meter,
@@ -102,7 +98,6 @@ impl Node for IdealMagnetometer {
             .rx_state
             .try_recv()
             .expect("Magnetometer step executed, but no /rocket/state input available");
-
 
         let sample = MagnetometerSample {
             magfield_b: self

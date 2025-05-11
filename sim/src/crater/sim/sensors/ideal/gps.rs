@@ -2,7 +2,7 @@ use crate::{
     core::time::{Clock, Timestamp},
     crater::sim::{rocket_data::RocketState, sensors::datatypes::GPSSample},
     nodes::{Node, NodeContext, StepResult},
-    telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetrySender, Timestamped},
+    telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
 };
 use anyhow::Result;
@@ -21,10 +21,7 @@ impl IdealGPS {
 
         let tx_gps = ctx.telemetry().publish("/sensors/gps")?;
 
-        Ok(Self {
-            rx_state,
-            tx_gps,
-        })
+        Ok(Self { rx_state, tx_gps })
     }
 }
 

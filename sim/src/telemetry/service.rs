@@ -1,31 +1,27 @@
 use std::{
     any::{type_name, Any},
     collections::HashMap,
-    sync::{Arc, Mutex, Weak},
+    sync::{Arc, Mutex},
 };
 
+use flume::{bounded, unbounded, Receiver, RecvError, Sender, TryRecvError};
 use thiserror::Error;
 
-use crate::{
-    core::time::Timestamp,
-    utils::{
-        capacity::Capacity,
-        ringchannel::{
-            channel, Channel, ChannelError, ReadyList, Receiver, SelectToken, Selectable, SelectedReceiverState, Sender
-        },
-    },
-};
+use crate::{core::time::Timestamp, utils::capacity::Capacity};
 
 #[derive(PartialEq, Eq, Error, Debug)]
 pub enum TelemetryError {
     #[error("Requested channel type '{requested}', but channel is a '{expected}'")]
-    WrongChannelType { requested: String, expected: String },
+    WrongChannelDataType { requested: String, expected: String },
+
+    #[error("Wrong channel type requested (MPMC / SPMC)")]
+    WrongChannelType,
 
     #[error("Trying to read from an empty channel")]
-    EmptyChannel,
+    Empty,
 
     #[error("Trying to read from a closed channel")]
-    ClosedChannel,
+    Disconnected,
 
     #[error("Cannot create more than one producer for a channel")]
     AlreadyHasProducer,
@@ -39,12 +35,16 @@ pub struct Timestamped<T>(pub Timestamp, pub T);
 
 #[derive(Debug)]
 pub struct TelemetrySender<T> {
-    sender: Sender<Timestamped<T>>,
+    transport: Arc<TelemetryChannelTransportInner<T>>,
 }
 
 impl<T: 'static + Clone> TelemetrySender<T> {
     pub fn send(&self, timestamp: Timestamp, value: T) {
-        self.sender.send(Timestamped(timestamp, value));
+        let senders = self.transport.to_rx_channels.lock().unwrap();
+
+        for tx in senders.iter() {
+            let _ = tx.send(Timestamped(timestamp, value.clone()));
+        }
     }
 }
 
@@ -56,17 +56,26 @@ pub struct TelemetryReceiver<T> {
 impl<T> TelemetryReceiver<T> {
     pub fn recv(&self) -> Result<Timestamped<T>, TelemetryError> {
         self.receiver.recv().map_err(|e| match e {
-            ChannelError::Closed => TelemetryError::ClosedChannel,
-            ChannelError::Empty => TelemetryError::EmptyChannel,
+            RecvError::Disconnected => TelemetryError::Disconnected,
         })
     }
 
     pub fn try_recv(&self) -> Result<Timestamped<T>, TelemetryError> {
         self.receiver.try_recv().map_err(|e| match e {
-            ChannelError::Closed => TelemetryError::ClosedChannel,
-            ChannelError::Empty => TelemetryError::EmptyChannel,
+            TryRecvError::Disconnected => TelemetryError::Disconnected,
+            TryRecvError::Empty => TelemetryError::Empty,
         })
     }
+
+    pub fn inner(&self) -> &Receiver<Timestamped<T>> {
+        &self.receiver
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum ChannelType {
+    SpMc,
+    MpMc,
 }
 
 #[derive(Debug)]
@@ -76,38 +85,51 @@ struct TelemetryChannel {
 
     typename: String,
 
-    channel: Box<dyn Any + Send>, // Box<TelemetryChannelTransport<T>>
+    transport: Box<dyn Any + Send>, // Box<TelemetryChannelTransport<T>>
+
+    ch_type: ChannelType,
+    num_producers: usize,
 }
 
+#[derive(Debug)]
 struct TelemetryChannelTransport<T> {
-    channel: Weak<Channel<Timestamped<T>>>,
-    sender: Option<Sender<Timestamped<T>>>,
+    inner: Arc<TelemetryChannelTransportInner<T>>,
+}
+
+#[derive(Debug)]
+struct TelemetryChannelTransportInner<T> {
+    to_rx_channels: Mutex<Vec<Sender<Timestamped<T>>>>,
+}
+
+impl<T> Default for TelemetryChannelTransportInner<T> {
+    fn default() -> Self {
+        TelemetryChannelTransportInner {
+            to_rx_channels: Mutex::new(Vec::new()),
+        }
+    }
 }
 
 impl TelemetryChannel {
-    fn new<T: 'static + Send>(name: &str) -> Self {
-        let (sender, _) = channel::<Timestamped<T>>(Capacity::Unbounded);
-
+    fn new<T: 'static + Send>(name: &str, ch_type: ChannelType) -> Self {
         let transport = TelemetryChannelTransport::<T> {
-            channel: Arc::downgrade(&sender.get_channel()),
-            sender: Some(sender),
+            inner: Arc::new(TelemetryChannelTransportInner::default()),
         };
 
         Self {
             name: name.to_string(),
             typename: type_name::<T>().to_string(),
-            channel: Box::new(transport),
+            transport: Box::new(transport),
+            ch_type,
+            num_producers: 0,
         }
     }
 
-    fn take_producer<T: 'static>(&mut self) -> Result<TelemetrySender<T>, TelemetryError> {
-        let channel = self.downcast_mut::<T>()?;
+    fn add_producer<T: 'static>(&mut self) -> Result<TelemetrySender<T>, TelemetryError> {
+        self.num_producers += 1;
+        let transport = self.transport_mut::<T>()?;
 
         Ok(TelemetrySender {
-            sender: channel
-                .sender
-                .take()
-                .ok_or(TelemetryError::AlreadyHasProducer)?,
+            transport: transport.inner.clone(),
         })
     }
 
@@ -115,31 +137,34 @@ impl TelemetryChannel {
         &mut self,
         capacity: Capacity,
     ) -> Result<TelemetryReceiver<T>, TelemetryError> {
-        let channel = self.downcast_mut::<T>()?;
+        let transport = self.transport_mut::<T>()?;
 
-        let ch = Weak::upgrade(&channel.channel).ok_or(TelemetryError::ClosedChannel)?;
+        let (tx, rx) = match capacity {
+            Capacity::Bounded(cap) => bounded(cap.get()),
+            Capacity::Unbounded => unbounded(),
+        };
 
-        Ok(TelemetryReceiver {
-            receiver: Channel::<Timestamped<T>>::add_receiver(capacity, &ch),
-        })
+        transport.inner.to_rx_channels.lock().unwrap().push(tx);
+
+        Ok(TelemetryReceiver { receiver: rx })
     }
 
     #[allow(dead_code)]
     fn downcast_ref<T: 'static>(&self) -> Result<&TelemetryChannelTransport<T>, TelemetryError> {
-        self.channel
+        self.transport
             .downcast_ref::<TelemetryChannelTransport<T>>()
-            .ok_or(TelemetryError::WrongChannelType {
+            .ok_or(TelemetryError::WrongChannelDataType {
                 requested: type_name::<T>().to_string(),
                 expected: self.typename.clone(),
             })
     }
 
-    fn downcast_mut<T: 'static>(
+    fn transport_mut<T: 'static>(
         &mut self,
     ) -> Result<&mut TelemetryChannelTransport<T>, TelemetryError> {
-        self.channel
+        self.transport
             .downcast_mut::<TelemetryChannelTransport<T>>()
-            .ok_or(TelemetryError::WrongChannelType {
+            .ok_or(TelemetryError::WrongChannelDataType {
                 requested: type_name::<T>().to_string(),
                 expected: self.typename.clone(),
             })
@@ -166,25 +191,25 @@ impl TelemetryService {
             })),
         }
     }
-}
 
-pub trait TelemetryDispatcher {
-    fn publish<T: 'static + Send>(
+    pub fn publish<T: 'static + Send>(
         &self,
         channel_name: &str,
-    ) -> Result<TelemetrySender<T>, TelemetryError>;
+    ) -> Result<TelemetrySender<T>, TelemetryError> {
+        self.publish_impl(channel_name, ChannelType::SpMc)
+    }
 
-    fn subscribe<T: 'static + Send>(
+    pub fn publish_mp<T: 'static + Send>(
         &self,
         channel_name: &str,
-        capacity: Capacity,
-    ) -> Result<TelemetryReceiver<T>, TelemetryError>;
-}
+    ) -> Result<TelemetrySender<T>, TelemetryError> {
+        self.publish_impl(channel_name, ChannelType::MpMc)
+    }
 
-impl TelemetryDispatcher for TelemetryService {
-    fn publish<T: 'static + Send>(
+    fn publish_impl<T: 'static + Send>(
         &self,
         channel_name: &str,
+        ch_type: ChannelType,
     ) -> Result<TelemetrySender<T>, TelemetryError> {
         // Remap the channel if needed
         let mut inner = self.inner.lock().unwrap();
@@ -195,20 +220,48 @@ impl TelemetryDispatcher for TelemetryService {
             .or(Some(channel_name.to_string()))
             .unwrap();
 
-        let channel = inner.get_channel::<T>(channel_name.as_str());
+        let channel = inner.get_channel::<T>(channel_name.as_str(), ch_type);
 
-        channel.take_producer()
+        match channel {
+            Some(channel) => {
+                if channel.ch_type == ChannelType::MpMc || channel.num_producers == 0 {
+                    channel.add_producer()
+                } else {
+                    Err(TelemetryError::AlreadyHasProducer)
+                }
+            }
+            None => Err(TelemetryError::WrongChannelType),
+        }
     }
 
-    fn subscribe<T: 'static + Send>(
+    pub fn subscribe<T: 'static + Send>(
         &self,
         channel_name: &str,
         capacity: Capacity,
     ) -> Result<TelemetryReceiver<T>, TelemetryError> {
-        let mut inner = self.inner.lock().unwrap();
-        let channel = inner.get_channel::<T>(channel_name);
+        self.subscribe_impl(channel_name, capacity, ChannelType::SpMc)
+    }
 
-        channel.add_subscriber(capacity)
+    pub fn subscribe_mp<T: 'static + Send>(
+        &self,
+        channel_name: &str,
+        capacity: Capacity,
+    ) -> Result<TelemetryReceiver<T>, TelemetryError> {
+        self.subscribe_impl(channel_name, capacity, ChannelType::MpMc)
+    }
+
+    fn subscribe_impl<T: 'static + Send>(
+        &self,
+        channel_name: &str,
+        capacity: Capacity,
+        ch_type: ChannelType,
+    ) -> Result<TelemetryReceiver<T>, TelemetryError> {
+        let mut inner = self.inner.lock().unwrap();
+        let channel = inner.get_channel::<T>(channel_name, ch_type);
+
+        channel
+            .ok_or(TelemetryError::WrongChannelType)?
+            .add_subscriber(capacity)
     }
 }
 
@@ -216,33 +269,22 @@ impl TelemetryServiceInner {
     fn get_channel<'a, T: 'static + Send>(
         &'a mut self,
         channel_name: &str,
-    ) -> &'a mut TelemetryChannel {
+        ch_type: ChannelType,
+    ) -> Option<&'a mut TelemetryChannel> {
         if !self.channels.contains_key(channel_name) {
             self.channels.insert(
                 channel_name.to_string(),
-                TelemetryChannel::new::<T>(channel_name),
+                TelemetryChannel::new::<T>(channel_name, ch_type),
             );
         }
 
-        self.channels.get_mut(channel_name).unwrap()
-    }
-}
+        let ch = self.channels.get_mut(channel_name).unwrap();
 
-impl<T> Selectable for TelemetryReceiver<T> {
-    fn register(&self, token: SelectToken, ready_list: Arc<ReadyList>) {
-        self.receiver.register(token, ready_list)
-    }
-
-    fn unregister(&self) {
-        self.receiver.unregister()
-    }
-
-    fn state(&self) -> SelectedReceiverState {
-        self.receiver.state()
-    }
-
-    fn num_elem(&self) -> usize {
-        self.receiver.num_elem()
+        if ch.ch_type == ch_type {
+            Some(ch)
+        } else {
+            None
+        }
     }
 }
 
@@ -258,7 +300,7 @@ mod tests {
 
         let sub1 = telem_service.subscribe::<f64>("/test/channel/1", 1usize.into())?;
 
-        assert_eq!(sub1.try_recv(), Err(TelemetryError::EmptyChannel));
+        assert_eq!(sub1.try_recv(), Err(TelemetryError::Empty));
 
         Ok(())
     }
@@ -290,8 +332,8 @@ mod tests {
         assert_eq!(sub1.try_recv(), Ok(Timestamped(ts, 1.234)));
         assert_eq!(sub2.try_recv(), Ok(Timestamped(ts, 1.234)));
 
-        assert_eq!(sub1.try_recv(), Err(TelemetryError::EmptyChannel));
-        assert_eq!(sub2.try_recv(), Err(TelemetryError::EmptyChannel));
+        assert_eq!(sub1.try_recv(), Err(TelemetryError::Empty));
+        assert_eq!(sub2.try_recv(), Err(TelemetryError::Empty));
 
         Ok(())
     }
@@ -317,14 +359,14 @@ mod tests {
         let ts = Timestamp::now(&SystemClock::default());
 
         p_ch1.send(ts, 1.0);
-        assert_eq!(s_ch1.try_recv(), Err(TelemetryError::EmptyChannel));
+        assert_eq!(s_ch1.try_recv(), Err(TelemetryError::Empty));
         assert_eq!(s_ch2.try_recv(), Ok(Timestamped(ts, 1.0)));
-        assert_eq!(s_ch3.try_recv(), Err(TelemetryError::EmptyChannel));
+        assert_eq!(s_ch3.try_recv(), Err(TelemetryError::Empty));
 
         p_ch3.send(ts, 1.0);
         assert_eq!(s_ch1.try_recv(), Ok(Timestamped(ts, 1.0)));
-        assert_eq!(s_ch2.try_recv(), Err(TelemetryError::EmptyChannel));
-        assert_eq!(s_ch3.try_recv(), Err(TelemetryError::EmptyChannel));
+        assert_eq!(s_ch2.try_recv(), Err(TelemetryError::Empty));
+        assert_eq!(s_ch3.try_recv(), Err(TelemetryError::Empty));
 
         Ok(())
     }
@@ -345,7 +387,7 @@ mod tests {
         assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 1.0)));
         assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 2.0)));
         assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 3.0)));
-        assert_eq!(sub.try_recv(), Err(TelemetryError::EmptyChannel));
+        assert_eq!(sub.try_recv(), Err(TelemetryError::Empty));
 
         let ts = Timestamp::now(&SystemClock::default());
 
@@ -357,7 +399,7 @@ mod tests {
         assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 2.0)));
         assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 3.0)));
         assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 4.0)));
-        assert_eq!(sub.try_recv(), Err(TelemetryError::EmptyChannel));
+        assert_eq!(sub.try_recv(), Err(TelemetryError::Empty));
 
         Ok(())
     }
@@ -373,7 +415,7 @@ mod tests {
         assert!(pub1.is_err());
         assert_eq!(
             pub1.err().unwrap(),
-            TelemetryError::WrongChannelType {
+            TelemetryError::WrongChannelDataType {
                 requested: std::any::type_name::<f32>().to_string(),
                 expected: std::any::type_name::<f64>().to_string()
             }
@@ -385,7 +427,7 @@ mod tests {
         assert!(sub2.is_err());
         assert_eq!(
             std::mem::discriminant::<TelemetryError>(&sub2.err().unwrap()),
-            std::mem::discriminant::<TelemetryError>(&TelemetryError::WrongChannelType {
+            std::mem::discriminant::<TelemetryError>(&TelemetryError::WrongChannelDataType {
                 requested: std::any::type_name::<f64>().to_string(),
                 expected: std::any::type_name::<f32>().to_string()
             })

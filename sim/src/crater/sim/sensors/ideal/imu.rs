@@ -1,16 +1,16 @@
 use crate::{
     core::time::{Clock, Timestamp},
     crater::sim::{
-        rocket_data::{RocketActions, RocketMassProperties, RocketState},
+        rocket_data::{RocketAccelerations, RocketActions, RocketMassProperties, RocketState},
         sensors::datatypes::IMUSample,
     },
     nodes::{Node, NodeContext, StepResult},
-    telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetrySender, Timestamped},
+    telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
 };
 use anyhow::Result;
 use chrono::TimeDelta;
-use nalgebra::{Matrix3, Quaternion, UnitQuaternion, Vector3, Vector4};
+use nalgebra::{Quaternion, UnitQuaternion, Vector3, Vector4};
 
 #[derive(Debug)]
 pub struct ImuParams {
@@ -23,7 +23,7 @@ pub struct ImuParams {
 #[derive(Debug)]
 pub struct IdealIMU {
     rx_state: TelemetryReceiver<RocketState>,
-    rx_actions: TelemetryReceiver<RocketActions>,
+    rx_accels: TelemetryReceiver<RocketAccelerations>,
     rx_masses: TelemetryReceiver<RocketMassProperties>,
     params: ImuParams,
     tx_imu_translated: TelemetrySender<IMUSample>,
@@ -33,7 +33,7 @@ pub struct IdealIMU {
 impl IdealIMU {
     pub fn new(ctx: NodeContext) -> Result<Self> {
         let rx_state = ctx.telemetry().subscribe("/rocket/state", Unbounded)?;
-        let rx_actions = ctx.telemetry().subscribe("/rocket/actions", Unbounded)?;
+        let rx_accels = ctx.telemetry().subscribe("/rocket/accel", Unbounded)?;
         let rx_masses = ctx.telemetry().subscribe("/rocket/masses", Unbounded)?;
 
         let imu_params = ctx.parameters().get_map("sim.rocket.imu")?;
@@ -63,7 +63,7 @@ impl IdealIMU {
 
         Ok(Self {
             rx_state,
-            rx_actions,
+            rx_accels,
             rx_masses,
             params: imu_parameters,
             tx_imu_translated,
@@ -78,8 +78,8 @@ impl Node for IdealIMU {
             .rx_state
             .try_recv()
             .expect("IMU step executed, but no /rocket/state input available");
-        let Timestamped(_, actions) = self
-            .rx_actions
+        let Timestamped(_, accel) = self
+            .rx_accels
             .try_recv()
             .expect("IMU step executed, but no /rocket/actions input available");
         let Timestamped(_, masses) = self
@@ -92,23 +92,17 @@ impl Node for IdealIMU {
 
         // From: https://ocw.mit.edu/courses/16-07-dynamics-fall-2009/419be4d742e628d70acfbc5496eab967_MIT16_07F09_Lec25.pdf
 
-        let meas_acc_cg_b = actions.acc_b
-            - state
-                .quat_nb()
-                .inverse_transform_vector(&self.params.g_n);
+        let meas_acc_cg_b =
+            accel.acc_b - state.quat_nb().inverse_transform_vector(&self.params.g_n);
 
         let meas_acc_b: Vector3<f64> = meas_acc_cg_b
-            + actions.ang_acc_b.cross(&imu_to_cg)
+            + accel.ang_acc_b.cross(&imu_to_cg)
             + angvel_b.cross(&angvel_b.cross(&imu_to_cg));
 
-        let meas_acc_cg_imu = self
-            .params
-            .quat_imu_b
-            .transform_vector(&meas_acc_cg_b);
+        let meas_acc_cg_imu = self.params.quat_imu_b.transform_vector(&meas_acc_cg_b);
         let meas_acc_imu = self.params.quat_imu_b.transform_vector(&meas_acc_b);
 
-        let meas_angvel_imu: Vector3<f64> =
-            self.params.quat_imu_b.transform_vector(&angvel_b);
+        let meas_angvel_imu: Vector3<f64> = self.params.quat_imu_b.transform_vector(&angvel_b);
 
         self.tx_imu_cg.send(
             Timestamp::now(clock),

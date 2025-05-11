@@ -1,3 +1,2 @@
-mod flight_mode_manager;
-
-pub use flight_mode_manager::FlightModeManager;
+pub mod fmm;
+pub mod ada;

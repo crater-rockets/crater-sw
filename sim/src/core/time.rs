@@ -9,14 +9,14 @@ pub trait Clock {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Timestamp {
-    pub utc: UtcInstant,
+    pub utc: Option<UtcInstant>,
     pub monotonic: Instant,
 }
 
 impl Timestamp {
     pub fn now(clock: &dyn Clock) -> Timestamp {
         Timestamp {
-            utc: clock.utc(),
+            utc: Some(clock.utc()),
             monotonic: clock.monotonic(),
         }
     }
@@ -60,6 +60,12 @@ impl Instant {
     }
 }
 
+impl From<TimeDelta> for Instant {
+    fn from(value: TimeDelta) -> Self {
+        Instant { delta: value }
+    }
+}
+
 impl Add<TimeDelta> for Instant {
     type Output = Instant;
 
@@ -88,6 +94,13 @@ impl Sub<TimeDelta> for Instant {
 impl SubAssign<TimeDelta> for Instant {
     fn sub_assign(&mut self, rhs: TimeDelta) {
         self.delta -= rhs
+    }
+}
+
+impl Sub<Instant> for Instant {
+    type Output = TimeDelta;
+    fn sub(self, rhs: Instant) -> Self::Output {
+        self.delta - rhs.delta
     }
 }
 

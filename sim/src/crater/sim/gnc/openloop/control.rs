@@ -4,12 +4,10 @@ use crate::{
     core::time::{Clock, Timestamp},
     crater::sim::gnc::{datatypes::ServoPosition, MixedServoPosition},
     nodes::{Node, NodeContext, StepResult},
-    telemetry::{TelemetryDispatcher, TelemetrySender},
+    telemetry::TelemetrySender,
 };
 use anyhow::{Context, Result};
 use chrono::TimeDelta;
-use nalgebra::Vector4;
-use rand::seq;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize)]

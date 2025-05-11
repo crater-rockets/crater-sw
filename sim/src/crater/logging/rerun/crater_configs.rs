@@ -1,15 +1,22 @@
 use anyhow::Result;
 
+use crater_gnc::components::ada::AdaResult;
 use rerun::RecordingStream;
 
 use crate::crater::sim::{
+    events::{GncEventItem, SimEvent},
     gnc::ServoPosition,
-    rocket_data::{AeroAngles, RocketActions, RocketMassProperties, RocketState}, sensors::{IMUSample, MagnetometerSample},
+    rocket_data::{
+        AeroAngles, RocketAccelerations, RocketActions, RocketMassProperties, RocketState,
+    },
+    sensors::{IMUSample, MagnetometerSample},
 };
 
 use super::{
     crater_log_impl::{
-        AeroAnglesLog, IMUSampleLog, MagnetometerSampleLog, RocketActionsLog, RocketMassPropertiesLog, RocketStateRawLog, RocketStateUILog, ServoPositionLog
+        AdaOutputLog, AeroAnglesLog, GncEventLog, IMUSampleLog, MagnetometerSampleLog,
+        RocketAccelLog, RocketActionsLog, RocketMassPropertiesLog, RocketStateRawLog,
+        RocketStateUILog, ServoPositionLog, SimEventLog,
     },
     rerun_logger::{RerunLogConfig, RerunLoggerBuilder},
 };
@@ -53,6 +60,11 @@ impl RerunLogConfig for CraterUiLogConfig {
             "timeseries/rocket/actions",
             RocketActionsLog::default(),
         )?;
+        builder.log_telemetry::<RocketAccelerations>(
+            "/rocket/accel",
+            "timeseries/rocket/accel",
+            RocketAccelLog::default(),
+        )?;
         builder.log_telemetry::<ServoPosition>(
             "/gnc/control/servo_command",
             "timeseries/gnc/control/servo_command",
@@ -83,6 +95,22 @@ impl RerunLogConfig for CraterUiLogConfig {
             "timeseries/sensors/ideal_mag",
             MagnetometerSampleLog::default(),
         )?;
+        builder.log_telemetry_mp::<SimEvent>(
+            "/sim/events",
+            "log/sim/events",
+            SimEventLog::default(),
+        )?;
+        builder.log_telemetry_mp::<GncEventItem>(
+            "/gnc/events",
+            "log/gnc/events",
+            GncEventLog::default(),
+        )?;
+        builder.log_telemetry::<AdaResult>(
+            "/gnc/fsw/ada",
+            "timeseries/gnc/fsw/ada",
+            AdaOutputLog::default(),
+        )?;
+
         Ok(())
     }
 }

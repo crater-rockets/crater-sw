@@ -4,6 +4,7 @@ pub trait Atmosphere {
     fn temperature(&self, alt: f64) -> f64;
 }
 
+#[derive(Debug, Clone)]
 pub struct AtmosphereIsa {
     pressure_0: f64,
     temperature_0: f64,

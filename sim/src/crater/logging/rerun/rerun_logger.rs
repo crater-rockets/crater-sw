@@ -2,11 +2,12 @@ use std::cell::RefCell;
 
 use crate::{
     core::time::Timestamp,
-    telemetry::{TelemetryDispatcher, TelemetryReceiver, TelemetryService, Timestamped},
+    telemetry::{TelemetryReceiver, TelemetryService, Timestamped},
     utils::{capacity::Capacity, ringchannel::Select},
 };
 
 use anyhow::Result;
+use flume::Selector;
 use rerun::RecordingStream;
 
 pub trait RerunWrite {
@@ -21,15 +22,21 @@ pub trait RerunWrite {
     ) -> Result<()>;
 }
 
-trait LogFunction {
-    fn add_select<'a>(&'a self, select: &mut Select<'a>) -> usize;
-    fn log(&self, rec: &mut RecordingStream) -> Result<bool>;
+trait SelectorReceiver {
+    fn disconnected(&self) -> bool;
+
+    fn recv<'a>(
+        &'a mut self,
+        selector: Selector<'a, ()>,
+        rec: &'a RefCell<RecordingStream>,
+    ) -> Selector<'a, ()>;
 }
 
 struct TelemetryLogFunction<T, L> {
     receiver: TelemetryReceiver<T>,
     data_logger: RefCell<L>,
     ent_path: String,
+    disconnected: bool,
 }
 
 impl<T, L> TelemetryLogFunction<T, L> {
@@ -38,41 +45,69 @@ impl<T, L> TelemetryLogFunction<T, L> {
             receiver,
             data_logger: RefCell::new(logger),
             ent_path: ent_path.to_string(),
+            disconnected: false,
         }
     }
 }
 
-impl<T, L> LogFunction for TelemetryLogFunction<T, L>
+impl<T, L> SelectorReceiver for TelemetryLogFunction<T, L>
 where
     T: 'static + Send,
     L: RerunWrite<Telem = T>,
 {
-    fn add_select<'a>(&'a self, select: &mut Select<'a>) -> usize {
-        select.add(&self.receiver)
+    fn disconnected(&self) -> bool {
+        self.disconnected
     }
 
-    fn log(&self, rec: &mut RecordingStream) -> Result<bool> {
-        if let Ok(Timestamped(ts, state)) = self.receiver.recv() {
-            self.data_logger
-                .borrow_mut()
-                .write(rec, &self.ent_path, ts, state)?;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+    fn recv<'a>(
+        &'a mut self,
+        selector: Selector<'a, ()>,
+        rec: &'a RefCell<RecordingStream>,
+    ) -> Selector<'a, ()> {
+        selector.recv(self.receiver.inner(), |v| {
+            if let Ok(Timestamped(ts, state)) = v {
+                self.data_logger
+                    .borrow_mut()
+                    .write(&mut rec.borrow_mut(), &self.ent_path, ts, state)
+                    .unwrap();
+            } else {
+                self.disconnected = true;
+            }
+        })
     }
 }
 
+// impl<T, L> LogFunction for TelemetryLogFunction<T, L>
+// where
+//     T: 'static + Send,
+//     L: RerunWrite<Telem = T>,
+// {
+//     fn add_select<'a>(&'a self, select: &mut Select<'a>) -> usize {
+//         select.add(&self.receiver)
+//     }
+
+//     fn log(&self, rec: &mut RecordingStream) -> Result<bool> {
+//         if let Ok(Timestamped(ts, state)) = self.receiver.recv() {
+//             self.data_logger
+//                 .borrow_mut()
+//                 .write(rec, &self.ent_path, ts, state)?;
+//             Ok(true)
+//         } else {
+//             Ok(false)
+//         }
+//     }
+// }
+
 pub struct RerunLoggerBuilder {
     telem: TelemetryService,
-    log_functions: Vec<Box<dyn LogFunction>>,
+    sel_receivers: Vec<Box<dyn SelectorReceiver>>,
 }
 
 impl RerunLoggerBuilder {
     pub fn new(telem: &TelemetryService) -> Self {
         Self {
             telem: telem.clone(),
-            log_functions: Vec::new(),
+            sel_receivers: Vec::new(),
         }
     }
 
@@ -88,38 +123,58 @@ impl RerunLoggerBuilder {
 
         let log_fn = TelemetryLogFunction::new(receiver, logger, ent_path);
 
-        self.log_functions.push(Box::new(log_fn));
+        self.sel_receivers.push(Box::new(log_fn));
+
+        Ok(())
+    }
+
+    pub fn log_telemetry_mp<T: 'static + Send>(
+        &mut self,
+        channel_name: &str,
+        ent_path: &str,
+        logger: impl RerunWrite<Telem = T> + 'static,
+    ) -> Result<()> {
+        let receiver = self
+            .telem
+            .subscribe_mp::<T>(channel_name, Capacity::Unbounded)?;
+
+        let log_fn = TelemetryLogFunction::new(receiver, logger, ent_path);
+
+        self.sel_receivers.push(Box::new(log_fn));
 
         Ok(())
     }
 
     pub fn build(self, rec: RecordingStream) -> Result<RerunLogger> {
         Ok(RerunLogger {
-            log_functions: self.log_functions,
-            rec,
+            sel_receivers: self.sel_receivers,
+            rec: RefCell::new(rec),
         })
     }
 }
 
 pub struct RerunLogger {
-    log_functions: Vec<Box<dyn LogFunction>>,
-    rec: RecordingStream,
+    sel_receivers: Vec<Box<dyn SelectorReceiver>>,
+    rec: RefCell<RecordingStream>,
 }
 
 impl RerunLogger {
     pub fn log_blocking(mut self) -> Result<()> {
-        let mut select = Select::default();
+        loop {
+            let mut selector: Selector<'_, ()> = Selector::new();
+            let mut num_recv = 0usize;
 
-        for log_fn in &self.log_functions {
-            log_fn.add_select(&mut select);
-        }
+            for sel_recv in self.sel_receivers.iter_mut() {
+                if !sel_recv.disconnected() {
+                    selector = sel_recv.recv(selector, &self.rec);
+                    num_recv += 1;
+                }
+            }
 
-        while select.num_active_subs() > 0 {
-            let i = select.ready();
-            let log_fn = &self.log_functions[i];
-
-            if !log_fn.log(&mut self.rec)? {
-                select.remove(i);
+            if num_recv > 0 {
+                selector.wait();
+            } else {
+                break;
             }
         }
 

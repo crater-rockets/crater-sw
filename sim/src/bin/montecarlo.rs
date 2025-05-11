@@ -1,14 +1,18 @@
 use anyhow::Result;
 use crater::{
-    crater::logging::rerun::CraterUiLogConfig, model::OpenLoopCrater, montecarlorunner::MonteCarloRunner, runner::SingleThreadedRunner
+    crater::logging::rerun::CraterUiLogConfig, model::OpenLoopCrater,
+    montecarlorunner::MonteCarloRunner, runner::SingleThreadedRunner,
 };
 use log::info;
-use std::{env, path::{Path, PathBuf}};
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 
 fn main() -> Result<()> {
     // Default log level to "info"
     if env::var("RUST_LOG").is_err() {
-        env::set_var("RUST_LOG", "info")
+        unsafe { env::set_var("RUST_LOG", "info") }
     }
 
     pretty_env_logger::init();
@@ -16,11 +20,7 @@ fn main() -> Result<()> {
 
     let mut out_dir = PathBuf::from("out");
     // Create a directory with the current date and time
-    out_dir.push(
-        chrono::Local::now()
-            .format("%Y_%m_%d_%H-%M-%S")
-            .to_string(),
-    );
+    out_dir.push(chrono::Local::now().format("%Y_%m_%d_%H-%M-%S").to_string());
 
     if !out_dir.exists() {
         std::fs::create_dir_all(&out_dir)?;
@@ -32,7 +32,7 @@ fn main() -> Result<()> {
         CraterUiLogConfig,
         500,
         None,
-        out_dir
+        out_dir,
     )?;
 
     runner.run_blocking()?;

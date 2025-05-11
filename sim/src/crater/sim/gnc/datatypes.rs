@@ -1,10 +1,12 @@
 use nalgebra::{matrix, Matrix4, Vector4};
 
+/// From fin deflections to mixed deflections
 const MIXING_MATRIX: Matrix4<f64> = matrix![-0.25,  0.25,  0.25, -0.25;
                                              0.25,  0.25, -0.25, -0.25;
                                             -0.25, -0.25, -0.25, -0.25;
                                             -0.25,  0.25, -0.25,  0.25];
 
+/// From mixed deflections to fin deflections
 const INV_MIXING_MATRIX: Matrix4<f64> = matrix![-1.0,  1.0, -1.0, -1.0;
                                                  1.0,  1.0, -1.0,  1.0;
                                                  1.0, -1.0, -1.0, -1.0;

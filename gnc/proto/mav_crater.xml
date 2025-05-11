@@ -157,11 +157,14 @@
 
         <enum name="COMPONENT_ID">
             <description>Crater component ids</description>
-            <entry name="All" value="0">
-                <description>Wildcard value matching any component</description>
+            <entry name="Ground" value="0">
+                <description>Events sent from the ground</description>
             </entry>
             <entry name="FlightModeManager" value="1">
                 <description>Flight Mode Manager</description>
+            </entry>
+            <entry name="ApogeeDetectionAlgorithm" value="2">
+                <description>Apogee Detection Algorithm</description>
             </entry>
         </enum>
     </enums>

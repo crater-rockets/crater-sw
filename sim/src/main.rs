@@ -9,7 +9,7 @@ use std::{env, path::Path};
 fn main() -> Result<()> {
     // Default log level to "info"
     if env::var("RUST_LOG").is_err() {
-        env::set_var("RUST_LOG", "info")
+        unsafe { env::set_var("RUST_LOG", "info") }
     }
 
     pretty_env_logger::init();
