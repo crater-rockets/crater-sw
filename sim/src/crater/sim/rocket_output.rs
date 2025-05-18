@@ -1,13 +1,9 @@
 use crate::{core::time::Timestamp, nodes::NodeTelemetry, telemetry::TelemetrySender};
 
 use super::{
-    aero::aerodynamics::AeroState,
-    engine::engine::RocketEngineMassProperties,
-    gnc::ServoPosition,
-    rocket::Rocket,
-    rocket_data::{
+    aero::{aerodynamics::AerodynamicsResult, tabulated_aerodynamics::AeroState}, engine::engine::RocketEngineMassProperties, gnc::ServoPosition, rocket::Rocket, rocket_data::{
         AeroAngles, RocketAccelerations, RocketActions, RocketMassProperties, RocketState,
-    },
+    }
 };
 use anyhow::Result;
 use nalgebra::Vector3;
@@ -45,13 +41,27 @@ impl RocketOutput {
     ) {
         self.snd_state.send(t, state.clone());
 
-        let aero = rocket.aerodynamics.calc(&AeroState::new(
-            servo_pos.mix(),
-            state.vel_b(&state.quat_nb()),
-            Vector3::zeros(),
-            state.angvel_b(),
-            state.pos_n()[2],
-        ));
+        let vel_b = state.vel_b(&state.quat_nb());
+        let w_b = state.angvel_b();
+
+        let mach = vel_b.norm() / 330.0;
+        let aerostate = AeroState::new(
+            vel_b,
+            w_b,
+            -state.pos_n()[2],
+            mach,
+            1.0,
+            servo_pos.clone(),
+        );
+
+        let (f_aero, m_aero) = rocket.aerodynamics.actions(&aerostate);
+
+        let aero: AerodynamicsResult = AerodynamicsResult {
+            alpha: aerostate.alpha,
+            beta: aerostate.beta,
+            forces: f_aero,
+            moments: m_aero,
+        };
 
         let engine_mass = rocket.engine.mass(
             rocket

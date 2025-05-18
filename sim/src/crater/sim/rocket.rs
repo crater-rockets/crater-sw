@@ -1,5 +1,8 @@
 use super::{
-    aero::aerodynamics::AerodynamicsResult,
+    aero::{
+        aerodynamics::AerodynamicsResult,
+        tabulated_aerodynamics::{AeroState, TabulatedAerodynamics},
+    },
     engine::{SimpleRocketEngine, TabRocketEngine, engine::RocketEngine},
     events::{Event, GncEvent, GncEventItem, SimEvent},
     gnc::ServoPosition,
@@ -8,10 +11,7 @@ use super::{
 };
 use crate::{
     core::time::{Clock, TD, Timestamp},
-    crater::sim::aero::{
-        aerodynamics::{AeroCoefficients, AeroState, Aerodynamics},
-        atmosphere::AtmosphereIsa,
-    },
+    crater::sim::aero::atmosphere::AtmosphereIsa,
     math::ode::{OdeProblem, OdeSolver, RungeKutta4},
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
@@ -23,6 +23,7 @@ use core::f64;
 use crater_gnc::mav_crater::ComponentId;
 use nalgebra::{Quaternion, SVector, UnitQuaternion, Vector3, Vector4};
 use statig::prelude::*;
+use std::{path::PathBuf, str::FromStr};
 use strum::AsRefStr;
 
 pub struct Rocket {
@@ -31,7 +32,7 @@ pub struct Rocket {
     pub(super) step_state: StepState,
 
     pub(super) engine: Box<dyn RocketEngine + Send>,
-    pub(super) aerodynamics: Aerodynamics,
+    pub(super) aerodynamics: TabulatedAerodynamics,
 
     pub(super) fsm: StateMachine<RocketFsm>,
 
@@ -87,14 +88,13 @@ impl Rocket {
 
         let atmosphere = Box::new(AtmosphereIsa::default());
 
-        let aero_params = rocket_params.get_map("aero")?;
-        let aero_coefficients = AeroCoefficients::from_params(aero_params)?;
-        let aerodynamics = Aerodynamics::new(
-            params.diameter,
-            params.surface,
-            atmosphere,
-            aero_coefficients,
-        );
+        // let aero_params = rocket_params.get_map("aero")?;
+        // let aero_coefficients = AeroCoefficients::from_params(aero_params)?;
+        let file =
+            PathBuf::from_str("/home/luca/code/crater/pydatcom/for006_coeffs_97.h5").unwrap();
+
+        let aerodynamics =
+            TabulatedAerodynamics::from_h5(&file, &file, params.diameter, params.surface)?;
 
         let rx_servo_pos = ctx
             .telemetry()
@@ -191,13 +191,24 @@ impl OdeProblem<f64, 13> for Rocket {
         let vel_b: Vector3<f64> = q_nb.inverse_transform_vector(&state.vel_n().clone_owned());
         let w_b: Vector3<f64> = state.angvel_b();
 
-        let aero: AerodynamicsResult = self.aerodynamics.calc(&AeroState::new(
-            self.step_state.servo_pos.mix(),
+        let mach = vel_b.norm() / 330.0;
+        let aerostate = AeroState::new(
             vel_b,
-            Vector3::zeros(),
-            w_b.clone_owned(),
+            w_b,
             -state.pos_n()[2],
-        ));
+            mach,
+            1.0,
+            self.step_state.servo_pos.clone(),
+        );
+
+        let (f_aero, m_aero) = self.aerodynamics.actions(&aerostate);
+
+        let aero: AerodynamicsResult = AerodynamicsResult {
+            alpha: aerostate.alpha,
+            beta: aerostate.beta,
+            forces: f_aero,
+            moments: m_aero,
+        };
 
         let actions = self.calc_actions(t, &state, &aero, &mass_props);
 
