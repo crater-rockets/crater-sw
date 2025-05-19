@@ -1,7 +1,7 @@
 use anyhow::{Result, anyhow};
 use hdf5_metno::File;
 use nalgebra::{Vector3, vector};
-use std::{array, f64, os::linux::raw::stat, path::Path};
+use std::{array, f64, path::Path};
 use strum::{AsRefStr, EnumIter, IntoEnumIterator};
 
 use crate::{crater::sim::gnc::ServoPosition, math::interp::Interpolator};
@@ -323,50 +323,5 @@ impl TabulatedAerodynamics {
             cn_r: v2[2] as f64,
             cn_bd: v2[3] as f64,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{f64, path::PathBuf, str::FromStr};
-
-    use nalgebra::vector;
-
-    use crate::crater::sim::gnc::ServoPosition;
-
-    use super::{AeroState, TabulatedAerodynamics};
-
-    #[test]
-    fn abcd() {
-        let file =
-            PathBuf::from_str("/home/luca/code/crater/pydatcom/for006_coeffs_97.h5").unwrap();
-
-        let aero =
-            TabulatedAerodynamics::from_h5(&file, &file, 0.15, f64::consts::PI * 0.15f64.powf(2.0))
-                .unwrap();
-
-        let state = AeroState::new(
-            vector![100.0, 0.0, 8.74886635],
-            vector![0.0, 0.0, 0.0],
-            1400.0,
-            0.2,
-            1.0,
-            ServoPosition(vector![0.0, 0.0, 0.0, 0.0]),
-        );
-
-        let (f, m) = aero.actions(&state);
-
-        let state = AeroState::new(
-            vector![100.0, 8.74886635, 0.0],
-            vector![0.0, 0.0, 0.0],
-            1400.0,
-            0.2,
-            1.0,
-            ServoPosition(vector![0.0, 0.0, 0.0, 0.0]),
-        );
-
-        let (f, m) = aero.actions(&state);
-
-        println!("f: {:#?}, m: {:#?}", f, m);
     }
 }

@@ -80,21 +80,25 @@ impl Rocket {
             }
         };
 
+        
         // Read parameters
         let params = RocketParams::from_params(rocket_params)?;
-
         // Initialize state with initial conditions from parameters
         let state = RocketState::from_params(&params);
+
+        let coeffs_main_path = rocket_params.get_param("aero.tabulated.coeffs_main")?.value_string()?;
+        let coeffs_dynamic_path = rocket_params.get_param("aero.tabulated.coeffs_dynamic")?.value_string()?;
 
         let atmosphere = Box::new(AtmosphereIsa::default());
 
         // let aero_params = rocket_params.get_map("aero")?;
         // let aero_coefficients = AeroCoefficients::from_params(aero_params)?;
-        let file =
-            PathBuf::from_str("/home/luca/code/crater/pydatcom/for006_coeffs_97.h5").unwrap();
-
+        let file1 =
+            PathBuf::from_str(&coeffs_main_path).unwrap();
+        let file2 =
+            PathBuf::from_str(&coeffs_dynamic_path).unwrap();
         let aerodynamics =
-            TabulatedAerodynamics::from_h5(&file, &file, params.diameter, params.surface)?;
+            TabulatedAerodynamics::from_h5(&file1, &file2, params.diameter, params.surface)?;
 
         let rx_servo_pos = ctx
             .telemetry()
