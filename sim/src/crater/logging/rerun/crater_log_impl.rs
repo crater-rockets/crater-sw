@@ -33,48 +33,66 @@ impl RerunWrite for RocketStateRawLog {
         state: RocketState,
     ) -> Result<()> {
         let ts_seconds = ts.monotonic.elapsed_seconds_f64();
-        rec.set_time_seconds("sim_time", ts_seconds);
+        rec.set_duration_secs("sim_time", ts_seconds);
 
         let pos = state.pos_n();
-        rec.log(format!("{ent_path}/pos_n/x"), &rerun::Scalar::new(pos[0]))?;
-        rec.log(format!("{ent_path}/pos_n/y"), &rerun::Scalar::new(pos[1]))?;
-        rec.log(format!("{ent_path}/pos_n/z"), &rerun::Scalar::new(pos[2]))?;
+        rec.log(
+            format!("{ent_path}/pos_n/x"),
+            &rerun::Scalars::single(pos[0]),
+        )?;
+        rec.log(
+            format!("{ent_path}/pos_n/y"),
+            &rerun::Scalars::single(pos[1]),
+        )?;
+        rec.log(
+            format!("{ent_path}/pos_n/z"),
+            &rerun::Scalars::single(pos[2]),
+        )?;
 
         let vel_n = state.vel_n();
-        rec.log(format!("{ent_path}/vel_n/x"), &rerun::Scalar::new(vel_n[0]))?;
-        rec.log(format!("{ent_path}/vel_n/y"), &rerun::Scalar::new(vel_n[1]))?;
-        rec.log(format!("{ent_path}/vel_n/z"), &rerun::Scalar::new(vel_n[2]))?;
+        rec.log(
+            format!("{ent_path}/vel_n/x"),
+            &rerun::Scalars::single(vel_n[0]),
+        )?;
+        rec.log(
+            format!("{ent_path}/vel_n/y"),
+            &rerun::Scalars::single(vel_n[1]),
+        )?;
+        rec.log(
+            format!("{ent_path}/vel_n/z"),
+            &rerun::Scalars::single(vel_n[2]),
+        )?;
 
         let angvel = state.angvel_b();
         rec.log(
             format!("{ent_path}/ang_vel_b/x"),
-            &rerun::Scalar::new(angvel[0].to_degrees()),
+            &rerun::Scalars::single(angvel[0].to_degrees()),
         )?;
         rec.log(
             format!("{ent_path}/ang_vel_b/y"),
-            &rerun::Scalar::new(angvel[1].to_degrees()),
+            &rerun::Scalars::single(angvel[1].to_degrees()),
         )?;
         rec.log(
             format!("{ent_path}/ang_vel_b/z"),
-            &rerun::Scalar::new(angvel[2].to_degrees()),
+            &rerun::Scalars::single(angvel[2].to_degrees()),
         )?;
 
         let quat = state.quat_nb();
         rec.log(
             format!("{ent_path}/orient/quat/x"),
-            &rerun::Scalar::new(quat.i),
+            &rerun::Scalars::single(quat.i),
         )?;
         rec.log(
             format!("{ent_path}/orient/quat/y"),
-            &rerun::Scalar::new(quat.j),
+            &rerun::Scalars::single(quat.j),
         )?;
         rec.log(
             format!("{ent_path}/orient/quat/z"),
-            &rerun::Scalar::new(quat.k),
+            &rerun::Scalars::single(quat.k),
         )?;
         rec.log(
             format!("{ent_path}/orient/quat/w"),
-            &rerun::Scalar::new(quat.w),
+            &rerun::Scalars::single(quat.w),
         )?;
 
         Ok(())
@@ -116,7 +134,7 @@ impl RerunWrite for RocketStateUILog {
         );
 
         let ts_seconds = ts.monotonic.elapsed_seconds_f64();
-        rec.set_time_seconds("sim_time", ts_seconds);
+        rec.set_duration_secs("sim_time", ts_seconds);
 
         rec.log(
             "/frame/body_centered",
@@ -127,26 +145,38 @@ impl RerunWrite for RocketStateUILog {
         let vel_b = state.vel_b(&state.quat_nb());
         let vnorm = vel_b.norm();
 
-        rec.log(format!("{ent_path}/vel_b/x"), &rerun::Scalar::new(vel_b[0]))?;
-        rec.log(format!("{ent_path}/vel_b/y"), &rerun::Scalar::new(vel_b[1]))?;
-        rec.log(format!("{ent_path}/vel_b/z"), &rerun::Scalar::new(vel_b[2]))?;
+        rec.log(
+            format!("{ent_path}/vel_b/x"),
+            &rerun::Scalars::single(vel_b[0]),
+        )?;
+        rec.log(
+            format!("{ent_path}/vel_b/y"),
+            &rerun::Scalars::single(vel_b[1]),
+        )?;
+        rec.log(
+            format!("{ent_path}/vel_b/z"),
+            &rerun::Scalars::single(vel_b[2]),
+        )?;
 
-        rec.log(format!("{ent_path}/vel_norm"), &rerun::Scalar::new(vnorm))?;
+        rec.log(
+            format!("{ent_path}/vel_norm"),
+            &rerun::Scalars::single(vnorm),
+        )?;
 
         // Orientation Euler
         let quat = state.quat_nb();
         let euler = quat.euler_angles();
         rec.log(
             format!("{ent_path}/orient/euler/yaw"),
-            &rerun::Scalar::new(euler.2.to_degrees()),
+            &rerun::Scalars::single(euler.2.to_degrees()),
         )?;
         rec.log(
             format!("{ent_path}/orient/euler/pitch"),
-            &rerun::Scalar::new(euler.1.to_degrees()),
+            &rerun::Scalars::single(euler.1.to_degrees()),
         )?;
         rec.log(
             format!("{ent_path}/orient/euler/roll"),
-            &rerun::Scalar::new(euler.0.to_degrees()),
+            &rerun::Scalars::single(euler.0.to_degrees()),
         )?;
 
         // Log trajectory less frequently, as every log contains the full position history, making logs huge
@@ -222,16 +252,16 @@ impl RerunWrite for AeroAnglesLog {
         ts: Timestamp,
         angles: AeroAngles,
     ) -> Result<()> {
-        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{ent_path}/alpha"),
-            &rerun::Scalar::new(angles.alpha.to_degrees()),
+            &rerun::Scalars::single(angles.alpha.to_degrees()),
         )?;
 
         rec.log(
             format!("{ent_path}/beta"),
-            &rerun::Scalar::new(angles.beta.to_degrees()),
+            &rerun::Scalars::single(angles.beta.to_degrees()),
         )?;
 
         Ok(())
@@ -251,45 +281,45 @@ impl RerunWrite for RocketActionsLog {
         ts: Timestamp,
         actions: RocketActions,
     ) -> Result<()> {
-        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{ent_path}/thrust_b/x"),
-            &rerun::Scalar::new(actions.thrust_b[0]),
+            &rerun::Scalars::single(actions.thrust_b[0]),
         )?;
         rec.log(
             format!("{ent_path}/thrust_b/y"),
-            &rerun::Scalar::new(actions.thrust_b[1]),
+            &rerun::Scalars::single(actions.thrust_b[1]),
         )?;
         rec.log(
             format!("{ent_path}/thrust_b/z"),
-            &rerun::Scalar::new(actions.thrust_b[2]),
+            &rerun::Scalars::single(actions.thrust_b[2]),
         )?;
 
         rec.log(
             format!("{ent_path}/aero_force_b/x"),
-            &rerun::Scalar::new(actions.aero_force_b[0]),
+            &rerun::Scalars::single(actions.aero_force_b[0]),
         )?;
         rec.log(
             format!("{ent_path}/aero_force_b/y"),
-            &rerun::Scalar::new(actions.aero_force_b[1]),
+            &rerun::Scalars::single(actions.aero_force_b[1]),
         )?;
         rec.log(
             format!("{ent_path}/aero_force_b/z"),
-            &rerun::Scalar::new(actions.aero_force_b[2]),
+            &rerun::Scalars::single(actions.aero_force_b[2]),
         )?;
 
         rec.log(
             format!("{ent_path}/aero_torque_b/x"),
-            &rerun::Scalar::new(actions.aero_torque_b[0]),
+            &rerun::Scalars::single(actions.aero_torque_b[0]),
         )?;
         rec.log(
             format!("{ent_path}/aero_torque_b/y"),
-            &rerun::Scalar::new(actions.aero_torque_b[1]),
+            &rerun::Scalars::single(actions.aero_torque_b[1]),
         )?;
         rec.log(
             format!("{ent_path}/aero_torque_b/z"),
-            &rerun::Scalar::new(actions.aero_torque_b[2]),
+            &rerun::Scalars::single(actions.aero_torque_b[2]),
         )?;
 
         let thrust_scaled = actions.thrust_b / 20.0;
@@ -326,32 +356,32 @@ impl RerunWrite for RocketAccelLog {
         ts: Timestamp,
         accel: RocketAccelerations,
     ) -> Result<()> {
-        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{ent_path}/acc_b/x"),
-            &rerun::Scalar::new(accel.acc_b[0]),
+            &rerun::Scalars::single(accel.acc_b[0]),
         )?;
         rec.log(
             format!("{ent_path}/acc_b/y"),
-            &rerun::Scalar::new(accel.acc_b[1]),
+            &rerun::Scalars::single(accel.acc_b[1]),
         )?;
         rec.log(
             format!("{ent_path}/acc_b/z"),
-            &rerun::Scalar::new(accel.acc_b[2]),
+            &rerun::Scalars::single(accel.acc_b[2]),
         )?;
 
         rec.log(
             format!("{ent_path}/acc_n/x"),
-            &rerun::Scalar::new(accel.acc_n[0]),
+            &rerun::Scalars::single(accel.acc_n[0]),
         )?;
         rec.log(
             format!("{ent_path}/acc_n/y"),
-            &rerun::Scalar::new(accel.acc_n[1]),
+            &rerun::Scalars::single(accel.acc_n[1]),
         )?;
         rec.log(
             format!("{ent_path}/acc_n/z"),
-            &rerun::Scalar::new(accel.acc_n[2]),
+            &rerun::Scalars::single(accel.acc_n[2]),
         )?;
 
         Ok(())
@@ -371,42 +401,42 @@ impl RerunWrite for ServoPositionLog {
         ts: Timestamp,
         servo_pos: ServoPosition,
     ) -> Result<()> {
-        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{ent_path}/raw/1"),
-            &rerun::Scalar::new(servo_pos.0[0].to_degrees()),
+            &rerun::Scalars::single(servo_pos.0[0].to_degrees()),
         )?;
         rec.log(
             format!("{ent_path}/raw/2"),
-            &rerun::Scalar::new(servo_pos.0[1].to_degrees()),
+            &rerun::Scalars::single(servo_pos.0[1].to_degrees()),
         )?;
         rec.log(
             format!("{ent_path}/raw/3"),
-            &rerun::Scalar::new(servo_pos.0[2].to_degrees()),
+            &rerun::Scalars::single(servo_pos.0[2].to_degrees()),
         )?;
         rec.log(
             format!("{ent_path}/raw/4"),
-            &rerun::Scalar::new(servo_pos.0[3].to_degrees()),
+            &rerun::Scalars::single(servo_pos.0[3].to_degrees()),
         )?;
 
         let mixed = servo_pos.mix();
 
         rec.log(
             format!("{ent_path}/mixed/yaw"),
-            &rerun::Scalar::new(mixed.yaw().to_degrees()),
+            &rerun::Scalars::single(mixed.yaw().to_degrees()),
         )?;
         rec.log(
             format!("{ent_path}/mixed/pitch"),
-            &rerun::Scalar::new(mixed.pitch().to_degrees()),
+            &rerun::Scalars::single(mixed.pitch().to_degrees()),
         )?;
         rec.log(
             format!("{ent_path}/mixed/roll"),
-            &rerun::Scalar::new(mixed.roll().to_degrees()),
+            &rerun::Scalars::single(mixed.roll().to_degrees()),
         )?;
         rec.log(
             format!("{ent_path}/mixed/squeeze"),
-            &rerun::Scalar::new(mixed.squeeze().to_degrees()),
+            &rerun::Scalars::single(mixed.squeeze().to_degrees()),
         )?;
 
         Ok(())
@@ -426,118 +456,121 @@ impl RerunWrite for RocketMassPropertiesLog {
         ts: Timestamp,
         mass: RocketMassProperties,
     ) -> Result<()> {
-        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             "timeseries/masses/xcg_tot/x",
-            &rerun::Scalar::new(mass.xcg_total[0]),
+            &rerun::Scalars::single(mass.xcg_total[0]),
         )?;
 
         rec.log(
             "timeseries/masses/xcg_tot/y",
-            &rerun::Scalar::new(mass.xcg_total[1]),
+            &rerun::Scalars::single(mass.xcg_total[1]),
         )?;
 
         rec.log(
             "timeseries/masses/xcg_tot/z",
-            &rerun::Scalar::new(mass.xcg_total[2]),
+            &rerun::Scalars::single(mass.xcg_total[2]),
         )?;
 
-        rec.log("timeseries/masses/mass_tot", &rerun::Scalar::new(mass.mass))?;
+        rec.log(
+            "timeseries/masses/mass_tot",
+            &rerun::Scalars::single(mass.mass),
+        )?;
 
         rec.log(
             "timeseries/masses/mass_dot",
-            &rerun::Scalar::new(mass.mass_dot),
+            &rerun::Scalars::single(mass.mass_dot),
         )?;
 
         rec.log(
             "timeseries/masses/inertia/xx",
-            &rerun::Scalar::new(mass.inertia[0]),
+            &rerun::Scalars::single(mass.inertia[0]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia/xy",
-            &rerun::Scalar::new(mass.inertia[1]),
+            &rerun::Scalars::single(mass.inertia[1]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia/xz",
-            &rerun::Scalar::new(mass.inertia[2]),
+            &rerun::Scalars::single(mass.inertia[2]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia/yx",
-            &rerun::Scalar::new(mass.inertia[3]),
+            &rerun::Scalars::single(mass.inertia[3]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia/yy",
-            &rerun::Scalar::new(mass.inertia[4]),
+            &rerun::Scalars::single(mass.inertia[4]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia/yz",
-            &rerun::Scalar::new(mass.inertia[5]),
+            &rerun::Scalars::single(mass.inertia[5]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia/zx",
-            &rerun::Scalar::new(mass.inertia[6]),
+            &rerun::Scalars::single(mass.inertia[6]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia/zy",
-            &rerun::Scalar::new(mass.inertia[7]),
+            &rerun::Scalars::single(mass.inertia[7]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia/zz",
-            &rerun::Scalar::new(mass.inertia[8]),
+            &rerun::Scalars::single(mass.inertia[8]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia_dot/xx",
-            &rerun::Scalar::new(mass.inertia_dot[0]),
+            &rerun::Scalars::single(mass.inertia_dot[0]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia_dot/xy",
-            &rerun::Scalar::new(mass.inertia_dot[1]),
+            &rerun::Scalars::single(mass.inertia_dot[1]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia_dot/xz",
-            &rerun::Scalar::new(mass.inertia_dot[2]),
+            &rerun::Scalars::single(mass.inertia_dot[2]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia_dot/yx",
-            &rerun::Scalar::new(mass.inertia_dot[3]),
+            &rerun::Scalars::single(mass.inertia_dot[3]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia_dot/yy",
-            &rerun::Scalar::new(mass.inertia_dot[4]),
+            &rerun::Scalars::single(mass.inertia_dot[4]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia_dot/yz",
-            &rerun::Scalar::new(mass.inertia_dot[5]),
+            &rerun::Scalars::single(mass.inertia_dot[5]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia_dot/zx",
-            &rerun::Scalar::new(mass.inertia_dot[6]),
+            &rerun::Scalars::single(mass.inertia_dot[6]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia_dot/zy",
-            &rerun::Scalar::new(mass.inertia_dot[7]),
+            &rerun::Scalars::single(mass.inertia_dot[7]),
         )?;
 
         rec.log(
             "timeseries/masses/inertia_dot/zz",
-            &rerun::Scalar::new(mass.inertia_dot[8]),
+            &rerun::Scalars::single(mass.inertia_dot[8]),
         )?;
 
         Ok(())
@@ -557,36 +590,36 @@ impl RerunWrite for IMUSampleLog {
         ts: Timestamp,
         imu: IMUSample,
     ) -> Result<()> {
-        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{}/acc/x", ent_path),
-            &rerun::Scalar::new(imu.acc.x),
+            &rerun::Scalars::single(imu.acc.x),
         )?;
 
         rec.log(
             format!("{}/acc/y", ent_path),
-            &rerun::Scalar::new(imu.acc.y),
+            &rerun::Scalars::single(imu.acc.y),
         )?;
 
         rec.log(
             format!("{}/acc/z", ent_path),
-            &rerun::Scalar::new(imu.acc.z),
+            &rerun::Scalars::single(imu.acc.z),
         )?;
 
         rec.log(
             format!("{}/gyro/x", ent_path),
-            &rerun::Scalar::new(imu.gyro.x.to_degrees()),
+            &rerun::Scalars::single(imu.gyro.x.to_degrees()),
         )?;
 
         rec.log(
             format!("{}/gyro/y", ent_path),
-            &rerun::Scalar::new(imu.gyro.y.to_degrees()),
+            &rerun::Scalars::single(imu.gyro.y.to_degrees()),
         )?;
 
         rec.log(
             format!("{}/gyro/z", ent_path),
-            &rerun::Scalar::new(imu.gyro.z.to_degrees()),
+            &rerun::Scalars::single(imu.gyro.z.to_degrees()),
         )?;
 
         Ok(())
@@ -606,21 +639,21 @@ impl RerunWrite for MagnetometerSampleLog {
         ts: Timestamp,
         mag: MagnetometerSample,
     ) -> Result<()> {
-        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{}/x", ent_path),
-            &rerun::Scalar::new(mag.magfield_b.x),
+            &rerun::Scalars::single(mag.magfield_b.x),
         )?;
 
         rec.log(
             format!("{}/y", ent_path),
-            &rerun::Scalar::new(mag.magfield_b.y),
+            &rerun::Scalars::single(mag.magfield_b.y),
         )?;
 
         rec.log(
             format!("{}/z", ent_path),
-            &rerun::Scalar::new(mag.magfield_b.z),
+            &rerun::Scalars::single(mag.magfield_b.z),
         )?;
 
         Ok(())
@@ -640,7 +673,7 @@ impl RerunWrite for GncEventLog {
         ts: Timestamp,
         event: GncEventItem,
     ) -> Result<()> {
-        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{}", ent_path),
@@ -665,7 +698,7 @@ impl RerunWrite for SimEventLog {
         ts: Timestamp,
         event: SimEvent,
     ) -> Result<()> {
-        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{}", ent_path),
@@ -689,16 +722,16 @@ impl RerunWrite for AdaOutputLog {
         ts: Timestamp,
         ada: AdaResult,
     ) -> Result<()> {
-        rec.set_time_seconds("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{}/altitude_m", ent_path),
-            &rerun::Scalar::new(ada.altitude.get::<meter>() as f64),
+            &rerun::Scalars::single(ada.altitude.get::<meter>() as f64),
         )?;
 
         rec.log(
             format!("{}/vertical_speed_m_s", ent_path),
-            &rerun::Scalar::new(ada.vertical_speed.get::<meter_per_second>() as f64),
+            &rerun::Scalars::single(ada.vertical_speed.get::<meter_per_second>() as f64),
         )?;
 
         Ok(())

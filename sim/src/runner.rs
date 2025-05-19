@@ -2,7 +2,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     thread,
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 pub use anyhow::Result;
@@ -87,7 +87,10 @@ impl SingleThreadedRunner {
         });
 
         info!("Connecting to Rerun interface...");
-        let mut rec = rerun::RecordingStreamBuilder::new("crater").connect_tcp()?;
+        let mut rec = rerun::RecordingStreamBuilder::new("crater").connect_grpc_opts(
+            "rerun+http://127.0.0.1:9876/proxy",
+            Some(Duration::from_secs(20)),
+        )?;
 
         info!("Rerun connected!");
         log_config.init_rec(&mut rec)?;

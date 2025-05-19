@@ -26,9 +26,9 @@ pub struct CraterUiLogConfig;
 
 impl RerunLogConfig for CraterUiLogConfig {
     fn init_rec(&self, rec: &mut RecordingStream) -> Result<()> {
-        rec.log_static("/", &rerun::ViewCoordinates::RIGHT_HAND_Z_DOWN)?;
+        rec.log_static("/", &rerun::ViewCoordinates::RIGHT_HAND_Z_DOWN())?;
 
-        rec.set_time_seconds("sim_time", 0.0);
+        rec.set_duration_secs("sim_time", 0.0);
 
         rec.log(
             "rocket",
