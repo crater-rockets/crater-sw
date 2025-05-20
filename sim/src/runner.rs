@@ -89,7 +89,7 @@ impl SingleThreadedRunner {
         info!("Connecting to Rerun interface...");
         let mut rec = rerun::RecordingStreamBuilder::new("crater").connect_grpc_opts(
             "rerun+http://127.0.0.1:9876/proxy",
-            Some(Duration::from_secs(20)),
+            Some(Duration::from_secs(60)),
         )?;
 
         info!("Rerun connected!");
