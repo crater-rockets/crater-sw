@@ -1,6 +1,6 @@
 use crater_gnc::components::ada::AdaResult;
 use map_3d::ned2geodetic;
-use nalgebra::{Matrix3, MatrixMN, SMatrix, Vector3};
+use nalgebra::{Matrix3, SMatrix, Vector3};
 use rerun::{
     Quaternion, RecordingStream, TensorData, TextLogLevel, components::RotationQuat,
     external::arrow::buffer::ScalarBuffer,
@@ -10,7 +10,7 @@ use uom::si::{length::meter, velocity::meter_per_second};
 use crate::{
     core::time::Timestamp,
     crater::sim::{
-        aero::aerodynamics::{AeroAngles, AeroState},
+        aero::aerodynamics::AeroState,
         engine::engine::RocketEngineMassProperties,
         events::{GncEventItem, SimEvent},
         gnc::ServoPosition,
@@ -387,13 +387,19 @@ impl RerunWrite for ServoPositionLog {
     ) -> Result<()> {
         rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
-        log_matrix_timeseries(rec, format!("{ent_path}/raw"), servo_pos.0, None, None)?;
+        log_matrix_timeseries(
+            rec,
+            format!("{ent_path}/raw"),
+            servo_pos.pos_rad.map(|x| x.to_degrees()),
+            None,
+            None,
+        )?;
 
         let mixed = servo_pos.mix();
         log_matrix_timeseries(
             rec,
             format!("{ent_path}/mixed"),
-            mixed.0,
+            mixed.pos_rad.map(|x| x.to_degrees()),
             Some(&[
                 "yaw".to_string(),
                 "pitch".to_string(),

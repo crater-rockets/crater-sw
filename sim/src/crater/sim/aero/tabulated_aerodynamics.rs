@@ -1,12 +1,13 @@
 use anyhow::{Result, anyhow};
 use hdf5_metno::File;
-use nalgebra::vector;
 use std::{array, f64, path::Path};
 use strum::{AsRefStr, EnumIter, IntoEnumIterator};
 
 use crate::math::interp::Interpolator;
 
-use super::aerodynamics::{AeroState, AerodynamicActions, Aerodynamics};
+use super::aerodynamics::{
+    AeroCoefficientsValues, AeroState, Aerodynamics, AerodynamicsCoefficients,
+};
 
 #[derive(Debug, Clone, Copy, AsRefStr, EnumIter)]
 enum Coefficients {
@@ -52,93 +53,21 @@ enum States {
     Delta4,
 }
 
-pub struct TabulatedAerodynamics {
+pub struct TabulatedAeroCoefficients {
     interp: Interpolator<f32, 8>,
     states: Vec<Vec<f32>>,
 
     coeffs: Vec<Vec<f32>>,
-
-    ref_length_m: f64,
-    ref_surface_m2: f64,
 }
 
-#[allow(nonstandard_style)]
-struct InterpolatedCoefficients {
-    cA: f64,
-
-    cY: f64,
-    cY_r: f64,
-    cY_bd: f64,
-
-    cN: f64,
-    cN_q: f64,
-    cN_ad: f64,
-
-    cl: f64,
-    cl_p: f64,
-    cl_r: f64,
-
-    cm: f64,
-    cm_q: f64,
-    cm_ad: f64,
-
-    cn: f64,
-    cn_r: f64,
-    cn_bd: f64,
-}
-
-impl Aerodynamics for TabulatedAerodynamics {
-    fn actions(&self, state: &AeroState) -> AerodynamicActions {
-        let c = self.interpolate(state);
-
-        let q_v = 0.5 * state.air_density_kg_m3 * state.v_air_norm_m_s;
-
-        let fx = -q_v * self.ref_surface_m2 * (state.v_air_norm_m_s * c.cA);
-        let fy = q_v
-            * self.ref_surface_m2
-            * (state.v_air_norm_m_s * c.cY
-                + self.ref_length_m / 2.0 * (c.cY_r + c.cY_bd) * state.w_b_rad_s[2]);
-        let fz = -q_v
-            * self.ref_surface_m2
-            * (state.v_air_norm_m_s * c.cN
-                + self.ref_length_m / 2.0 * (c.cN_q + c.cN_ad) * state.w_b_rad_s[2]);
-
-        let mx = q_v
-            * self.ref_surface_m2
-            * self.ref_length_m
-            * (state.v_air_norm_m_s * c.cl
-                + self.ref_length_m / 2.0
-                    * (c.cl_p * state.w_b_rad_s[0] + c.cl_r * state.w_b_rad_s[2]));
-
-        let my = q_v
-            * self.ref_surface_m2
-            * self.ref_length_m
-            * (state.v_air_norm_m_s * c.cm
-                + self.ref_length_m / 2.0 * (c.cm_q + c.cm_ad) * state.w_b_rad_s[1]);
-
-        let mz = q_v
-            * self.ref_surface_m2
-            * self.ref_length_m
-            * (state.v_air_norm_m_s * c.cn
-                + self.ref_length_m / 2.0 * (c.cn_r + c.cn_bd) * state.w_b_rad_s[2]);
-
-        let f = vector![fx, fy, fz];
-        let m = vector![mx, my, mz];
-
-        AerodynamicActions {
-            forces_b_n: f * state.v_air_b_m_s[0].signum(),
-            moments_b_nm: m * state.v_air_b_m_s[0].signum(),
-        }
+impl AerodynamicsCoefficients for TabulatedAeroCoefficients {
+    fn coefficients(&self, state: &AeroState) -> AeroCoefficientsValues {
+        self.interpolate(state)
     }
 }
 
-impl TabulatedAerodynamics {
-    pub fn from_h5(
-        file_main: &Path,
-        file_derivatives: &Path,
-        ref_length_m: f64,
-        ref_surface_m2: f64,
-    ) -> Result<Self> {
+impl TabulatedAeroCoefficients {
+    pub fn from_h5(file_main: &Path, file_derivatives: &Path) -> Result<Self> {
         let h5_main = File::open(file_main)?;
         let h5_derivatives = File::open(file_derivatives)?;
 
@@ -183,21 +112,19 @@ impl TabulatedAerodynamics {
             interp,
             states,
             coeffs,
-            ref_length_m,
-            ref_surface_m2,
         })
     }
 
-    fn interpolate(&self, state: &AeroState) -> InterpolatedCoefficients {
+    fn interpolate(&self, state: &AeroState) -> AeroCoefficientsValues {
         let state1 = [
             state.angles.alpha_rad.to_degrees() as f32,
             state.mach as f32,
             state.angles.beta_rad.to_degrees() as f32,
             state.altitude_m as f32,
-            state.servo_pos.0[0] as f32,
-            state.servo_pos.0[1] as f32,
-            state.servo_pos.0[2] as f32,
-            state.servo_pos.0[3] as f32,
+            state.servo_pos.pos_rad[0].to_degrees() as f32,
+            state.servo_pos.pos_rad[1].to_degrees() as f32,
+            state.servo_pos.pos_rad[2].to_degrees() as f32,
+            state.servo_pos.pos_rad[3].to_degrees() as f32,
         ];
 
         let state2 = [
@@ -205,10 +132,10 @@ impl TabulatedAerodynamics {
             state.mach as f32,
             state.angles.alpha_rad.to_degrees() as f32,
             state.altitude_m as f32,
-            state.servo_pos.0[0] as f32,
-            state.servo_pos.0[1] as f32,
-            state.servo_pos.0[2] as f32,
-            state.servo_pos.0[3] as f32,
+            state.servo_pos.pos_rad[0].to_degrees() as f32,
+            state.servo_pos.pos_rad[1].to_degrees() as f32,
+            state.servo_pos.pos_rad[2].to_degrees() as f32,
+            state.servo_pos.pos_rad[3].to_degrees() as f32,
         ];
 
         let c1 = [
@@ -239,7 +166,7 @@ impl TabulatedAerodynamics {
         self.interp.interpn(&state1, &c1, &mut v1);
         self.interp.interpn(&state2, &c2, &mut v2);
 
-        InterpolatedCoefficients {
+        AeroCoefficientsValues {
             cA: v1[0] as f64,
 
             cY: v1[1] as f64,

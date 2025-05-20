@@ -7,10 +7,12 @@ use crate::{
     core::time::{Clock, TD, Timestamp},
     crater::sim::{
         aero::{
-            aerodynamics::{AeroAngles, AeroState, Aerodynamics},
+            aerodynamics::{
+                AeroCoefficientsValues, AeroState, Aerodynamics, AerodynamicsCoefficients,
+            },
             atmosphere::{Atmosphere, AtmosphereIsa, AtmosphereProperties, mach_number},
-            linear_aerodynamics::{LinAeroCoefficients, LinearAerodynamics},
-            tabulated_aerodynamics::TabulatedAerodynamics,
+            linear_aerodynamics::LinearizedAeroCoefficients,
+            tabulated_aerodynamics::TabulatedAeroCoefficients,
         },
         engine::{
             SimpleRocketEngine, TabRocketEngine,
@@ -39,7 +41,8 @@ pub struct Rocket {
     pub(super) step_state: StepState,
 
     pub(super) engine: Box<dyn RocketEngine + Send>,
-    pub(super) aerodynamics: Box<dyn Aerodynamics + Send>,
+    pub(super) aero_coeffs: Box<dyn AerodynamicsCoefficients + Send>,
+    pub(super) aerodynamics: Aerodynamics,
     pub(super) atmosphere: Box<dyn Atmosphere + Send>,
 
     pub(super) fsm: StateMachine<RocketFsm>,
@@ -93,18 +96,11 @@ impl Rocket {
             }
         };
 
-        let aerodynamics: Box<dyn Aerodynamics + Send> =
+        let aero_coeffs: Box<dyn AerodynamicsCoefficients + Send> =
             match params_map.get_param("aero.model")?.value_string()?.as_str() {
-                "linear" => {
-                    let coeffs = LinAeroCoefficients::from_params(
-                        params_map.get_map("sim.rocket.aero.linear")?,
-                    )?;
-                    Box::new(LinearAerodynamics::new(
-                        rocket_params.diameter,
-                        rocket_params.surface,
-                        coeffs,
-                    ))
-                }
+                "linear" => Box::new(LinearizedAeroCoefficients::from_params(
+                    params_map.get_map("sim.rocket.aero.linear")?,
+                )?),
                 "tabulated" => {
                     let coeffs_main_path = params_map
                         .get_param("aero.tabulated.coeffs_main")?
@@ -117,12 +113,7 @@ impl Rocket {
                     // let aero_coefficients = AeroCoefficients::from_params(aero_params)?;
                     let file1 = PathBuf::from_str(&coeffs_main_path).unwrap();
                     let file2 = PathBuf::from_str(&coeffs_dynamic_path).unwrap();
-                    Box::new(TabulatedAerodynamics::from_h5(
-                        &file1,
-                        &file2,
-                        rocket_params.diameter,
-                        rocket_params.surface,
-                    )?)
+                    Box::new(TabulatedAeroCoefficients::from_h5(&file1, &file2)?)
                 }
                 unknown => {
                     return Err(anyhow!(
@@ -147,8 +138,9 @@ impl Rocket {
 
         Ok(Rocket {
             engine,
+            aerodynamics: Aerodynamics::new(rocket_params.diameter, rocket_params.surface),
             params: rocket_params,
-            aerodynamics,
+            aero_coeffs,
             atmosphere,
             state,
             rx_servo_pos,
@@ -167,6 +159,7 @@ pub(super) struct RocketOdeStep {
     pub mass_rocket: RocketMassProperties,
     pub atmosphere_props: AtmosphereProperties,
     pub aero_state: AeroState,
+    pub aero_coeffs: AeroCoefficientsValues,
     pub actions: RocketActions,
     pub accels: RocketAccelerations,
 }
@@ -187,6 +180,7 @@ impl RocketOdeStep {
 
         let w_b_rad_s: Vector3<f64> = state.angvel_b_rad_s();
         let mach = mach_number(vel_norm_m_s, atmosphere_props.speed_of_sound_m_s);
+
         let aero_state = AeroState::new(
             vel_b_m_s,
             w_b_rad_s,
@@ -196,8 +190,11 @@ impl RocketOdeStep {
             rocket.step_state.servo_pos.clone(),
         );
 
+        let aero_coeffs = rocket.aero_coeffs.coefficients(&aero_state);
+
         // TODO: Apply forces on correct point, not just COM
-        let actions = Self::rocket_actions(rocket, t_s, &state, &aero_state, &mass_rocket);
+        let actions =
+            Self::rocket_actions(rocket, t_s, &state, &aero_state, &aero_coeffs, &mass_rocket);
 
         let qw: Quaternion<f64> = Quaternion::from_vector(Vector4::new(
             w_b_rad_s[0] / 2.0,
@@ -232,6 +229,7 @@ impl RocketOdeStep {
             mass_rocket,
             atmosphere_props,
             aero_state,
+            aero_coeffs,
             actions,
             accels,
         }
@@ -242,13 +240,14 @@ impl RocketOdeStep {
         t: f64,
         rocket_state: &RocketState,
         aero_state: &AeroState,
+        aero_coeffs: &AeroCoefficientsValues,
         mass_props: &RocketMassProperties,
     ) -> RocketActions {
         let t_ignition = rocket.fsm.t_from_ignition(t);
 
         let q_nb: UnitQuaternion<f64> = rocket_state.quat_nb();
 
-        let aero_actions = rocket.aerodynamics.actions(&aero_state);
+        let aero_actions = rocket.aerodynamics.actions(&aero_state, &aero_coeffs);
 
         let aero_force_b_n = aero_actions.forces_b_n;
         let aero_moment_b_nm = aero_actions.moments_b_nm;

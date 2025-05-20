@@ -1,4 +1,4 @@
-use nalgebra::{matrix, Matrix4, Vector4};
+use nalgebra::{Matrix4, Vector4, matrix};
 
 /// From fin deflections to mixed deflections
 const MIXING_MATRIX: Matrix4<f64> = matrix![-0.25,  0.25,  0.25, -0.25;
@@ -26,23 +26,29 @@ const INV_MIXING_MATRIX: Matrix4<f64> = matrix![-1.0,  1.0, -1.0, -1.0;
 /// ```
 /// Positive angle according to right hand rule over fin hinge axis
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct ServoPosition(pub Vector4<f64>);
+pub struct ServoPosition {
+    pub pos_rad: Vector4<f64>,
+}
 
 impl ServoPosition {
     pub fn mix(&self) -> MixedServoPosition {
-        MixedServoPosition(MIXING_MATRIX * self.0)
+        MixedServoPosition {
+            pos_rad: MIXING_MATRIX * self.pos_rad,
+        }
     }
 }
 
 impl From<Vector4<f64>> for ServoPosition {
-    fn from(value: Vector4<f64>) -> Self {
-        ServoPosition(value)
+    fn from(pos_rad: Vector4<f64>) -> Self {
+        ServoPosition { pos_rad }
     }
 }
 
 impl From<[f64; 4]> for ServoPosition {
-    fn from(value: [f64; 4]) -> Self {
-        ServoPosition(value.into())
+    fn from(pos_rad: [f64; 4]) -> Self {
+        ServoPosition {
+            pos_rad: pos_rad.into(),
+        }
     }
 }
 
@@ -71,39 +77,45 @@ impl From<[f64; 4]> for ServoPosition {
 ///
 /// ```
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct MixedServoPosition(pub Vector4<f64>);
+pub struct MixedServoPosition {
+    pub pos_rad: Vector4<f64>,
+}
 
 impl MixedServoPosition {
     pub fn unmix(&self) -> ServoPosition {
-        ServoPosition(INV_MIXING_MATRIX * self.0)
+        ServoPosition {
+            pos_rad: INV_MIXING_MATRIX * self.pos_rad,
+        }
     }
 
-    pub fn yaw(&self) -> f64 {
-        self.0[0]
+    pub fn yaw_rad(&self) -> f64 {
+        self.pos_rad[0]
     }
 
-    pub fn pitch(&self) -> f64 {
-        self.0[1]
+    pub fn pitch_rad(&self) -> f64 {
+        self.pos_rad[1]
     }
 
-    pub fn roll(&self) -> f64 {
-        self.0[2]
+    pub fn roll_rad(&self) -> f64 {
+        self.pos_rad[2]
     }
 
-    pub fn squeeze(&self) -> f64 {
-        self.0[3]
+    pub fn squeeze_rad(&self) -> f64 {
+        self.pos_rad[3]
     }
 }
 
 impl From<Vector4<f64>> for MixedServoPosition {
-    fn from(value: Vector4<f64>) -> Self {
-        MixedServoPosition(value)
+    fn from(mixed_rad: Vector4<f64>) -> Self {
+        MixedServoPosition { pos_rad: mixed_rad }
     }
 }
 
 impl From<[f64; 4]> for MixedServoPosition {
-    fn from(value: [f64; 4]) -> Self {
-        MixedServoPosition(value.into())
+    fn from(mixed_rad: [f64; 4]) -> Self {
+        MixedServoPosition {
+            pos_rad: mixed_rad.into(),
+        }
     }
 }
 
