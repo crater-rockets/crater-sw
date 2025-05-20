@@ -1,6 +1,9 @@
 use crate::{
     crater::sim::{
-        gnc::{fsw::FlightSoftware, orchestrator::Orchestrator}, rocket::rocket::Rocket, sensors::ideal::{IdealIMU, IdealMagnetometer, IdealStaticPressureSensor}
+        actuators::ideal::IdealServo,
+        gnc::{fsw::FlightSoftware, openloop::OpenloopControl, orchestrator::Orchestrator},
+        rocket::rocket::Rocket,
+        sensors::ideal::{IdealIMU, IdealMagnetometer, IdealStaticPressureSensor},
     },
     nodes::NodeManager,
 };
@@ -24,8 +27,11 @@ impl ModelBuilder for OpenLoopCrater {
         nm.add_node("ideal_press", |ctx| {
             Ok(Box::new(IdealStaticPressureSensor::new(ctx)?))
         })?;
-
         nm.add_node("fsw", |ctx| Ok(Box::new(FlightSoftware::new(ctx)?)))?;
+        nm.add_node("openloop_control", |ctx| {
+            Ok(Box::new(OpenloopControl::new(ctx)?))
+        })?;
+        nm.add_node("ideal_serve", |ctx| Ok(Box::new(IdealServo::new(ctx)?)))?;
 
         Ok(())
     }
