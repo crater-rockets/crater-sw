@@ -62,6 +62,10 @@ quat_imu_b = { val = [0.0, 0.0, 0.0, 1.0], type = "float[]" }
 # Orientation of the magnetometer in the body frame (w component last)
 quat_mag_b = { val = [0.0, 0.0, 0.0, 1.0], type = "float[]" }
 
+[sim.rocket.aero]
+model = { val = "tabulated", type = "str" }
+# aero_model = { val = "linear", type = "str" }
+
 [sim.rocket.aero.tabulated]
 coeffs_main = { val = "coeffs_main.h5", type = "str" }
 coeffs_dynamic = { val = "coeffs_dynamic.h5", type = "str" }

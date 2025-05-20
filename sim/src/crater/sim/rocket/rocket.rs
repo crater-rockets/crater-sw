@@ -1,17 +1,24 @@
 use super::{
-    aero::{
-        aerodynamics::AerodynamicsResult,
-        tabulated_aerodynamics::{AeroState, TabulatedAerodynamics},
-    },
-    engine::{SimpleRocketEngine, TabRocketEngine, engine::RocketEngine},
-    events::{Event, GncEvent, GncEventItem, SimEvent},
-    gnc::ServoPosition,
-    rocket_data::{RocketActions, RocketMassProperties, RocketParams, RocketState},
+    mass::RocketMassProperties,
+    rocket_data::{RocketAccelerations, RocketActions, RocketParams, RocketState},
     rocket_output::RocketOutput,
 };
 use crate::{
     core::time::{Clock, TD, Timestamp},
-    crater::sim::aero::atmosphere::AtmosphereIsa,
+    crater::sim::{
+        aero::{
+            aerodynamics::{AeroAngles, AeroState, Aerodynamics},
+            atmosphere::{Atmosphere, AtmosphereIsa, AtmosphereProperties, mach_number},
+            linear_aerodynamics::{LinAeroCoefficients, LinearAerodynamics},
+            tabulated_aerodynamics::TabulatedAerodynamics,
+        },
+        engine::{
+            SimpleRocketEngine, TabRocketEngine,
+            engine::{RocketEngine, RocketEngineMassProperties},
+        },
+        events::{Event, GncEvent, GncEventItem, SimEvent},
+        gnc::ServoPosition,
+    },
     math::ode::{OdeProblem, OdeSolver, RungeKutta4},
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
@@ -32,7 +39,8 @@ pub struct Rocket {
     pub(super) step_state: StepState,
 
     pub(super) engine: Box<dyn RocketEngine + Send>,
-    pub(super) aerodynamics: TabulatedAerodynamics,
+    pub(super) aerodynamics: Box<dyn Aerodynamics + Send>,
+    pub(super) atmosphere: Box<dyn Atmosphere + Send>,
 
     pub(super) fsm: StateMachine<RocketFsm>,
 
@@ -51,24 +59,29 @@ pub(super) struct StepState {
 impl Rocket {
     pub fn new(name: &str, ctx: NodeContext) -> Result<Self> {
         // Base path for the parameters of this Rocket
-        let rocket_params = ctx.parameters().get_map("sim.rocket")?;
+        let params_map = ctx.parameters().get_map("sim.rocket")?;
+
+        // Read parameters
+        let rocket_params = RocketParams::from_params(params_map)?;
+        // Initialize state with initial conditions from parameters
+        let state = RocketState::from_params(&rocket_params);
 
         // Select which engine to use based on the config file (currently only one option)
-        let engine: Box<dyn RocketEngine + Send> = match rocket_params
+        let engine: Box<dyn RocketEngine + Send> = match params_map
             .get_param("engine.engine_type")?
             .value_string()?
             .as_str()
         {
             "simple" => Box::new(SimpleRocketEngine::from_impulse(
-                rocket_params
+                params_map
                     .get_param("engine.simple.total_impulse")?
                     .value_float()?,
-                rocket_params
+                params_map
                     .get_param("engine.simple.thrust_duration")?
                     .value_float()?,
             )),
             "tabulated" => Box::new(TabRocketEngine::from_json(
-                rocket_params
+                params_map
                     .get_param("engine.tabulated.json_path")?
                     .value_string()?
                     .as_str(),
@@ -80,25 +93,45 @@ impl Rocket {
             }
         };
 
-        
-        // Read parameters
-        let params = RocketParams::from_params(rocket_params)?;
-        // Initialize state with initial conditions from parameters
-        let state = RocketState::from_params(&params);
+        let aerodynamics: Box<dyn Aerodynamics + Send> =
+            match params_map.get_param("aero.model")?.value_string()?.as_str() {
+                "linear" => {
+                    let coeffs = LinAeroCoefficients::from_params(
+                        params_map.get_map("sim.rocket.aero.linear")?,
+                    )?;
+                    Box::new(LinearAerodynamics::new(
+                        rocket_params.diameter,
+                        rocket_params.surface,
+                        coeffs,
+                    ))
+                }
+                "tabulated" => {
+                    let coeffs_main_path = params_map
+                        .get_param("aero.tabulated.coeffs_main")?
+                        .value_string()?;
+                    let coeffs_dynamic_path = params_map
+                        .get_param("aero.tabulated.coeffs_dynamic")?
+                        .value_string()?;
 
-        let coeffs_main_path = rocket_params.get_param("aero.tabulated.coeffs_main")?.value_string()?;
-        let coeffs_dynamic_path = rocket_params.get_param("aero.tabulated.coeffs_dynamic")?.value_string()?;
+                    // let aero_params = rocket_params.get_map("aero")?;
+                    // let aero_coefficients = AeroCoefficients::from_params(aero_params)?;
+                    let file1 = PathBuf::from_str(&coeffs_main_path).unwrap();
+                    let file2 = PathBuf::from_str(&coeffs_dynamic_path).unwrap();
+                    Box::new(TabulatedAerodynamics::from_h5(
+                        &file1,
+                        &file2,
+                        rocket_params.diameter,
+                        rocket_params.surface,
+                    )?)
+                }
+                unknown => {
+                    return Err(anyhow!(
+                        "Unknown aerodynamics model selected for rocket '{name}': {unknown}"
+                    ));
+                }
+            };
 
         let atmosphere = Box::new(AtmosphereIsa::default());
-
-        // let aero_params = rocket_params.get_map("aero")?;
-        // let aero_coefficients = AeroCoefficients::from_params(aero_params)?;
-        let file1 =
-            PathBuf::from_str(&coeffs_main_path).unwrap();
-        let file2 =
-            PathBuf::from_str(&coeffs_dynamic_path).unwrap();
-        let aerodynamics =
-            TabulatedAerodynamics::from_h5(&file1, &file2, params.diameter, params.surface)?;
 
         let rx_servo_pos = ctx
             .telemetry()
@@ -114,8 +147,9 @@ impl Rocket {
 
         Ok(Rocket {
             engine,
-            params,
+            params: rocket_params,
             aerodynamics,
+            atmosphere,
             state,
             rx_servo_pos,
             rx_sim_event,
@@ -124,35 +158,115 @@ impl Rocket {
             step_state: StepState::default(),
         })
     }
+}
 
-    pub fn calc_actions(
-        &self,
-        t: f64,
-        state: &RocketState,
-        aero: &AerodynamicsResult,
-        mass_props: &RocketMassProperties,
-    ) -> RocketActions {
-        let t_ignition = self.fsm.t_from_ignition(t);
+pub(super) struct RocketOdeStep {
+    pub state: RocketState,
+    pub d_state: RocketState,
+    pub mass_engine: RocketEngineMassProperties,
+    pub mass_rocket: RocketMassProperties,
+    pub atmosphere_props: AtmosphereProperties,
+    pub aero_state: AeroState,
+    pub actions: RocketActions,
+    pub accels: RocketAccelerations,
+}
+
+impl RocketOdeStep {
+    pub fn calc(rocket: &Rocket, t_s: f64, state: RocketState) -> Self {
+        let mass_engine = rocket.engine.mass(rocket.fsm.t_from_ignition(t_s));
+
+        let mass_rocket = RocketMassProperties::calc_mass(&mass_engine, &rocket.params);
+
+        let altitude_m = -state.pos_n_m()[2];
+        let atmosphere_props = rocket.atmosphere.properties(altitude_m);
 
         let q_nb: UnitQuaternion<f64> = state.quat_nb();
+        let vel_b_m_s: Vector3<f64> =
+            q_nb.inverse_transform_vector(&state.vel_n_m_s().clone_owned());
+        let vel_norm_m_s = vel_b_m_s.norm();
 
-        let aero_force_b = aero.forces;
-        let aero_torque_b = aero.moments;
+        let w_b_rad_s: Vector3<f64> = state.angvel_b_rad_s();
+        let mach = mach_number(vel_norm_m_s, atmosphere_props.speed_of_sound_m_s);
+        let aero_state = AeroState::new(
+            vel_b_m_s,
+            w_b_rad_s,
+            altitude_m,
+            mach,
+            atmosphere_props.air_density_kg_m3,
+            rocket.step_state.servo_pos.clone(),
+        );
 
-        let thrust_b = self.engine.thrust_b(t_ignition);
+        // TODO: Apply forces on correct point, not just COM
+        let actions = Self::rocket_actions(rocket, t_s, &state, &aero_state, &mass_rocket);
+
+        let qw: Quaternion<f64> = Quaternion::from_vector(Vector4::new(
+            w_b_rad_s[0] / 2.0,
+            w_b_rad_s[1] / 2.0,
+            w_b_rad_s[2] / 2.0,
+            0.0,
+        ));
+        let qdot: Quaternion<f64> = q_nb.into_inner() * qw;
+
+        let acc_n_m_s2 = actions.tot_force_n_n / mass_rocket.mass_kg;
+
+        let ang_acc_b_rad_s2: Vector3<f64> = mass_rocket.inertia_kgm2.try_inverse().unwrap()
+            * (actions.tot_moment_b_nm - mass_rocket.inertia_dot_kgm2_s * w_b_rad_s
+                + (mass_rocket.inertia_kgm2 * w_b_rad_s).cross(&w_b_rad_s));
+
+        let accels = RocketAccelerations {
+            acc_b_m_s2: q_nb.inverse_transform_vector(&acc_n_m_s2),
+            acc_n_m_s2,
+            ang_acc_b_rad_s2,
+        };
+
+        let mut d_state = RocketState::default();
+        d_state.set_pos_n_m(&state.vel_n_m_s());
+        d_state.set_vel_n_m_s(&accels.acc_n_m_s2);
+        d_state.set_quat_nb_vec(qdot.as_vector());
+        d_state.set_angvel_b_rad_s(&accels.ang_acc_b_rad_s2);
+
+        RocketOdeStep {
+            state,
+            d_state,
+            mass_engine,
+            mass_rocket,
+            atmosphere_props,
+            aero_state,
+            actions,
+            accels,
+        }
+    }
+
+    pub fn rocket_actions(
+        rocket: &Rocket,
+        t: f64,
+        rocket_state: &RocketState,
+        aero_state: &AeroState,
+        mass_props: &RocketMassProperties,
+    ) -> RocketActions {
+        let t_ignition = rocket.fsm.t_from_ignition(t);
+
+        let q_nb: UnitQuaternion<f64> = rocket_state.quat_nb();
+
+        let aero_actions = rocket.aerodynamics.actions(&aero_state);
+
+        let aero_force_b_n = aero_actions.forces_b_n;
+        let aero_moment_b_nm = aero_actions.moments_b_nm;
+
+        let thrust_b_n = rocket.engine.thrust_b(t_ignition);
 
         let force_n: Vector3<f64> = q_nb
-            .transform_vector(&(thrust_b + aero_force_b + self.params.disturb_const_force_b))
-            - mass_props.mass_dot * &state.vel_n()
-            + self.params.g_n * mass_props.mass;
+            .transform_vector(&(thrust_b_n + aero_force_b_n + rocket.params.disturb_const_force_b))
+            - mass_props.mass_dot_kg_s * &rocket_state.vel_n_m_s()
+            + rocket.params.g_n * mass_props.mass_kg;
 
-        let (force_n, torque_b) = match self.fsm.state() {
+        let (tot_force_n_n, tot_moment_b_nm) = match rocket.fsm.state() {
             State::OnPad {} => (Vector3::<f64>::zeros(), Vector3::<f64>::zeros()),
             State::LiftingOff {} | State::FlyingRamp {} => {
-                if force_n[2].abs() > self.params.g_n[2].abs() * mass_props.mass {
+                if force_n[2].abs() > rocket.params.g_n[2].abs() * mass_props.mass_kg {
                     (
                         // Only keep component of acceleration parallel to the ramp
-                        self.params.ramp_versor.dot(&force_n) * self.params.ramp_versor,
+                        rocket.params.ramp_versor.dot(&force_n) * rocket.params.ramp_versor,
                         Vector3::<f64>::zeros(),
                     )
                 } else {
@@ -161,92 +275,39 @@ impl Rocket {
                 }
             }
             _ => {
-                let torque_b: Vector3<f64> = aero.moments + self.params.disturb_const_torque_b;
+                let torque_b: Vector3<f64> =
+                    aero_moment_b_nm + rocket.params.disturb_const_torque_b;
                 (force_n, torque_b)
             }
         };
 
-        let force_b = q_nb.inverse_transform_vector(&force_n);
+        let tot_force_b_n = q_nb.inverse_transform_vector(&tot_force_n_n);
 
         RocketActions {
-            thrust_b,
-            aero_force_b,
-            aero_torque_b,
-            force_n,
-            force_b,
-            torque_b,
+            thrust_b_n,
+            aero_actions: aero_actions,
+            tot_force_n_n,
+            tot_force_b_n,
+            tot_moment_b_nm,
         }
     }
 }
 
 impl OdeProblem<f64, 13> for Rocket {
     fn odefun(&self, t: f64, y: SVector<f64, 13>) -> SVector<f64, 13> {
-        let state: RocketState = RocketState(y);
+        let ode_step = RocketOdeStep::calc(&self, t, RocketState(y));
 
-        // state derivative
-        let mut dstate: RocketState = RocketState::default();
-
-        let mass_props = RocketMassProperties::calc_mass(
-            &self.engine.mass(self.fsm.t_from_ignition(t)),
-            &self.params,
-        );
-
-        let q_nb: UnitQuaternion<f64> = state.quat_nb();
-        let vel_b: Vector3<f64> = q_nb.inverse_transform_vector(&state.vel_n().clone_owned());
-        let w_b: Vector3<f64> = state.angvel_b();
-
-        let mach = vel_b.norm() / 330.0;
-        let aerostate = AeroState::new(
-            vel_b,
-            w_b,
-            -state.pos_n()[2],
-            mach,
-            1.0,
-            self.step_state.servo_pos.clone(),
-        );
-
-        let (f_aero, m_aero) = self.aerodynamics.actions(&aerostate);
-
-        let aero: AerodynamicsResult = AerodynamicsResult {
-            alpha: aerostate.alpha,
-            beta: aerostate.beta,
-            forces: f_aero,
-            moments: m_aero,
-        };
-
-        let actions = self.calc_actions(t, &state, &aero, &mass_props);
-
-        let qw: Quaternion<f64> =
-            Quaternion::from_vector(Vector4::new(w_b[0] / 2.0, w_b[1] / 2.0, w_b[2] / 2.0, 0.0));
-        let qdot: Quaternion<f64> = q_nb.into_inner() * qw;
-
-        let acc_n = actions.force_n / mass_props.mass;
-        let w_dot: Vector3<f64> = mass_props.inertia.try_inverse().unwrap()
-            * (actions.torque_b - mass_props.inertia_dot * w_b
-                + (mass_props.inertia * w_b).cross(&w_b));
-
-        dstate.set_pos_n(&state.vel_n());
-        dstate.set_vel_n(&acc_n);
-        dstate.set_quat_nb_vec(qdot.as_vector());
-        dstate.set_angvel_b(&w_dot);
-
-        dstate.0
+        ode_step.d_state.0
     }
 }
 
 impl Node for Rocket {
     fn step(&mut self, i: usize, dt: TimeDelta, clock: &dyn Clock) -> Result<StepResult> {
         let t = Timestamp::now(clock);
+
         // First step, just propagate the initial conditions
         if i == 0 {
-            self.output.update(
-                t,
-                &self.state,
-                &RocketState::default(),
-                &ServoPosition::default(),
-                &self,
-            );
-
+            self.output.update(t, &self);
             return Ok(StepResult::Continue);
         }
 
@@ -267,7 +328,7 @@ impl Node for Rocket {
             ServoPosition::default()
         };
 
-        self.step_state.servo_pos = servo_pos.clone();
+        self.step_state.servo_pos = servo_pos;
 
         let next = RungeKutta4.solve(
             self,
@@ -281,16 +342,10 @@ impl Node for Rocket {
         // Normalize quaternion agains numerical errors
         self.state.normalize_quat();
 
-        self.output.update(
-            t,
-            &self.state,
-            &RocketState(self.odefun(t.monotonic.elapsed_seconds_f64(), self.state.0.clone())),
-            &ServoPosition::default(),
-            &self,
-        );
+        self.output.update(t, &self);
 
         // Stop conditions
-        if (self.state.pos_n()[2] > 0.0 && t.monotonic.elapsed_seconds_f64() > 1.0)
+        if (self.state.pos_n_m()[2] > 0.0 && t.monotonic.elapsed_seconds_f64() > 1.0)
             || t.monotonic.elapsed_seconds_f64() > self.params.max_t
         {
             Ok(StepResult::Stop)
@@ -357,7 +412,7 @@ impl RocketFsm {
     fn lifting_off(context: &mut RocketFsmContext, event: &Event) -> Response<State> {
         match event {
             Event::Step => {
-                if context.state.pos_n()[2] < -0.2 {
+                if context.state.pos_n_m()[2] < -0.2 {
                     Transition(State::flying_ramp())
                 } else {
                     Handled
@@ -383,7 +438,7 @@ impl RocketFsm {
         match event {
             Event::Step => {
                 // TODO: Better ramp exit condition check
-                if context.state.pos_n()[2] < -2.0 {
+                if context.state.pos_n_m()[2] < -2.0 {
                     Transition(State::flying_free())
                 } else {
                     Handled

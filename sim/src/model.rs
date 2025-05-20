@@ -1,8 +1,6 @@
 use crate::{
     crater::sim::{
-        gnc::{fsw::FlightSoftware, orchestrator::Orchestrator},
-        rocket::Rocket,
-        sensors::ideal::{IdealIMU, IdealMagnetometer, IdealStaticPressureSensor},
+        gnc::{fsw::FlightSoftware, orchestrator::Orchestrator}, rocket::rocket::Rocket, sensors::ideal::{IdealIMU, IdealMagnetometer, IdealStaticPressureSensor}
     },
     nodes::NodeManager,
 };

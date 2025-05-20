@@ -101,11 +101,11 @@ impl RocketEngine for TabRocketEngine {
         let in_yy_int = interpolate(&self.inertia_yy_value, int);
         let in_zz_int = interpolate(&self.inertia_zz_value, int);
         RocketEngineMassProperties {
-            xcg_eng_frame: xcg_int.0,
-            xcg_dot_eng_frame: xcg_int.1,
-            mass: mass_int.0,
-            mass_dot: mass_int.1,
-            inertia_eng_frame: Matrix3::new(
+            xcg_eng_frame_m: xcg_int.0,
+            xcg_dot_eng_frame_m: xcg_int.1,
+            mass_kg: mass_int.0,
+            mass_dot_kg_s: mass_int.1,
+            inertia_eng_frame_kgm2: Matrix3::new(
                 in_xx_int.0,
                 0.0,
                 0.0,
@@ -116,7 +116,7 @@ impl RocketEngine for TabRocketEngine {
                 0.0,
                 in_zz_int.0,
             ),
-            inertia_dot_eng_frame: Matrix3::new(
+            inertia_dot_eng_frame_kgm2: Matrix3::new(
                 in_xx_int.1,
                 0.0,
                 0.0,

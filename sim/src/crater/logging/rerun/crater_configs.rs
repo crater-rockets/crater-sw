@@ -4,19 +4,12 @@ use crater_gnc::components::ada::AdaResult;
 use rerun::RecordingStream;
 
 use crate::crater::sim::{
-    events::{GncEventItem, SimEvent},
-    gnc::ServoPosition,
-    rocket_data::{
-        AeroAngles, RocketAccelerations, RocketActions, RocketMassProperties, RocketState,
-    },
-    sensors::{IMUSample, MagnetometerSample},
+    aero::aerodynamics::{AeroAngles, AeroState}, engine::engine::RocketEngineMassProperties, events::{GncEventItem, SimEvent}, gnc::ServoPosition, rocket::{mass::RocketMassProperties, rocket_data::{RocketAccelerations, RocketActions, RocketState}}, sensors::{IMUSample, MagnetometerSample}
 };
 
 use super::{
     crater_log_impl::{
-        AdaOutputLog, AeroAnglesLog, GncEventLog, IMUSampleLog, MagnetometerSampleLog,
-        RocketAccelLog, RocketActionsLog, RocketMassPropertiesLog, RocketStateRawLog,
-        RocketStateUILog, ServoPositionLog, SimEventLog,
+        AdaOutputLog, AeroStateLog, GncEventLog, IMUSampleLog, MagnetometerSampleLog, RocketAccelLog, RocketActionsLog, RocketEngineMassPropertiesLog, RocketMassPropertiesLog, RocketStateRawLog, RocketStateUILog, ServoPositionLog, SimEventLog
     },
     rerun_logger::{RerunLogConfig, RerunLoggerBuilder},
 };
@@ -50,10 +43,10 @@ impl RerunLogConfig for CraterUiLogConfig {
             RocketStateUILog::default(),
         )?;
 
-        builder.log_telemetry::<AeroAngles>(
-            "/rocket/aero_angles",
-            "timeseries/rocket/aero_angles",
-            AeroAnglesLog::default(),
+        builder.log_telemetry::<AeroState>(
+            "/rocket/aerostate",
+            "timeseries/rocket/aerostate",
+            AeroStateLog::default(),
         )?;
         builder.log_telemetry::<RocketActions>(
             "/rocket/actions",
@@ -76,9 +69,14 @@ impl RerunLogConfig for CraterUiLogConfig {
             ServoPositionLog::default(),
         )?;
         builder.log_telemetry::<RocketMassProperties>(
-            "/rocket/masses",
-            "timeseries/rocket/masses",
+            "/rocket/mass/rocket",
+            "timeseries/rocket/mass/rocket",
             RocketMassPropertiesLog::default(),
+        )?;
+        builder.log_telemetry::<RocketEngineMassProperties>(
+            "/rocket/mass/engine",
+            "timeseries/rocket/mass/engine",
+            RocketEngineMassPropertiesLog::default(),
         )?;
         builder.log_telemetry::<IMUSample>(
             "/sensors/ideal_imu/translated",

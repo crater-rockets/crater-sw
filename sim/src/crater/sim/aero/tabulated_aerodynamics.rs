@@ -1,10 +1,12 @@
 use anyhow::{Result, anyhow};
 use hdf5_metno::File;
-use nalgebra::{Vector3, vector};
+use nalgebra::vector;
 use std::{array, f64, path::Path};
 use strum::{AsRefStr, EnumIter, IntoEnumIterator};
 
-use crate::{crater::sim::gnc::ServoPosition, math::interp::Interpolator};
+use crate::math::interp::Interpolator;
+
+use super::aerodynamics::{AeroState, AerodynamicActions, Aerodynamics};
 
 #[derive(Debug, Clone, Copy, AsRefStr, EnumIter)]
 enum Coefficients {
@@ -56,80 +58,8 @@ pub struct TabulatedAerodynamics {
 
     coeffs: Vec<Vec<f32>>,
 
-    ref_length: f64,
-    ref_surface: f64,
-}
-
-pub struct AeroState {
-    pub servo_pos: ServoPosition,
-
-    pub alpha: f64,
-    pub beta: f64,
-    pub beta_prime: f64,
-
-    pub mach: f64,
-    pub air_density: f64,
-
-    pub v_air_b: Vector3<f64>,
-    pub v_air_norm: f64,
-
-    pub w_b: Vector3<f64>,
-    pub altitude: f64,
-}
-
-impl AeroState {
-    pub fn new(
-        v_air_b: Vector3<f64>,
-        w_b: Vector3<f64>,
-        altitude: f64,
-        mach: f64,
-        air_density: f64,
-        servo_pos: ServoPosition,
-    ) -> AeroState {
-        let v_air_norm = v_air_b.norm();
-        AeroState {
-            servo_pos,
-            alpha: Self::alpha(&v_air_b),
-            beta: Self::beta(&v_air_b, v_air_norm),
-            beta_prime: Self::beta_prime(&v_air_b),
-            mach,
-            air_density,
-            v_air_b,
-            v_air_norm,
-            w_b,
-            altitude,
-        }
-    }
-
-    pub fn alpha(v_air_b: &Vector3<f64>) -> f64 {
-        if v_air_b[0].abs() >= V_SMALL {
-            f64::atan(v_air_b[2] / v_air_b[0])
-        } else if v_air_b[2].abs() >= V_SMALL {
-            f64::consts::FRAC_PI_2 * v_air_b[2].signum()
-        } else {
-            0.0
-        }
-    }
-
-    pub fn beta(v_air_b: &Vector3<f64>, v_air_norm: f64) -> f64 {
-        if v_air_norm >= V_SMALL {
-            f64::asin(v_air_b[1] / v_air_norm)
-        } else if v_air_b[1].abs() >= V_SMALL {
-            f64::consts::FRAC_PI_2 * v_air_b[1].signum()
-        } else {
-            0.0
-        }
-    }
-
-    pub fn beta_prime(v_air_b: &Vector3<f64>) -> f64 {
-        if v_air_b[0].abs() >= V_SMALL {
-            f64::atan(v_air_b[1] / v_air_b[0])
-        } else if v_air_b[1].abs() >= V_SMALL {
-            f64::consts::FRAC_PI_2 * v_air_b[1].signum()
-        } else {
-            0.0
-        }
-    }
+    ref_length_m: f64,
+    ref_surface_m2: f64,
 }
 
 #[allow(nonstandard_style)]
@@ -157,13 +87,57 @@ struct InterpolatedCoefficients {
     cn_bd: f64,
 }
 
-const V_SMALL: f64 = 1.0e-5;
+impl Aerodynamics for TabulatedAerodynamics {
+    fn actions(&self, state: &AeroState) -> AerodynamicActions {
+        let c = self.interpolate(state);
+
+        let q_v = 0.5 * state.air_density_kg_m3 * state.v_air_norm_m_s;
+
+        let fx = -q_v * self.ref_surface_m2 * (state.v_air_norm_m_s * c.cA);
+        let fy = q_v
+            * self.ref_surface_m2
+            * (state.v_air_norm_m_s * c.cY
+                + self.ref_length_m / 2.0 * (c.cY_r + c.cY_bd) * state.w_b_rad_s[2]);
+        let fz = -q_v
+            * self.ref_surface_m2
+            * (state.v_air_norm_m_s * c.cN
+                + self.ref_length_m / 2.0 * (c.cN_q + c.cN_ad) * state.w_b_rad_s[2]);
+
+        let mx = q_v
+            * self.ref_surface_m2
+            * self.ref_length_m
+            * (state.v_air_norm_m_s * c.cl
+                + self.ref_length_m / 2.0
+                    * (c.cl_p * state.w_b_rad_s[0] + c.cl_r * state.w_b_rad_s[2]));
+
+        let my = q_v
+            * self.ref_surface_m2
+            * self.ref_length_m
+            * (state.v_air_norm_m_s * c.cm
+                + self.ref_length_m / 2.0 * (c.cm_q + c.cm_ad) * state.w_b_rad_s[1]);
+
+        let mz = q_v
+            * self.ref_surface_m2
+            * self.ref_length_m
+            * (state.v_air_norm_m_s * c.cn
+                + self.ref_length_m / 2.0 * (c.cn_r + c.cn_bd) * state.w_b_rad_s[2]);
+
+        let f = vector![fx, fy, fz];
+        let m = vector![mx, my, mz];
+
+        AerodynamicActions {
+            forces_b_n: f * state.v_air_b_m_s[0].signum(),
+            moments_b_nm: m * state.v_air_b_m_s[0].signum(),
+        }
+    }
+}
+
 impl TabulatedAerodynamics {
     pub fn from_h5(
         file_main: &Path,
         file_derivatives: &Path,
-        ref_length: f64,
-        ref_surface: f64,
+        ref_length_m: f64,
+        ref_surface_m2: f64,
     ) -> Result<Self> {
         let h5_main = File::open(file_main)?;
         let h5_derivatives = File::open(file_derivatives)?;
@@ -209,52 +183,17 @@ impl TabulatedAerodynamics {
             interp,
             states,
             coeffs,
-            ref_length,
-            ref_surface,
+            ref_length_m,
+            ref_surface_m2,
         })
-    }
-
-    pub fn actions(&self, state: &AeroState) -> (Vector3<f64>, Vector3<f64>) {
-        let c = self.interpolate(state);
-
-        let q_v = 0.5 * state.air_density * state.v_air_norm;
-
-        let fx = -q_v * self.ref_surface * (state.v_air_norm * c.cA);
-        let fy = q_v
-            * self.ref_surface
-            * (state.v_air_norm * c.cY + self.ref_length / 2.0 * (c.cY_r + c.cY_bd) * state.w_b[2]);
-        let fz = -q_v
-            * self.ref_surface
-            * (state.v_air_norm * c.cN + self.ref_length / 2.0 * (c.cN_q + c.cN_ad) * state.w_b[2]);
-
-        let mx = q_v
-            * self.ref_surface
-            * self.ref_length
-            * (state.v_air_norm * c.cl
-                + self.ref_length / 2.0 * (c.cl_p * state.w_b[0] + c.cl_r * state.w_b[2]));
-
-        let my = q_v
-            * self.ref_surface
-            * self.ref_length
-            * (state.v_air_norm * c.cm + self.ref_length / 2.0 * (c.cm_q + c.cm_ad) * state.w_b[1]);
-
-        let mz = q_v
-            * self.ref_surface
-            * self.ref_length
-            * (state.v_air_norm * c.cn + self.ref_length / 2.0 * (c.cn_r + c.cn_bd) * state.w_b[2]);
-
-        let f = vector![fx, fy, fz];
-        let m = vector![mx, my, mz];
-
-        (f * state.v_air_b[0].signum(), m * state.v_air_b[0].signum())
     }
 
     fn interpolate(&self, state: &AeroState) -> InterpolatedCoefficients {
         let state1 = [
-            state.alpha.to_degrees() as f32,
+            state.angles.alpha_rad.to_degrees() as f32,
             state.mach as f32,
-            state.beta.to_degrees() as f32,
-            state.altitude as f32,
+            state.angles.beta_rad.to_degrees() as f32,
+            state.altitude_m as f32,
             state.servo_pos.0[0] as f32,
             state.servo_pos.0[1] as f32,
             state.servo_pos.0[2] as f32,
@@ -262,10 +201,10 @@ impl TabulatedAerodynamics {
         ];
 
         let state2 = [
-            state.beta_prime.to_degrees() as f32,
+            state.angles.beta_tan_rad.to_degrees() as f32,
             state.mach as f32,
-            state.alpha.to_degrees() as f32,
-            state.altitude as f32,
+            state.angles.alpha_rad.to_degrees() as f32,
+            state.altitude_m as f32,
             state.servo_pos.0[0] as f32,
             state.servo_pos.0[1] as f32,
             state.servo_pos.0[2] as f32,

@@ -1,16 +1,22 @@
 use crater_gnc::components::ada::AdaResult;
 use map_3d::ned2geodetic;
-use nalgebra::Vector3;
-use rerun::{Quaternion, RecordingStream, TextLogLevel, components::RotationQuat};
+use nalgebra::{Matrix3, MatrixMN, SMatrix, Vector3};
+use rerun::{
+    Quaternion, RecordingStream, TensorData, TextLogLevel, components::RotationQuat,
+    external::arrow::buffer::ScalarBuffer,
+};
 use uom::si::{length::meter, velocity::meter_per_second};
 
 use crate::{
     core::time::Timestamp,
     crater::sim::{
+        aero::aerodynamics::{AeroAngles, AeroState},
+        engine::engine::RocketEngineMassProperties,
         events::{GncEventItem, SimEvent},
         gnc::ServoPosition,
-        rocket_data::{
-            AeroAngles, RocketAccelerations, RocketActions, RocketMassProperties, RocketState,
+        rocket::{
+            mass::RocketMassProperties,
+            rocket_data::{RocketAccelerations, RocketActions, RocketState},
         },
         sensors::{IMUSample, MagnetometerSample},
     },
@@ -35,7 +41,7 @@ impl RerunWrite for RocketStateRawLog {
         let ts_seconds = ts.monotonic.elapsed_seconds_f64();
         rec.set_duration_secs("sim_time", ts_seconds);
 
-        let pos = state.pos_n();
+        let pos = state.pos_n_m();
         rec.log(
             format!("{ent_path}/pos_n/x"),
             &rerun::Scalars::single(pos[0]),
@@ -49,7 +55,7 @@ impl RerunWrite for RocketStateRawLog {
             &rerun::Scalars::single(pos[2]),
         )?;
 
-        let vel_n = state.vel_n();
+        let vel_n = state.vel_n_m_s();
         rec.log(
             format!("{ent_path}/vel_n/x"),
             &rerun::Scalars::single(vel_n[0]),
@@ -63,7 +69,7 @@ impl RerunWrite for RocketStateRawLog {
             &rerun::Scalars::single(vel_n[2]),
         )?;
 
-        let angvel = state.angvel_b();
+        let angvel = state.angvel_b_rad_s();
         rec.log(
             format!("{ent_path}/ang_vel_b/x"),
             &rerun::Scalars::single(angvel[0].to_degrees()),
@@ -121,7 +127,7 @@ impl RerunWrite for RocketStateUILog {
             f64::to_radians(14.0548082),
             1411.211,
         ];
-        let pos = state.pos_n();
+        let pos = state.pos_n_m();
         let pos_f32 = vec3_to_slice(&pos.clone_owned());
         let (lat, lon, _) = ned2geodetic(
             pos[0],
@@ -142,7 +148,7 @@ impl RerunWrite for RocketStateUILog {
         )?;
 
         // Velocity body frame
-        let vel_b = state.vel_b(&state.quat_nb());
+        let vel_b = state.vel_b_m_s(&state.quat_nb());
         let vnorm = vel_b.norm();
 
         rec.log(
@@ -215,7 +221,7 @@ impl RerunWrite for RocketStateUILog {
         rec.log(
             "objects/vectors/velocity",
             &rerun::Arrows3D::from_vectors([vec3_to_slice(
-                &(state.vel_b(&state.quat_nb()) / 10.0),
+                &(state.vel_b_m_s(&state.quat_nb()) / 10.0),
             )])
             .with_colors([rerun::Color::from_rgb(0, 255, 0)])
             .with_origins([[0.0, 0.0, 0.0]]),
@@ -240,29 +246,57 @@ impl RerunWrite for RocketStateUILog {
 }
 
 #[derive(Default)]
-pub struct AeroAnglesLog;
+pub struct AeroStateLog;
 
-impl RerunWrite for AeroAnglesLog {
-    type Telem = AeroAngles;
+impl RerunWrite for AeroStateLog {
+    type Telem = AeroState;
 
     fn write(
         &mut self,
         rec: &mut RecordingStream,
         ent_path: &str,
         ts: Timestamp,
-        angles: AeroAngles,
+        state: AeroState,
     ) -> Result<()> {
         rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
-            format!("{ent_path}/alpha"),
-            &rerun::Scalars::single(angles.alpha.to_degrees()),
+            format!("{ent_path}/alpha_deg"),
+            &rerun::Scalars::single(state.angles.alpha_rad.to_degrees()),
         )?;
 
         rec.log(
-            format!("{ent_path}/beta"),
-            &rerun::Scalars::single(angles.beta.to_degrees()),
+            format!("{ent_path}/beta_deg"),
+            &rerun::Scalars::single(state.angles.beta_rad.to_degrees()),
         )?;
+
+        rec.log(
+            format!("{ent_path}/beta_tan_deg"),
+            &rerun::Scalars::single(state.angles.beta_tan_rad.to_degrees()),
+        )?;
+
+        rec.log(
+            format!("{ent_path}/mach"),
+            &rerun::Scalars::single(state.mach),
+        )?;
+
+        rec.log(
+            format!("{ent_path}/air_density_kg_m3"),
+            &rerun::Scalars::single(state.air_density_kg_m3),
+        )?;
+
+        rec.log(
+            format!("{ent_path}/altitude_m"),
+            &rerun::Scalars::single(state.altitude_m),
+        )?;
+
+        rec.log(
+            format!("{ent_path}/v_air_norm_m_s"),
+            &rerun::Scalars::single(state.v_air_norm_m_s),
+        )?;
+
+        log_vector3_timeseries(rec, format!("{ent_path}/v_air_b_m_s"), state.v_air_b_m_s)?;
+        log_vector3_timeseries(rec, format!("{ent_path}/w_b_rad_s"), state.w_b_rad_s)?;
 
         Ok(())
     }
@@ -283,47 +317,20 @@ impl RerunWrite for RocketActionsLog {
     ) -> Result<()> {
         rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
-        rec.log(
-            format!("{ent_path}/thrust_b/x"),
-            &rerun::Scalars::single(actions.thrust_b[0]),
+        log_vector3_timeseries(rec, format!("{ent_path}/thrust_b_n"), actions.thrust_b_n)?;
+        log_vector3_timeseries(
+            rec,
+            format!("{ent_path}/aero_force_b_n"),
+            actions.aero_actions.forces_b_n,
         )?;
-        rec.log(
-            format!("{ent_path}/thrust_b/y"),
-            &rerun::Scalars::single(actions.thrust_b[1]),
-        )?;
-        rec.log(
-            format!("{ent_path}/thrust_b/z"),
-            &rerun::Scalars::single(actions.thrust_b[2]),
-        )?;
-
-        rec.log(
-            format!("{ent_path}/aero_force_b/x"),
-            &rerun::Scalars::single(actions.aero_force_b[0]),
-        )?;
-        rec.log(
-            format!("{ent_path}/aero_force_b/y"),
-            &rerun::Scalars::single(actions.aero_force_b[1]),
-        )?;
-        rec.log(
-            format!("{ent_path}/aero_force_b/z"),
-            &rerun::Scalars::single(actions.aero_force_b[2]),
+        log_vector3_timeseries(
+            rec,
+            format!("{ent_path}/aero_moments_b_nm"),
+            actions.aero_actions.moments_b_nm,
         )?;
 
-        rec.log(
-            format!("{ent_path}/aero_torque_b/x"),
-            &rerun::Scalars::single(actions.aero_torque_b[0]),
-        )?;
-        rec.log(
-            format!("{ent_path}/aero_torque_b/y"),
-            &rerun::Scalars::single(actions.aero_torque_b[1]),
-        )?;
-        rec.log(
-            format!("{ent_path}/aero_torque_b/z"),
-            &rerun::Scalars::single(actions.aero_torque_b[2]),
-        )?;
-
-        let thrust_scaled = actions.thrust_b / 20.0;
-        let aero_force_scaled = actions.aero_force_b / 1.0;
+        let thrust_scaled = actions.thrust_b_n / 20.0;
+        let aero_force_scaled = actions.aero_actions.forces_b_n / 1.0;
 
         rec.log(
             "objects/vectors/thurst",
@@ -358,31 +365,8 @@ impl RerunWrite for RocketAccelLog {
     ) -> Result<()> {
         rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
-        rec.log(
-            format!("{ent_path}/acc_b/x"),
-            &rerun::Scalars::single(accel.acc_b[0]),
-        )?;
-        rec.log(
-            format!("{ent_path}/acc_b/y"),
-            &rerun::Scalars::single(accel.acc_b[1]),
-        )?;
-        rec.log(
-            format!("{ent_path}/acc_b/z"),
-            &rerun::Scalars::single(accel.acc_b[2]),
-        )?;
-
-        rec.log(
-            format!("{ent_path}/acc_n/x"),
-            &rerun::Scalars::single(accel.acc_n[0]),
-        )?;
-        rec.log(
-            format!("{ent_path}/acc_n/y"),
-            &rerun::Scalars::single(accel.acc_n[1]),
-        )?;
-        rec.log(
-            format!("{ent_path}/acc_n/z"),
-            &rerun::Scalars::single(accel.acc_n[2]),
-        )?;
+        log_vector3_timeseries(rec, format!("{ent_path}/acc_b"), accel.acc_b_m_s2)?;
+        log_vector3_timeseries(rec, format!("{ent_path}/acc_n"), accel.acc_n_m_s2)?;
 
         Ok(())
     }
@@ -403,40 +387,20 @@ impl RerunWrite for ServoPositionLog {
     ) -> Result<()> {
         rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
-        rec.log(
-            format!("{ent_path}/raw/1"),
-            &rerun::Scalars::single(servo_pos.0[0].to_degrees()),
-        )?;
-        rec.log(
-            format!("{ent_path}/raw/2"),
-            &rerun::Scalars::single(servo_pos.0[1].to_degrees()),
-        )?;
-        rec.log(
-            format!("{ent_path}/raw/3"),
-            &rerun::Scalars::single(servo_pos.0[2].to_degrees()),
-        )?;
-        rec.log(
-            format!("{ent_path}/raw/4"),
-            &rerun::Scalars::single(servo_pos.0[3].to_degrees()),
-        )?;
+        log_matrix_timeseries(rec, format!("{ent_path}/raw"), servo_pos.0, None, None)?;
 
         let mixed = servo_pos.mix();
-
-        rec.log(
-            format!("{ent_path}/mixed/yaw"),
-            &rerun::Scalars::single(mixed.yaw().to_degrees()),
-        )?;
-        rec.log(
-            format!("{ent_path}/mixed/pitch"),
-            &rerun::Scalars::single(mixed.pitch().to_degrees()),
-        )?;
-        rec.log(
-            format!("{ent_path}/mixed/roll"),
-            &rerun::Scalars::single(mixed.roll().to_degrees()),
-        )?;
-        rec.log(
-            format!("{ent_path}/mixed/squeeze"),
-            &rerun::Scalars::single(mixed.squeeze().to_degrees()),
+        log_matrix_timeseries(
+            rec,
+            format!("{ent_path}/mixed"),
+            mixed.0,
+            Some(&[
+                "yaw".to_string(),
+                "pitch".to_string(),
+                "roll".to_string(),
+                "squeeze".to_string(),
+            ]),
+            None,
         )?;
 
         Ok(())
@@ -452,125 +416,79 @@ impl RerunWrite for RocketMassPropertiesLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
-        _ent_path: &str,
+        ent_path: &str,
         ts: Timestamp,
         mass: RocketMassProperties,
     ) -> Result<()> {
         rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
+        log_vector3_timeseries(rec, format!("{ent_path}/xcg_tot_m"), mass.xcg_total_m)?;
+
         rec.log(
-            "timeseries/masses/xcg_tot/x",
-            &rerun::Scalars::single(mass.xcg_total[0]),
+            format!("{ent_path}/mass_tot_kg"),
+            &rerun::Scalars::single(mass.mass_kg),
         )?;
 
         rec.log(
-            "timeseries/masses/xcg_tot/y",
-            &rerun::Scalars::single(mass.xcg_total[1]),
+            format!("{ent_path}/mass_dot_kg_s"),
+            &rerun::Scalars::single(mass.mass_dot_kg_s),
+        )?;
+
+        log_matrix3_timeseries(rec, format!("{ent_path}/inertia_kgm2"), mass.inertia_kgm2)?;
+        log_matrix3_timeseries(
+            rec,
+            format!("{ent_path}/inertia_dot_kgm2_s"),
+            mass.inertia_dot_kgm2_s,
+        )?;
+
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct RocketEngineMassPropertiesLog;
+
+impl RerunWrite for RocketEngineMassPropertiesLog {
+    type Telem = RocketEngineMassProperties;
+
+    fn write(
+        &mut self,
+        rec: &mut RecordingStream,
+        ent_path: &str,
+        ts: Timestamp,
+        mass: RocketEngineMassProperties,
+    ) -> Result<()> {
+        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
+
+        rec.log(
+            format!("{ent_path}/xcg_eng_frame_m"),
+            &rerun::Scalars::single(mass.xcg_eng_frame_m),
         )?;
 
         rec.log(
-            "timeseries/masses/xcg_tot/z",
-            &rerun::Scalars::single(mass.xcg_total[2]),
+            format!("{ent_path}/xcg_dot_eng_frame_m"),
+            &rerun::Scalars::single(mass.xcg_dot_eng_frame_m),
         )?;
 
         rec.log(
-            "timeseries/masses/mass_tot",
-            &rerun::Scalars::single(mass.mass),
+            format!("{ent_path}/mass_kg"),
+            &rerun::Scalars::single(mass.mass_kg),
         )?;
 
         rec.log(
-            "timeseries/masses/mass_dot",
-            &rerun::Scalars::single(mass.mass_dot),
+            format!("{ent_path}/mass_dot_kg_s"),
+            &rerun::Scalars::single(mass.mass_dot_kg_s),
         )?;
 
-        rec.log(
-            "timeseries/masses/inertia/xx",
-            &rerun::Scalars::single(mass.inertia[0]),
+        log_matrix3_timeseries(
+            rec,
+            format!("{ent_path}/inertia_eng_frame_kgm2"),
+            mass.inertia_eng_frame_kgm2,
         )?;
-
-        rec.log(
-            "timeseries/masses/inertia/xy",
-            &rerun::Scalars::single(mass.inertia[1]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia/xz",
-            &rerun::Scalars::single(mass.inertia[2]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia/yx",
-            &rerun::Scalars::single(mass.inertia[3]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia/yy",
-            &rerun::Scalars::single(mass.inertia[4]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia/yz",
-            &rerun::Scalars::single(mass.inertia[5]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia/zx",
-            &rerun::Scalars::single(mass.inertia[6]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia/zy",
-            &rerun::Scalars::single(mass.inertia[7]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia/zz",
-            &rerun::Scalars::single(mass.inertia[8]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia_dot/xx",
-            &rerun::Scalars::single(mass.inertia_dot[0]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia_dot/xy",
-            &rerun::Scalars::single(mass.inertia_dot[1]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia_dot/xz",
-            &rerun::Scalars::single(mass.inertia_dot[2]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia_dot/yx",
-            &rerun::Scalars::single(mass.inertia_dot[3]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia_dot/yy",
-            &rerun::Scalars::single(mass.inertia_dot[4]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia_dot/yz",
-            &rerun::Scalars::single(mass.inertia_dot[5]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia_dot/zx",
-            &rerun::Scalars::single(mass.inertia_dot[6]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia_dot/zy",
-            &rerun::Scalars::single(mass.inertia_dot[7]),
-        )?;
-
-        rec.log(
-            "timeseries/masses/inertia_dot/zz",
-            &rerun::Scalars::single(mass.inertia_dot[8]),
+        log_matrix3_timeseries(
+            rec,
+            format!("{ent_path}/inertia_dot_eng_frame_kgm2"),
+            mass.inertia_dot_eng_frame_kgm2,
         )?;
 
         Ok(())
@@ -592,35 +510,10 @@ impl RerunWrite for IMUSampleLog {
     ) -> Result<()> {
         rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
-        rec.log(
-            format!("{}/acc/x", ent_path),
-            &rerun::Scalars::single(imu.acc.x),
-        )?;
+        log_vector3_timeseries(rec, format!("{ent_path}/acc_m_s2"), imu.acc)?;
 
-        rec.log(
-            format!("{}/acc/y", ent_path),
-            &rerun::Scalars::single(imu.acc.y),
-        )?;
-
-        rec.log(
-            format!("{}/acc/z", ent_path),
-            &rerun::Scalars::single(imu.acc.z),
-        )?;
-
-        rec.log(
-            format!("{}/gyro/x", ent_path),
-            &rerun::Scalars::single(imu.gyro.x.to_degrees()),
-        )?;
-
-        rec.log(
-            format!("{}/gyro/y", ent_path),
-            &rerun::Scalars::single(imu.gyro.y.to_degrees()),
-        )?;
-
-        rec.log(
-            format!("{}/gyro/z", ent_path),
-            &rerun::Scalars::single(imu.gyro.z.to_degrees()),
-        )?;
+        let gyro_deg = imu.gyro.map(|x| x.to_degrees());
+        log_vector3_timeseries(rec, format!("{ent_path}/gyro_deg_s"), gyro_deg)?;
 
         Ok(())
     }
@@ -641,20 +534,7 @@ impl RerunWrite for MagnetometerSampleLog {
     ) -> Result<()> {
         rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
 
-        rec.log(
-            format!("{}/x", ent_path),
-            &rerun::Scalars::single(mag.magfield_b.x),
-        )?;
-
-        rec.log(
-            format!("{}/y", ent_path),
-            &rerun::Scalars::single(mag.magfield_b.y),
-        )?;
-
-        rec.log(
-            format!("{}/z", ent_path),
-            &rerun::Scalars::single(mag.magfield_b.z),
-        )?;
+        log_vector3_timeseries(rec, ent_path.to_string(), mag.magfield_b)?;
 
         Ok(())
     }
@@ -740,4 +620,77 @@ impl RerunWrite for AdaOutputLog {
 
 fn vec3_to_slice(vec: &Vector3<f64>) -> [f32; 3] {
     [vec[0] as f32, vec[1] as f32, vec[2] as f32]
+}
+
+fn log_matrix_timeseries<const R: usize, const C: usize>(
+    rec: &mut RecordingStream,
+    ent_path: String,
+    matrix: SMatrix<f64, R, C>,
+    row_names: Option<&[String]>,
+    col_names: Option<&[String]>,
+) -> Result<()> {
+    for r in 0..R {
+        for c in 0..C {
+            let ent_path = if C == 1 {
+                format!(
+                    "{ent_path}/{}",
+                    row_names
+                        .as_ref()
+                        .map(|n| n[r].clone())
+                        .unwrap_or(format!("{}", r + 1))
+                )
+            } else {
+                format!(
+                    "{ent_path}/{}{}",
+                    row_names
+                        .as_ref()
+                        .map(|n| n[r].clone())
+                        .unwrap_or(format!("{}", r + 1)),
+                    col_names
+                        .as_ref()
+                        .map(|n| n[c].clone())
+                        .unwrap_or(format!("{}", c + 1))
+                )
+            };
+
+            rec.log(ent_path, &rerun::Scalars::single(matrix[(r, c)]))?;
+        }
+    }
+
+    Ok(())
+}
+
+fn log_matrix_tensor<const R: usize, const C: usize>(
+    rec: &mut RecordingStream,
+    ent_path: String,
+    matrix: SMatrix<f64, R, C>,
+) -> Result<()> {
+    let tensor = TensorData::new(
+        vec![R as u64, C as u64],
+        rerun::TensorBuffer::F64(ScalarBuffer::from(matrix.as_slice().to_vec())),
+    );
+
+    let tensor = rerun::Tensor::new(tensor);
+    rec.log(ent_path, &tensor)?;
+
+    Ok(())
+}
+
+fn log_vector3_timeseries(
+    rec: &mut RecordingStream,
+    ent_path: String,
+    matrix: Vector3<f64>,
+) -> Result<()> {
+    let row_names = ["x".to_string(), "y".to_string(), "z".to_string()];
+    log_matrix_timeseries(rec, ent_path, matrix, Some(&row_names), None)
+}
+
+fn log_matrix3_timeseries(
+    rec: &mut RecordingStream,
+    ent_path: String,
+    matrix: Matrix3<f64>,
+) -> Result<()> {
+    let row_names = ["x".to_string(), "y".to_string(), "z".to_string()];
+
+    log_matrix_timeseries(rec, ent_path, matrix, Some(&row_names), Some(&row_names))
 }

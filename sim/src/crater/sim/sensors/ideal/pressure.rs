@@ -1,9 +1,6 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::sim::{
-        aero::atmosphere::{Atmosphere, AtmosphereIsa},
-        rocket_data::RocketState,
-    },
+    crater::sim::{aero::atmosphere::{Atmosphere, AtmosphereIsa}, rocket::rocket_data::RocketState},
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
@@ -43,7 +40,7 @@ impl Node for IdealStaticPressureSensor {
 
         self.tx_pressure.send(
             Timestamp::now(clock),
-            Pressure::new::<pascal>(self.atmosphere.pressure(-state.pos_n()[2]) as f32),
+            Pressure::new::<pascal>(self.atmosphere.pressure_pa(-state.pos_n_m()[2]) as f32),
         );
         Ok(StepResult::Continue)
     }

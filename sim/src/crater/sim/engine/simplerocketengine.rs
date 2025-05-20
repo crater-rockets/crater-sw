@@ -31,12 +31,12 @@ impl RocketEngine for SimpleRocketEngine {
     fn mass(&self, t: f64) -> RocketEngineMassProperties {
         let _ = t;
         RocketEngineMassProperties {
-            xcg_eng_frame: 0.0,
-            xcg_dot_eng_frame: 0.0,
-            mass: 0.0,
-            mass_dot: 0.0,
-            inertia_eng_frame: Matrix3::zeros(),
-            inertia_dot_eng_frame: Matrix3::zeros(),
+            xcg_eng_frame_m: 0.0,
+            xcg_dot_eng_frame_m: 0.0,
+            mass_kg: 0.0,
+            mass_dot_kg_s: 0.0,
+            inertia_eng_frame_kgm2: Matrix3::zeros(),
+            inertia_dot_eng_frame_kgm2: Matrix3::zeros(),
         }
     }
 }
