@@ -5,9 +5,7 @@ use strum::{AsRefStr, EnumIter, IntoEnumIterator};
 
 use crate::math::interp::Interpolator;
 
-use super::aerodynamics::{
-    AeroCoefficientsValues, AeroState, Aerodynamics, AerodynamicsCoefficients,
-};
+use super::aerodynamics::{AeroCoefficientsValues, AeroState, AerodynamicsCoefficients};
 
 #[derive(Debug, Clone, Copy, AsRefStr, EnumIter)]
 enum Coefficients {
@@ -55,8 +53,6 @@ enum States {
 
 pub struct TabulatedAeroCoefficients {
     interp: Interpolator<f32, 8>,
-    states: Vec<Vec<f32>>,
-
     coeffs: Vec<Vec<f32>>,
 }
 
@@ -110,7 +106,6 @@ impl TabulatedAeroCoefficients {
 
         Ok(Self {
             interp,
-            states,
             coeffs,
         })
     }

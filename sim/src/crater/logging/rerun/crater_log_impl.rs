@@ -666,7 +666,7 @@ fn log_matrix_timeseries<const R: usize, const C: usize>(
     Ok(())
 }
 
-fn log_matrix_tensor<const R: usize, const C: usize>(
+fn _log_matrix_tensor<const R: usize, const C: usize>(
     rec: &mut RecordingStream,
     ent_path: String,
     matrix: SMatrix<f64, R, C>,

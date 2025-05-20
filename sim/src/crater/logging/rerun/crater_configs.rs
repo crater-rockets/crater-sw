@@ -4,12 +4,22 @@ use crater_gnc::components::ada::AdaResult;
 use rerun::RecordingStream;
 
 use crate::crater::sim::{
-    aero::aerodynamics::{AeroAngles, AeroState}, engine::engine::RocketEngineMassProperties, events::{GncEventItem, SimEvent}, gnc::ServoPosition, rocket::{mass::RocketMassProperties, rocket_data::{RocketAccelerations, RocketActions, RocketState}}, sensors::{IMUSample, MagnetometerSample}
+    aero::aerodynamics::AeroState,
+    engine::engine::RocketEngineMassProperties,
+    events::{GncEventItem, SimEvent},
+    gnc::ServoPosition,
+    rocket::{
+        mass::RocketMassProperties,
+        rocket_data::{RocketAccelerations, RocketActions, RocketState},
+    },
+    sensors::{IMUSample, MagnetometerSample},
 };
 
 use super::{
     crater_log_impl::{
-        AdaOutputLog, AeroStateLog, GncEventLog, IMUSampleLog, MagnetometerSampleLog, RocketAccelLog, RocketActionsLog, RocketEngineMassPropertiesLog, RocketMassPropertiesLog, RocketStateRawLog, RocketStateUILog, ServoPositionLog, SimEventLog
+        AdaOutputLog, AeroStateLog, GncEventLog, IMUSampleLog, MagnetometerSampleLog,
+        RocketAccelLog, RocketActionsLog, RocketEngineMassPropertiesLog, RocketMassPropertiesLog,
+        RocketStateRawLog, RocketStateUILog, ServoPositionLog, SimEventLog,
     },
     rerun_logger::{RerunLogConfig, RerunLoggerBuilder},
 };
@@ -25,7 +35,7 @@ impl RerunLogConfig for CraterUiLogConfig {
 
         rec.log(
             "rocket",
-            &rerun::Asset3D::from_file("assets/sidewinder.obj")?,
+            &rerun::Asset3D::from_file_path("assets/sidewinder.obj")?,
         )?;
 
         Ok(())

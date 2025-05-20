@@ -153,13 +153,13 @@ impl Rocket {
 }
 
 pub(super) struct RocketOdeStep {
-    pub state: RocketState,
+    pub _state: RocketState,
     pub d_state: RocketState,
     pub mass_engine: RocketEngineMassProperties,
     pub mass_rocket: RocketMassProperties,
-    pub atmosphere_props: AtmosphereProperties,
+    pub _atmosphere: AtmosphereProperties,
     pub aero_state: AeroState,
-    pub aero_coeffs: AeroCoefficientsValues,
+    pub _aero_coeffs: AeroCoefficientsValues,
     pub actions: RocketActions,
     pub accels: RocketAccelerations,
 }
@@ -223,13 +223,13 @@ impl RocketOdeStep {
         d_state.set_angvel_b_rad_s(&accels.ang_acc_b_rad_s2);
 
         RocketOdeStep {
-            state,
+            _state: state,
             d_state,
             mass_engine,
             mass_rocket,
-            atmosphere_props,
+            _atmosphere: atmosphere_props,
             aero_state,
-            aero_coeffs,
+            _aero_coeffs: aero_coeffs,
             actions,
             accels,
         }

@@ -1,7 +1,6 @@
 use std::{array, cell::RefCell, iter::Sum};
 
-use num_traits::{float::TotalOrder, Float};
-
+use num_traits::{Float, float::TotalOrder};
 
 struct Lattice<const D: usize> {
     size: [usize; D],
@@ -47,10 +46,12 @@ impl<const D: usize> Lattice<D> {
         offsets
     }
 
+    #[allow(unused)]
     pub fn size(&self) -> &[usize; D] {
         &self.size
     }
 
+    #[allow(unused)]
     pub fn strides(&self) -> &[usize; D] {
         &self.strides
     }
@@ -102,7 +103,6 @@ impl<T: Float + TotalOrder + Sum, const D: usize> Interpolator<T, D> {
         let axes_steps =
             array::from_fn(|i| axes[i].windows(2).map(|pair| pair[1] - pair[0]).collect());
 
-            
         Some(Self {
             axes,
             axes_steps,
@@ -151,7 +151,12 @@ impl<T: Float + TotalOrder + Sum, const D: usize> Interpolator<T, D> {
         weights_out
     }
 
-    pub fn interpn<'a, const N: usize>(&self, state: &[T; D], data: &[&[T]; N], interp_out: &'a mut [T; N]) {
+    pub fn interpn<'a, const N: usize>(
+        &self,
+        state: &[T; D],
+        data: &[&[T]; N],
+        interp_out: &'a mut [T; N],
+    ) {
         let indices = self.find_edge_index(state);
         let x = self.calc_normalized_interp_point(state, &indices);
 
