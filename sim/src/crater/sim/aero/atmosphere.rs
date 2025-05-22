@@ -1,7 +1,28 @@
 pub trait Atmosphere {
-    fn pressure(&self, alt: f64) -> f64;
-    fn density(&self, alt: f64) -> f64;
-    fn temperature(&self, alt: f64) -> f64;
+    fn pressure_pa(&self, alt_m: f64) -> f64;
+    fn density_kg_m3(&self, alt_m: f64) -> f64;
+    fn temperature_k(&self, alt_m: f64) -> f64;
+    fn speed_of_sound_m_s(&self, alt_m: f64) -> f64;
+
+    fn properties(&self, altitude_m: f64) -> AtmosphereProperties {
+        AtmosphereProperties {
+            pressure_pa: self.pressure_pa(altitude_m),
+            air_density_kg_m3: self.density_kg_m3(altitude_m),
+            temperature_k: self.temperature_k(altitude_m),
+            speed_of_sound_m_s: self.speed_of_sound_m_s(altitude_m),
+        }
+    }
+}
+pub fn mach_number(v_air_norm_m_s: f64, c: f64) -> f64 {
+    v_air_norm_m_s / c
+}
+
+#[derive(Debug, Clone)]
+pub struct AtmosphereProperties {
+    pub pressure_pa: f64,
+    pub air_density_kg_m3: f64,
+    pub temperature_k: f64,
+    pub speed_of_sound_m_s: f64,
 }
 
 #[derive(Debug, Clone)]
@@ -52,27 +73,31 @@ impl AtmosphereIsa {
 }
 
 impl Atmosphere for AtmosphereIsa {
-    fn pressure(&self, alt: f64) -> f64 {
+    fn pressure_pa(&self, alt: f64) -> f64 {
         let exponent = -self.g_0 / (self.a * self.specific_gas_constant);
-        let t = self.temperature(alt);
+        let t = self.temperature_k(alt);
         (t / self.temperature_0).powf(exponent) * self.pressure_0
     }
 
-    fn temperature(&self, alt: f64) -> f64 {
+    fn temperature_k(&self, alt: f64) -> f64 {
         self.temperature_0 + self.a * (alt - self.alt_0)
     }
 
-    fn density(&self, alt: f64) -> f64 {
+    fn density_kg_m3(&self, alt: f64) -> f64 {
         let exponent = -(self.g_0 / (self.a * self.specific_gas_constant) + 1.0);
-        let t = self.temperature(alt);
+        let t = self.temperature_k(alt);
         (t / self.temperature_0).powf(exponent) * self.density_0
+    }
+
+    fn speed_of_sound_m_s(&self, alt_m: f64) -> f64 {
+        f64::sqrt(1.4 * self.pressure_pa(alt_m) / self.density_kg_m3(alt_m))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use approx::assert_relative_eq;
     use super::*;
+    use approx::assert_relative_eq;
 
     #[test]
     fn test_default_isa_temperature() {

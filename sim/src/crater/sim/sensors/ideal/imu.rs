@@ -1,7 +1,7 @@
 use crate::{
     core::time::{Clock, Timestamp},
     crater::sim::{
-        rocket_data::{RocketAccelerations, RocketMassProperties, RocketState},
+        rocket::{mass::RocketMassProperties, rocket_data::{RocketAccelerations, RocketState}},
         sensors::datatypes::IMUSample,
     },
     nodes::{Node, NodeContext, StepResult},
@@ -34,7 +34,7 @@ impl IdealIMU {
     pub fn new(ctx: NodeContext) -> Result<Self> {
         let rx_state = ctx.telemetry().subscribe("/rocket/state", Unbounded)?;
         let rx_accels = ctx.telemetry().subscribe("/rocket/accel", Unbounded)?;
-        let rx_masses = ctx.telemetry().subscribe("/rocket/masses", Unbounded)?;
+        let rx_masses = ctx.telemetry().subscribe("/rocket/mass/rocket", Unbounded)?;
 
         let imu_params = ctx.parameters().get_map("sim.rocket.imu")?;
 
@@ -85,18 +85,18 @@ impl Node for IdealIMU {
         let Timestamped(_, masses) = self
             .rx_masses
             .try_recv()
-            .expect("IMU step executed, but no /rocket/masses input available");
+            .expect("IMU step executed, but no /rocket/mass/rocket input available");
 
-        let imu_to_cg = masses.xcg_total - self.params.pos_r;
-        let angvel_b = state.angvel_b();
+        let imu_to_cg = masses.xcg_total_m - self.params.pos_r;
+        let angvel_b = state.angvel_b_rad_s();
 
         // From: https://ocw.mit.edu/courses/16-07-dynamics-fall-2009/419be4d742e628d70acfbc5496eab967_MIT16_07F09_Lec25.pdf
 
         let meas_acc_cg_b =
-            accel.acc_b - state.quat_nb().inverse_transform_vector(&self.params.g_n);
+            accel.acc_b_m_s2 - state.quat_nb().inverse_transform_vector(&self.params.g_n);
 
         let meas_acc_b: Vector3<f64> = meas_acc_cg_b
-            + accel.ang_acc_b.cross(&imu_to_cg)
+            + accel.ang_acc_b_rad_s2.cross(&imu_to_cg)
             + angvel_b.cross(&angvel_b.cross(&imu_to_cg));
 
         let meas_acc_cg_imu = self.params.quat_imu_b.transform_vector(&meas_acc_cg_b);

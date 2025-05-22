@@ -1,6 +1,6 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::sim::{rocket_data::RocketState, sensors::datatypes::MagnetometerSample},
+    crater::sim::{rocket::rocket_data::RocketState, sensors::datatypes::MagnetometerSample},
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
@@ -9,15 +9,15 @@ use anyhow::Result;
 use chrono::TimeDelta;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3, Vector4};
 use num_traits::ToPrimitive;
+use world_magnetic_model::{GeomagneticField, uom::si::angle::radian};
 use world_magnetic_model::{
-    time::{macros::format_description, Date},
+    time::{Date, macros::format_description},
     uom::si::{
         f32::{Angle, Length},
         length::meter,
         magnetic_flux_density::nanotesla,
     },
 };
-use world_magnetic_model::{uom::si::angle::radian, GeomagneticField};
 
 #[derive(Debug)]
 pub struct MagParams {

@@ -1,6 +1,6 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::sim::{rocket_data::RocketState, sensors::datatypes::GPSSample},
+    crater::sim::{rocket::rocket_data::RocketState, sensors::datatypes::GPSSample},
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
@@ -33,8 +33,8 @@ impl Node for IdealGPS {
             .expect("GPS step executed, but no /rocket/state input available");
 
         let sample = GPSSample {
-            pos_n: state.pos_n(),
-            vel_n: state.vel_n(),
+            pos_n: state.pos_n_m(),
+            vel_n: state.vel_n_m_s(),
         };
 
         self.tx_gps.send(Timestamp::now(clock), sample);

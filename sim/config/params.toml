@@ -1,6 +1,6 @@
 [sim]
 t0 = { val = 0, type = "float" }
-dt = { val = 0.01, type = "float" }
+dt = { val = 0.003, type = "float" }
 
 [sim.rocket]
 max_t = { val = 120, type = "float" }
@@ -30,7 +30,7 @@ date = { val = "2025-09-14", type = "str" }
 
 [sim.rocket.init]
 azimuth = { val = 170, type = "randfloat", dist = { type = "normal", mean = 170, std_dev = 3 } }
-elevation = { val = 84, type = "randfloat", dist = { type = "normal", mean = 84, std_dev = 0.5 } }
+elevation = { val = 70, type = "randfloat", dist = { type = "normal", mean = 84, std_dev = 0.5 } }
 latitude = { val = 41.8080239, type = "float" }
 longitude = { val = 14.0548082, type = "float" }
 altitude = { val = 1411.211, type = "float" }
@@ -62,8 +62,15 @@ quat_imu_b = { val = [0.0, 0.0, 0.0, 1.0], type = "float[]" }
 # Orientation of the magnetometer in the body frame (w component last)
 quat_mag_b = { val = [0.0, 0.0, 0.0, 1.0], type = "float[]" }
 
-
 [sim.rocket.aero]
+model = { val = "tabulated", type = "str" }
+# aero_model = { val = "linear", type = "str" }
+
+[sim.rocket.aero.tabulated]
+coeffs_main = { val = "coeffs_main.h5", type = "str" }
+coeffs_dynamic = { val = "coeffs_dynamic.h5", type = "str" }
+
+[sim.rocket.aero.linear]
 cA_0 = { val = 0.3200, type = "float" }
 cA_a = { val = -0.1725, type = "float" }
 cA_b = { val = -0.1725, type = "float" }
