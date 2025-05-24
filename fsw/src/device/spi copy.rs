@@ -49,7 +49,7 @@ impl<'a, SpiMode: Mode> SpiTransaction<'a, SpiMode> {
     }
 
     pub fn end(self) {
-        // Drop is called after consuming self
+        // Drop is called
     }
 }
 
@@ -98,7 +98,7 @@ impl<'a> SpiTransaction<'a, Blocking> {
         self.spi
             .as_mut()
             .unwrap()
-            .blocking_transfer_in_place(&mut read_buf[0..read_byte_index + 1])
+            .blocking_transfer_in_place(&mut read_buf[..read_byte_index + 1])
             .unwrap();
 
         read_buf[read_byte_index]

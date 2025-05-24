@@ -7,7 +7,6 @@ edition = "2024"
 
 embassy-stm32 = { version = "0.2.0", features = [
     "defmt",
-    "stm32f756zg",
     "memory-x",
     "unstable-pac",
     "time-driver-tim2",
@@ -62,8 +61,12 @@ crater-gnc = { path = "../gnc", default-features = false, features = [
     "defmt"
 ] }
 
+[features]
+default = ["nucleo_stm32f756"]
+nucleo_stm32f756 = ["embassy-stm32/stm32f756zg"]
+crater_stm32f767 = ["embassy-stm32/stm32f767zi"]
 
 [lib]
 [profile.dev]
-opt-level = 2           # Use slightly better optimizations.
+opt-level = 1           # Use slightly better optimizations.
 overflow-checks = false # Disable integer overflow checks.

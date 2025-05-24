@@ -1,12 +1,20 @@
 use alloc::boxed::Box;
 use thiserror::Error;
 
-use crate::{common::Ts, Instant};
+use crate::{Instant, common::Ts};
 
 pub trait Receiver<T> {
     fn try_recv(&mut self) -> Option<Ts<T>>;
 
-    fn try_recv_last(&mut self) -> Option<Ts<T>>;
+    fn try_recv_last(&mut self) -> Option<Ts<T>> {
+        let mut last = None;
+
+        while let Some(msg) = self.try_recv() {
+            last = Some(msg);
+        }
+
+        last
+    }
 
     fn len(&self) -> usize;
 
@@ -24,6 +32,7 @@ pub struct Full<T>(pub Ts<T>);
 
 pub trait Sender<T> {
     fn try_send(&mut self, ts: Instant, item: T) -> Result<(), Full<T>>;
+    fn send_immediate(&mut self, ts: Instant, item: T);
 }
 
 #[derive(Error, Debug, Clone)]

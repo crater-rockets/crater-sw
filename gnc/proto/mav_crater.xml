@@ -2,144 +2,6 @@
     xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/ArduPilot/pymavlink/refs/heads/master/generator/mavschema.xsd">
     <version>3</version>
     <enums>
-        <!-- Enum definitions from common.xml -->
-        <enum name="MAV_FRAME">
-            <description>Coordinate frames used by MAVLink. Not all frames are supported by all commands, messages, or vehicles.
-      
-            Global frames use the following naming conventions:
-            - "GLOBAL": Global coordinate frame with WGS84 latitude/longitude and altitude positive over mean sea level (MSL) by default.
-              The following modifiers may be used with "GLOBAL":
-              - "RELATIVE_ALT": Altitude is relative to the vehicle home position rather than MSL.
-              - "TERRAIN_ALT": Altitude is relative to ground level rather than MSL.
-              - "INT": Latitude/longitude (in degrees) are scaled by multiplying by 1E7.
-      
-            Local frames use the following naming conventions:
-            - "LOCAL": Origin of local frame is fixed relative to earth. Unless otherwise specified this origin is the origin of the vehicle position-estimator ("EKF").
-            - "BODY": Origin of local frame travels with the vehicle. NOTE, "BODY" does NOT indicate alignment of frame axis with vehicle attitude.
-            - "OFFSET": Deprecated synonym for "BODY" (origin travels with the vehicle). Not to be used for new frames.
-      
-            Some deprecated frames do not follow these conventions (e.g. MAV_FRAME_BODY_NED and MAV_FRAME_BODY_OFFSET_NED).
-       </description>
-            <entry value="0" name="MAV_FRAME_GLOBAL">
-                <description>Global (WGS84) coordinate frame + altitude relative to mean sea level (MSL).</description>
-            </entry>
-            <entry value="1" name="MAV_FRAME_LOCAL_NED">
-                <description>NED local tangent frame (x: North, y: East, z: Down) with origin fixed relative to earth.</description>
-            </entry>
-            <entry value="2" name="MAV_FRAME_MISSION">
-                <description>NOT a coordinate frame, indicates a mission command.</description>
-            </entry>
-            <entry value="3" name="MAV_FRAME_GLOBAL_RELATIVE_ALT">
-                <description>
-                Global (WGS84) coordinate frame + altitude relative to the home position.
-              </description>
-            </entry>
-            <entry value="4" name="MAV_FRAME_LOCAL_ENU">
-                <description>ENU local tangent frame (x: East, y: North, z: Up) with origin fixed relative to earth.</description>
-            </entry>
-            <entry value="5" name="MAV_FRAME_GLOBAL_INT">
-                <deprecated since="2024-03" replaced_by="MAV_FRAME_GLOBAL">Use MAV_FRAME_GLOBAL in
-                    COMMAND_INT (and elsewhere) as a synonymous replacement.</deprecated>
-                <description>Global (WGS84) coordinate frame (scaled) + altitude relative to mean sea level (MSL).</description>
-            </entry>
-            <entry value="6" name="MAV_FRAME_GLOBAL_RELATIVE_ALT_INT">
-                <deprecated since="2024-03" replaced_by="MAV_FRAME_GLOBAL_RELATIVE_ALT">Use
-                    MAV_FRAME_GLOBAL_RELATIVE_ALT in COMMAND_INT (and elsewhere) as a synonymous
-                    replacement.</deprecated>
-                <description>Global (WGS84) coordinate frame (scaled) + altitude relative to the home position. </description>
-            </entry>
-            <entry value="7" name="MAV_FRAME_LOCAL_OFFSET_NED">
-                <description>NED local tangent frame (x: North, y: East, z: Down) with origin that travels with the vehicle.</description>
-            </entry>
-            <entry value="8" name="MAV_FRAME_BODY_NED">
-                <deprecated since="2019-08" replaced_by="MAV_FRAME_BODY_FRD" />
-                <description>Same as MAV_FRAME_LOCAL_NED when used to represent position values. Same as MAV_FRAME_BODY_FRD when used with velocity/acceleration values.</description>
-            </entry>
-            <entry value="9" name="MAV_FRAME_BODY_OFFSET_NED">
-                <deprecated since="2019-08" replaced_by="MAV_FRAME_BODY_FRD" />
-                <description>This is the same as MAV_FRAME_BODY_FRD.</description>
-            </entry>
-            <entry value="10" name="MAV_FRAME_GLOBAL_TERRAIN_ALT">
-                <description>Global (WGS84) coordinate frame with AGL altitude (altitude at ground level).</description>
-            </entry>
-            <entry value="11" name="MAV_FRAME_GLOBAL_TERRAIN_ALT_INT">
-                <deprecated since="2024-03" replaced_by="MAV_FRAME_GLOBAL_TERRAIN_ALT">Use
-                    MAV_FRAME_GLOBAL_TERRAIN_ALT in COMMAND_INT (and elsewhere) as a synonymous
-                    replacement.</deprecated>
-                <description>Global (WGS84) coordinate frame (scaled) with AGL altitude (altitude at ground level).</description>
-            </entry>
-            <entry value="12" name="MAV_FRAME_BODY_FRD">
-                <description>FRD local frame aligned to the vehicle's attitude (x: Forward, y: Right, z: Down) with an origin that travels with vehicle.</description>
-            </entry>
-            <entry value="13" name="MAV_FRAME_RESERVED_13">
-                <deprecated since="2019-04" replaced_by="" />
-                <description>MAV_FRAME_BODY_FLU - Body fixed frame of reference, Z-up (x: Forward, y: Left, z: Up).</description>
-            </entry>
-            <entry value="14" name="MAV_FRAME_RESERVED_14">
-                <deprecated since="2019-04" replaced_by="MAV_FRAME_LOCAL_FRD" />
-                <description>MAV_FRAME_MOCAP_NED - Odometry local coordinate frame of data given by a motion capture system, Z-down (x: North, y: East, z: Down).</description>
-            </entry>
-            <entry value="15" name="MAV_FRAME_RESERVED_15">
-                <deprecated since="2019-04" replaced_by="MAV_FRAME_LOCAL_FLU" />
-                <description>MAV_FRAME_MOCAP_ENU - Odometry local coordinate frame of data given by a motion capture system, Z-up (x: East, y: North, z: Up).</description>
-            </entry>
-            <entry value="16" name="MAV_FRAME_RESERVED_16">
-                <deprecated since="2019-04" replaced_by="MAV_FRAME_LOCAL_FRD" />
-                <description>MAV_FRAME_VISION_NED - Odometry local coordinate frame of data given by a vision estimation system, Z-down (x: North, y: East, z: Down).</description>
-            </entry>
-            <entry value="17" name="MAV_FRAME_RESERVED_17">
-                <deprecated since="2019-04" replaced_by="MAV_FRAME_LOCAL_FLU" />
-                <description>MAV_FRAME_VISION_ENU - Odometry local coordinate frame of data given by a vision estimation system, Z-up (x: East, y: North, z: Up).</description>
-            </entry>
-            <entry value="18" name="MAV_FRAME_RESERVED_18">
-                <deprecated since="2019-04" replaced_by="MAV_FRAME_LOCAL_FRD" />
-                <description>MAV_FRAME_ESTIM_NED - Odometry local coordinate frame of data given by an estimator running onboard the vehicle, Z-down (x: North, y: East, z: Down).</description>
-            </entry>
-            <entry value="19" name="MAV_FRAME_RESERVED_19">
-                <deprecated since="2019-04" replaced_by="MAV_FRAME_LOCAL_FLU" />
-                <description>MAV_FRAME_ESTIM_ENU - Odometry local coordinate frame of data given by an estimator running onboard the vehicle, Z-up (x: East, y: North, z: Up).</description>
-            </entry>
-            <entry value="20" name="MAV_FRAME_LOCAL_FRD">
-                <description>FRD local tangent frame (x: Forward, y: Right, z: Down) with origin fixed relative to earth. The forward axis is aligned to the front of the vehicle in the horizontal plane.</description>
-            </entry>
-            <entry value="21" name="MAV_FRAME_LOCAL_FLU">
-                <description>FLU local tangent frame (x: Forward, y: Left, z: Up) with origin fixed relative to earth. The forward axis is aligned to the front of the vehicle in the horizontal plane.</description>
-            </entry>
-        </enum>
-        <enum name="MAV_RESULT">
-            <description>Result from a MAVLink command (MAV_CMD)</description>
-            <entry value="0" name="MAV_RESULT_ACCEPTED">
-                <description>Command is valid (is supported and has valid parameters), and was executed.</description>
-            </entry>
-            <entry value="1" name="MAV_RESULT_TEMPORARILY_REJECTED">
-                <description>Command is valid, but cannot be executed at this time. This is used to indicate a problem that should be fixed just by waiting (e.g. a state machine is busy, can't arm because have not got GPS lock, etc.). Retrying later should work.</description>
-            </entry>
-            <entry value="2" name="MAV_RESULT_DENIED">
-                <description>Command is invalid (is supported but has invalid parameters). Retrying same command and parameters will not work.</description>
-            </entry>
-            <entry value="3" name="MAV_RESULT_UNSUPPORTED">
-                <description>Command is not supported (unknown).</description>
-            </entry>
-            <entry value="4" name="MAV_RESULT_FAILED">
-                <description>Command is valid, but execution has failed. This is used to indicate any non-temporary or unexpected problem, i.e. any problem that must be fixed before the command can succeed/be retried. For example, attempting to write a file when out of memory, attempting to arm when sensors are not calibrated, etc.</description>
-            </entry>
-            <entry value="5" name="MAV_RESULT_IN_PROGRESS">
-                <description>Command is valid and is being executed. This will be followed by further progress updates, i.e. the component may send further COMMAND_ACK messages with result MAV_RESULT_IN_PROGRESS (at a rate decided by the implementation), and must terminate by sending a COMMAND_ACK message with final result of the operation. The COMMAND_ACK.progress field can be used to indicate the progress of the operation.</description>
-            </entry>
-            <entry value="6" name="MAV_RESULT_CANCELLED">
-                <description>Command has been cancelled (as a result of receiving a COMMAND_CANCEL message).</description>
-            </entry>
-            <entry value="7" name="MAV_RESULT_COMMAND_LONG_ONLY">
-                <description>Command is only accepted when sent as a COMMAND_LONG.</description>
-            </entry>
-            <entry value="8" name="MAV_RESULT_COMMAND_INT_ONLY">
-                <description>Command is only accepted when sent as a COMMAND_INT.</description>
-            </entry>
-            <entry value="9" name="MAV_RESULT_COMMAND_UNSUPPORTED_MAV_FRAME">
-                <description>Command is invalid because a frame is required and the specified frame is not supported.</description>
-            </entry>
-        </enum>
-
         <!-- Crater dialect -->
         <enum name="MAV_CMD">
             <description>Commands</description>
@@ -167,71 +29,41 @@
                 <description>Apogee Detection Algorithm</description>
             </entry>
         </enum>
+
+        <enum name="PRESSURE_SENSOR_ID">
+            <description>Pressure Sensors</description>
+            <entry name="Bmp390" value="0">
+                <description>Bmp390 static pressure sensor</description>
+            </entry>
+        </enum>
+
+        <enum name="IMU_SENSOR_ID">
+            <description>Pressure Sensors</description>
+            <entry name="Icm42688" value="0">
+                <description>Icm42688 6dof IMU</description>
+            </entry>
+        </enum>
     </enums>
 
 
     <messages>
-        <!-- Message definitions from common.xml -->
-        <message id="75" name="COMMAND_INT">
-            <description>Send a command with up to seven parameters to the MAV, where params 5 and 6 are integers and the other values are floats. This is preferred over COMMAND_LONG as it allows the MAV_FRAME to be specified for interpreting positional information, such as altitude. COMMAND_INT is also preferred when sending latitude and longitude data in params 5 and 6, as it allows for greater precision. Param 5 and 6 encode positional data as scaled integers, where the scaling depends on the actual command value. NaN or INT32_MAX may be used in float/integer params (respectively) to indicate optional/default values (e.g. to use the component's current latitude, yaw rather than a specific value). The command microservice is documented at https://mavlink.io/en/services/command.html</description>
-            <field type="uint8_t" name="target_system">System ID</field>
-            <field type="uint8_t" name="target_component">Component ID</field>
-            <field type="uint8_t" name="frame" enum="MAV_FRAME">The coordinate system of the
-                COMMAND.</field>
-            <field type="uint16_t" name="command" enum="MAV_CMD">The scheduled action for the
-                mission item.</field>
-            <field type="uint8_t" name="current">Not used.</field>
-            <field type="uint8_t" name="autocontinue">Not used (set 0).</field>
-            <field type="float" name="param1" invalid="NaN">PARAM1, see MAV_CMD enum</field>
-            <field type="float" name="param2" invalid="NaN">PARAM2, see MAV_CMD enum</field>
-            <field type="float" name="param3" invalid="NaN">PARAM3, see MAV_CMD enum</field>
-            <field type="float" name="param4" invalid="NaN">PARAM4, see MAV_CMD enum</field>
-            <field type="int32_t" name="x" invalid="INT32_MAX">PARAM5 / local: x position in meters
-                * 1e4, global: latitude in degrees * 10^7</field>
-            <field type="int32_t" name="y" invalid="INT32_MAX">PARAM6 / local: y position in meters
-                * 1e4, global: longitude in degrees * 10^7</field>
-            <field type="float" name="z" invalid="NaN">PARAM7 / z position: global: altitude in
-                meters (relative or absolute, depending on frame).</field>
-        </message>
-        <message id="76" name="COMMAND_LONG">
-            <description>Send a command with up to seven parameters to the MAV. COMMAND_INT is generally preferred when sending MAV_CMD commands that include positional information; it offers higher precision and allows the MAV_FRAME to be specified (which may otherwise be ambiguous, particularly for altitude). The command microservice is documented at https://mavlink.io/en/services/command.html</description>
-            <field type="uint8_t" name="target_system">System which should execute the command</field>
-            <field type="uint8_t" name="target_component">Component which should execute the
-                command, 0 for all components</field>
-            <field type="uint16_t" name="command" enum="MAV_CMD">Command ID (of command to send).</field>
-            <field type="uint8_t" name="confirmation">0: First transmission of this command. 1-255:
-                Confirmation transmissions (e.g. for kill command)</field>
-            <field type="float" name="param1" invalid="NaN">Parameter 1 (for the specific command).</field>
-            <field type="float" name="param2" invalid="NaN">Parameter 2 (for the specific command).</field>
-            <field type="float" name="param3" invalid="NaN">Parameter 3 (for the specific command).</field>
-            <field type="float" name="param4" invalid="NaN">Parameter 4 (for the specific command).</field>
-            <field type="float" name="param5" invalid="NaN">Parameter 5 (for the specific command).</field>
-            <field type="float" name="param6" invalid="NaN">Parameter 6 (for the specific command).</field>
-            <field type="float" name="param7" invalid="NaN">Parameter 7 (for the specific command).</field>
-        </message>
-        <message id="77" name="COMMAND_ACK">
-            <description>Report status of a command. Includes feedback whether the command was executed. The command microservice is documented at https://mavlink.io/en/services/command.html</description>
-            <field type="uint16_t" name="command" enum="MAV_CMD">Command ID (of acknowledged
-                command).</field>
-            <field type="uint8_t" name="result" enum="MAV_RESULT">Result of command.</field>
-            <extensions />
-            <field type="uint8_t" name="progress" invalid="UINT8_MAX" units="%">The progress
-                percentage when result is MAV_RESULT_IN_PROGRESS. Values: [0-100], or UINT8_MAX if
-                the progress is unknown.</field>
-            <field type="int32_t" name="result_param2">Additional result information. Can be set
-                with a command-specific enum containing command-specific error reasons for why the
-                command might be denied. If used, the associated enum must be documented in the
-                corresponding MAV_CMD (this enum should have a 0 value to indicate "unused" or
-                "unknown").</field>
-            <field type="uint8_t" name="target_system">System ID of the target recipient. This is
-                the ID of the system that sent the command for which this COMMAND_ACK is an
-                acknowledgement.</field>
-            <field type="uint8_t" name="target_component">Component ID of the target recipient. This
-                is the ID of the system that sent the command for which this COMMAND_ACK is an
-                acknowledgement.</field>
+        <message id="200" name="SensPressureSample">
+            <description>Static pressure sensor</description>
+            <field type="uint8_t" name="sensor_id" enum="PRESSURE_SENSOR_ID">Pressure sensor ID</field>
+            <field type="int64_t" name="timestamp_us" units="us">Timestamp in microseconds</field>
+            <field type="float" name="pressure_pa" units="Pa">Static pressure in pascal</field>
+            <field type="float" name="temperature_degc" units="degC" invalid="nan">Temperature in degrees Celsius. NaN if invalid / not available.</field>
         </message>
 
-        <!-- Crater dialect -->
+        <message id="201" name="SensImuSample">
+            <description>Static pressure sensor</description>
+            <field type="uint8_t" name="sensor_id" enum="IMU_SENSOR_ID">Pressure sensor ID</field>
+            <field type="int64_t" name="timestamp_us" units="us">Timestamp in microseconds</field>
+            <field type="float[3]" name="accel_m_s2" units="m/s/s">Acceleration</field>
+            <field type="float[3]" name="ang_vel_rad_s" units="rad/s">Angular velocity</field>
+            <field type="float" name="temperature_degc" units="degC" invalid="nan">Temperature in degrees Celsius. NaN if invalid / not available.</field>
+        </message>
+
         <message id="20001" name="TestMessage">
             <description>A test message</description>
             <field type="uint8_t" name="field1">Is this a description?</field>

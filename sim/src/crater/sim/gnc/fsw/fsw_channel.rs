@@ -14,7 +14,6 @@ impl<T: 'static + Clone> Sender<T> for TelemetrySender<T> {
     fn try_send(&mut self, ts: crater_gnc::Instant, item: T) -> Result<(), Full<T>> {
         self.send(
             Timestamp {
-                utc: None,
                 monotonic: TimeDelta::microseconds(ts.0.duration_since_epoch().to_micros() as i64)
                     .into(),
             },
@@ -22,6 +21,12 @@ impl<T: 'static + Clone> Sender<T> for TelemetrySender<T> {
         );
 
         Ok(())
+    }
+
+    fn send_immediate(&mut self, ts: crater_gnc::Instant, item: T) {
+        if !self.try_send(ts, item).is_ok() {
+            panic!("Error sending value on Telemetry Sender");
+        }
     }
 }
 

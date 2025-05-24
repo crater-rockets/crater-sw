@@ -9,15 +9,21 @@ pub trait Clock {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Timestamp {
-    pub utc: Option<UtcInstant>,
     pub monotonic: Instant,
 }
 
 impl Timestamp {
     pub fn now(clock: &dyn Clock) -> Timestamp {
         Timestamp {
-            utc: Some(clock.utc()),
             monotonic: clock.monotonic(),
+        }
+    }
+
+    pub fn from_micros(micros: i64) -> Self {
+        Self {
+            monotonic: Instant {
+                delta: TimeDelta::microseconds(micros),
+            },
         }
     }
 }
