@@ -10,7 +10,7 @@ use uom::si::{
 };
 
 use crate::{
-    Instant,
+    Duration, DurationU64, Instant,
     mav_crater::{self, MavMessage, SensImuSample_DATA, SensPressureSample_DATA},
 };
 
@@ -60,6 +60,8 @@ pub struct ImuSensorSample {
     pub accel: [uom::si::f32::Acceleration; 3],
     pub ang_vel: [uom::si::f32::AngularVelocity; 3],
     pub temperature: Option<uom::si::f32::ThermodynamicTemperature>,
+    pub int_latency: Duration,
+    pub overrun_count: u8
 }
 
 impl ImuSensorSample {
@@ -92,11 +94,13 @@ impl ImuSensorSample {
             sensor_id: id,
             timestamp_us: ts.0.duration_since_epoch().to_micros() as i64,
             accel_m_s2: self.accel_m_s2_array(),
-            ang_vel_rad_s: self.ang_vel_rad_s_array(),
+            ang_vel_deg_s: self.ang_vel_deg_s_array(),
             temperature_degc: self
                 .temperature
                 .map(|v| v.get::<degree_celsius>())
                 .unwrap_or(f32::NAN),
+            latency_us: self.int_latency.0.to_micros() as i64,
+            overrun_count: self.overrun_count
         })
     }
 }
@@ -114,7 +118,7 @@ impl From<&SensImuSample_DATA> for ImuSensorSample {
                 Acceleration::new::<meter_per_second_squared>(data.accel_m_s2[i])
             }),
             ang_vel: array::from_fn(|i| {
-                AngularVelocity::new::<radian_per_second>(data.ang_vel_rad_s[i])
+                AngularVelocity::new::<degree_per_second>(data.ang_vel_deg_s[i])
             }),
             temperature: if !data.temperature_degc.is_nan() {
                 Some(ThermodynamicTemperature::new::<degree_celsius>(
@@ -123,6 +127,8 @@ impl From<&SensImuSample_DATA> for ImuSensorSample {
             } else {
                 None
             },
+            int_latency: DurationU64::micros(data.latency_us as u64).into(),
+            overrun_count: data.overrun_count
         }
     }
 }

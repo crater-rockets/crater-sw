@@ -60,8 +60,10 @@
             <field type="uint8_t" name="sensor_id" enum="IMU_SENSOR_ID">Pressure sensor ID</field>
             <field type="int64_t" name="timestamp_us" units="us">Timestamp in microseconds</field>
             <field type="float[3]" name="accel_m_s2" units="m/s/s">Acceleration</field>
-            <field type="float[3]" name="ang_vel_rad_s" units="rad/s">Angular velocity</field>
+            <field type="float[3]" name="ang_vel_deg_s" units="deg/s">Angular velocity</field>
             <field type="float" name="temperature_degc" units="degC" invalid="nan">Temperature in degrees Celsius. NaN if invalid / not available.</field>
+            <field type="int64_t" name="latency_us" units="us">Interrupt latency</field>
+            <field type="uint8_t" name="overrun_count" units="us">Number of overruns since last sample</field>
         </message>
 
         <message id="20001" name="TestMessage">

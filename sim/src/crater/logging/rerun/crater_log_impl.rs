@@ -707,6 +707,16 @@ impl RerunWrite for ImuSensorSampleLog {
             )?;
         }
 
+        rec.log(
+            format!("{}/int_latency_s", ent_path),
+            &rerun::Scalars::single(data.int_latency.0.to_micros() as f64 / 1_000_000f64),
+        )?;
+
+        rec.log(
+            format!("{}/overrun_count", ent_path),
+            &rerun::Scalars::single(data.overrun_count as f64),
+        )?;
+
         Ok(())
     }
 }
