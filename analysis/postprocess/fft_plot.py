@@ -5,7 +5,6 @@ import rerun as rr
 import polars as pl
 from rerun_bindings import Recording
 import scipy as sp
-import altair as alt
 import numpy as np
 import matplotlib.pyplot as plt
 import pyarrow as pa
