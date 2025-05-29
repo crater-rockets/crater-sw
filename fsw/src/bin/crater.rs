@@ -13,7 +13,7 @@ use crater_fsw::{
     sensors::{
         self,
         bmp390::{self, Bmp390, Bmp390Sample},
-        icm42688::{Icm42688, Icm42688Sample},
+        icm42688::{AccelAAFConfig, GyroAAFConfig, Icm42688, Icm42688Sample},
     },
 };
 use crater_gnc::{
@@ -74,6 +74,8 @@ async fn main(spawner: Spawner) {
         accel_odr: sensors::icm42688::regs::AccelDataRate::Odr200hz,
         gyro_fs: sensors::icm42688::regs::GyroFullScale::Fs15_625dps,
         gyro_odr: sensors::icm42688::regs::GyroDataRate::Odr200hz,
+        accel_aaf: AccelAAFConfig::default(),
+        gyro_aaf: GyroAAFConfig::default(),
     };
 
     let icm42688 = Icm42688::init(
@@ -138,7 +140,6 @@ async fn sens_imu(mut icm: Icm42688, tx: DynPublisher<'static, Ts<Icm42688Sample
     loop {
         let sample = icm.sample().await;
         tx.publish_immediate(Ts::new(sample.t, sample.v));
-        
     }
 }
 
