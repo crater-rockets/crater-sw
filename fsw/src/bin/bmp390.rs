@@ -9,7 +9,6 @@ use crater_fsw::{
     },
     sensors::bmp390::{self, Bmp390},
 };
-use crater_gnc::main_loop::MainLoop;
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_stm32::{
@@ -68,9 +67,9 @@ async fn main(_spawner: Spawner) {
     let mut bmp390 = Bmp390::init(
         dev_bmp390,
         bmp390::Config {
-            odr: bmp390::Reg::DataRateValue::Odr50,
-            osr_p: bmp390::Reg::OversamplingValue::Times4,
-            osr_t: bmp390::Reg::OversamplingValue::None,
+            odr: bmp390::regs::DataRateValue::Odr50,
+            osr_p: bmp390::regs::OversamplingValue::Times4,
+            osr_t: bmp390::regs::OversamplingValue::None,
         },
     )
     .await
@@ -94,8 +93,8 @@ async fn main(_spawner: Spawner) {
         let sample = bmp390.sample().await;
         info!(
             "{}    \t{}",
-            sample.press_pa.get::<pascal>(),
-            sample.temp_degc.get::<degree_celsius>()
+            sample.pressure.get::<pascal>(),
+            sample.temperature.get::<degree_celsius>()
         );
 
         Timer::after_millis(200).await;

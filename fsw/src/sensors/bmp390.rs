@@ -1,8 +1,8 @@
-use Reg::OversamplingValue;
-use defmt::info;
-use embassy_executor::raw;
+use crater_gnc::{common::Ts, datatypes::sensors::PressureSensorSample};
+use defmt::{debug, error};
 use embassy_stm32::mode::Blocking;
-use libm::{ceilf, log2, log2f, powf};
+use embassy_time::Instant;
+use libm::{ceilf, log2f, powf};
 use thiserror::{self, Error};
 use uom::si::{
     f32::{Pressure, ThermodynamicTemperature},
@@ -11,62 +11,26 @@ use uom::si::{
 };
 
 use crate::device::spi::SpiDevice;
-
-enum RegAddr {
-    ChipId = 0x00,
-    RevId = 0x01,
-    ErrReg = 0x02,
-    Status = 0x03,
-    PressData0 = 0x04,
-    PressData1 = 0x05,
-    PressData2 = 0x06,
-    TempData0 = 0x07,
-    TempData1 = 0x08,
-    TempData2 = 0x09,
-
-    SensorTime0 = 0x0C,
-    SensorTime1 = 0x0D,
-    SensorTime2 = 0x0E,
-
-    Event = 0x10,
-    IntStatus = 0x11,
-    FifoLength0 = 0x12,
-    FifoLength1 = 0x13,
-    FifoData = 0x14,
-    FifoWtm0 = 0x15,
-    FifoWtm1 = 0x16,
-    FigoConfig1 = 0x17,
-    FigoConfig2 = 0x18,
-    IntCtrl = 0x19,
-
-    CompensationParams = 0x31,
-
-    IfConf = 0x1A,
-    PwrCtrl = 0x1B,
-    Osr = 0x1C,
-    Odr = 0x1D,
-    Config = 0x1F,
-
-    Cmd = 0x7E,
-}
+use {defmt_rtt as _, panic_probe as _};
 
 const CHIP_ID: u8 = 0x60;
 
-pub mod Reg {
+#[allow(unused)]
+pub mod regs {
     use arbitrary_int::*;
     use bitbybit::*;
 
-    enum Addr {
+    pub enum Addr {
         ChipId = 0x00,
         RevId = 0x01,
         ErrReg = 0x02,
         Status = 0x03,
-        Data0 = 0x04,
-        Data1 = 0x05,
-        Data2 = 0x06,
-        Data3 = 0x07,
-        Data4 = 0x08,
-        Data5 = 0x09,
+        PressData0 = 0x04,
+        PressData1 = 0x05,
+        PressData2 = 0x06,
+        TempData0 = 0x07,
+        TempData1 = 0x08,
+        TempData2 = 0x09,
 
         SensorTime0 = 0x0C,
         SensorTime1 = 0x0D,
@@ -82,6 +46,8 @@ pub mod Reg {
         FigoConfig1 = 0x17,
         FigoConfig2 = 0x18,
         IntCtrl = 0x19,
+
+        CompensationParams = 0x31,
 
         IfConf = 0x1A,
         PwrCtrl = 0x1B,
@@ -186,10 +152,10 @@ pub enum Error {
 }
 
 pub struct Config {
-    pub odr: Reg::DataRateValue,
+    pub odr: regs::DataRateValue,
 
-    pub osr_p: Reg::OversamplingValue,
-    pub osr_t: Reg::OversamplingValue,
+    pub osr_p: regs::OversamplingValue,
+    pub osr_t: regs::OversamplingValue,
 }
 
 struct Compensation {
@@ -286,8 +252,7 @@ pub struct Bmp390Sample {
     pub raw_press: u32,
     pub raw_temp: u32,
 
-    pub press_pa: Pressure,
-    pub temp_degc: ThermodynamicTemperature,
+    pub value: PressureSensorSample,
 }
 
 impl Bmp390 {
@@ -296,13 +261,22 @@ impl Bmp390 {
             return Err(Error::BadOdr);
         }
 
-        let chip_id = spi_dev
-            .start_transaction()
-            .await
-            .read_reg_u8(RegAddr::ChipId as u8);
+        let mut remaining_attempts = 3;
 
-        if chip_id != CHIP_ID {
-            return Err(Error::BadChipIp(chip_id));
+        while remaining_attempts >= 0 {
+            let chip_id = spi_dev
+                .start_transaction()
+                .await
+                .read_reg_u8(regs::Addr::ChipId as u8);
+
+            if chip_id == CHIP_ID {
+                break;
+            } else if remaining_attempts == 0 {
+                return Err(Error::BadChipIp(chip_id));
+            } else {
+                debug!("BMP390 | Bad chip id: {}. Retrying", chip_id);
+                remaining_attempts -= 1;
+            }
         }
 
         let compensation = {
@@ -310,34 +284,34 @@ impl Bmp390 {
             spi_dev
                 .start_transaction()
                 .await
-                .read_reg_raw(RegAddr::CompensationParams as u8, &mut buf);
+                .read_reg_raw(regs::Addr::CompensationParams as u8, &mut buf);
 
             Compensation::from_raw_bytes(&buf)
         };
 
-        let odr = Reg::Odr::new_with_raw_value(0).with_odr(config.odr);
+        let odr = regs::Odr::new_with_raw_value(0).with_odr(config.odr);
         spi_dev
             .start_transaction()
             .await
-            .write_reg_u8(RegAddr::Odr as u8, odr.raw_value());
+            .write_reg_u8(regs::Addr::Odr as u8, odr.raw_value());
 
-        let osr = Reg::Osr::new_with_raw_value(0)
+        let osr = regs::Osr::new_with_raw_value(0)
             .with_osr_p(config.osr_p)
             .with_osr_t(config.osr_t);
         spi_dev
             .start_transaction()
             .await
-            .write_reg_u8(RegAddr::Osr as u8, osr.raw_value());
+            .write_reg_u8(regs::Addr::Osr as u8, osr.raw_value());
 
-        let pwr_ctrl = Reg::PwrCtrl::new_with_raw_value(0)
+        let pwr_ctrl = regs::PwrCtrl::new_with_raw_value(0)
             .with_press_en(true)
             .with_temp_en(true)
-            .with_mode(Reg::PowerModeValue::Normal);
+            .with_mode(regs::PowerModeValue::Normal);
 
         spi_dev
             .start_transaction()
             .await
-            .write_reg_u8(RegAddr::PwrCtrl as u8, pwr_ctrl.raw_value());
+            .write_reg_u8(regs::Addr::PwrCtrl as u8, pwr_ctrl.raw_value());
 
         Ok(Bmp390 {
             spi_dev,
@@ -346,9 +320,9 @@ impl Bmp390 {
     }
 
     fn check_odr(
-        odr: Reg::DataRateValue,
-        osr_p: Reg::OversamplingValue,
-        osr_t: Reg::OversamplingValue,
+        odr: regs::DataRateValue,
+        osr_p: regs::OversamplingValue,
+        osr_t: regs::OversamplingValue,
     ) -> bool {
         // See datasheet, section 3.9.2
         let tconv_us = 234 + (392 + osr_p as u32 * 2020) + (163 + osr_t as u32 * 2020);
@@ -359,25 +333,30 @@ impl Bmp390 {
         (odr as u8) <= odr_sel
     }
 
-    pub async fn sample(&mut self) -> Bmp390Sample {
+    pub async fn sample(&mut self) -> Ts<Bmp390Sample> {
         let mut buf = [0 as u8; 6];
 
         self.spi_dev
             .start_transaction()
             .await
-            .read_reg_raw(RegAddr::PressData0 as u8, &mut buf);
+            .read_reg_raw(regs::Addr::PressData0 as u8, &mut buf);
 
+        let ts = Instant::now().as_micros();
         let raw_temp = (buf[3] as u32) + ((buf[4] as u32) << 8) + ((buf[5] as u32) << 16);
         let raw_press = (buf[0] as u32) + ((buf[1] as u32) << 8) + ((buf[2] as u32) << 16);
 
-        let temp_degc = self.compensation.temperature(raw_temp);
-        let press_pa = self.compensation.pressure(raw_press, temp_degc);
+        let temperature = self.compensation.temperature(raw_temp);
+        let pressure = self.compensation.pressure(raw_press, temperature);
 
-        Bmp390Sample {
+        let sample = Bmp390Sample {
             raw_press,
             raw_temp,
-            temp_degc,
-            press_pa,
-        }
+            value: PressureSensorSample {
+                temperature: Some(temperature),
+                pressure,
+            },
+        };
+
+        Ts::from_microseconds(ts, sample)
     }
 }

@@ -27,6 +27,13 @@ uom = { version = "0.36.0", default-features = false, features = [
     "autoconvert",
 ] }
 
+embedded-io = { version = "0.6.1", optional = true }
+embedded-io-async = { version = "0.6.1", optional = true }
+serde_arrays = "0.2.0"
+nalgebra = { version = "0.33.2", default-features = false, features = [
+    "macros",
+] }
+
 [build-dependencies]
 mavlink-bindgen = "0.13.1"
 
@@ -36,13 +43,21 @@ mavlink-bindgen = "0.13.1"
 default = ["mav_crater", "std", "log"]
 mav_crater = []
 std = [
-    "mavlink/std",
     "mavlink-core/std",
+    "mavlink/std",
+    "embedded-io/alloc",
+    "embedded-io-async/alloc",
     "num-traits/std",
     "thiserror/std",
     "serde/std",
+    "nalgebra/std",
 ]
 serde = ["dep:serde", "mavlink/serde", "mavlink-core/serde"]
-embedded = ["mavlink-core/embedded"]
+embedded = [
+    "dep:embedded-io-async",
+    "dep:embedded-io",
+    "mavlink-core/embedded",
+    "mavlink/embedded",
+]
 defmt = ["defmt-or-log/defmt", "dep:defmt"]
 log = ["defmt-or-log/log", "dep:log"]

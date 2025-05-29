@@ -16,6 +16,7 @@ pub trait RerunWrite {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         data: Self::Telem,
@@ -68,7 +69,7 @@ where
             if let Ok(Timestamped(ts, state)) = v {
                 self.data_logger
                     .borrow_mut()
-                    .write(&mut rec.borrow_mut(), &self.ent_path, ts, state)
+                    .write(&mut rec.borrow_mut(), "sim_time", &self.ent_path, ts, state)
                     .unwrap();
             } else {
                 self.disconnected = true;

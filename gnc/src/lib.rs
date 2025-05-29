@@ -8,8 +8,11 @@ pub mod datatypes;
 pub mod events;
 pub mod gnc_main;
 pub mod hal;
+pub mod io;
 
-// #![cfg_attr(not(feature = "std"), no_std)]
+#[cfg(feature="std")]
+extern crate std;
+
 // include generate definitions
 include!(concat!(env!("OUT_DIR"), "/mod.rs"));
 
@@ -51,3 +54,4 @@ impl From<DurationU64> for Duration {
         Duration(value)
     }
 }
+

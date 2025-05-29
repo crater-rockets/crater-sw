@@ -1,0 +1,12 @@
+@startuml
+activate SIM
+SIM -> SIM: Step
+SIM -> FSW: Uart Data
+SIM ->o FSW: Sync GPIO
+deactivate SIM
+activate FSW
+FSW -> FSW: Step
+FSW -> SIM: Uart Data
+FSW ->o SIM: EOS
+deactivate FSW
+@enduml

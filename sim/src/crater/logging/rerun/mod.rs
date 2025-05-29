@@ -1,5 +1,5 @@
 mod crater_configs;
-mod crater_log_impl;
+pub mod crater_log_impl;
 
 mod rerun_logger;
 

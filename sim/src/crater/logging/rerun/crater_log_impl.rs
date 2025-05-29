@@ -1,11 +1,20 @@
-use crater_gnc::components::ada::AdaResult;
+use std::array;
+
+use crater_gnc::{
+    components::ada::AdaResult,
+    datatypes::sensors::{ImuSensorSample, PressureSensorSample},
+};
 use map_3d::ned2geodetic;
 use nalgebra::{Matrix3, SMatrix, Vector3};
+use num_traits::{AsPrimitive, Float};
 use rerun::{
     Quaternion, RecordingStream, TensorData, TextLogLevel, components::RotationQuat,
     external::arrow::buffer::ScalarBuffer,
 };
-use uom::si::{length::meter, velocity::meter_per_second};
+use uom::si::{
+    length::meter, pressure::pascal, thermodynamic_temperature::degree_celsius,
+    velocity::meter_per_second,
+};
 
 use crate::{
     core::time::Timestamp,
@@ -34,12 +43,13 @@ impl RerunWrite for RocketStateRawLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         state: RocketState,
     ) -> Result<()> {
         let ts_seconds = ts.monotonic.elapsed_seconds_f64();
-        rec.set_duration_secs("sim_time", ts_seconds);
+        rec.set_duration_secs(timeline, ts_seconds);
 
         let pos = state.pos_n_m();
         rec.log(
@@ -118,6 +128,7 @@ impl RerunWrite for RocketStateUILog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         state: RocketState,
@@ -140,7 +151,7 @@ impl RerunWrite for RocketStateUILog {
         );
 
         let ts_seconds = ts.monotonic.elapsed_seconds_f64();
-        rec.set_duration_secs("sim_time", ts_seconds);
+        rec.set_duration_secs(timeline, ts_seconds);
 
         rec.log(
             "/frame/body_centered",
@@ -254,11 +265,12 @@ impl RerunWrite for AeroStateLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         state: AeroState,
     ) -> Result<()> {
-        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{ent_path}/alpha_deg"),
@@ -295,8 +307,8 @@ impl RerunWrite for AeroStateLog {
             &rerun::Scalars::single(state.v_air_norm_m_s),
         )?;
 
-        log_vector3_timeseries(rec, format!("{ent_path}/v_air_b_m_s"), state.v_air_b_m_s)?;
-        log_vector3_timeseries(rec, format!("{ent_path}/w_b_rad_s"), state.w_b_rad_s)?;
+        log_vector3_timeseries(rec, format!("{ent_path}/v_air_b_m_s"), &state.v_air_b_m_s)?;
+        log_vector3_timeseries(rec, format!("{ent_path}/w_b_rad_s"), &state.w_b_rad_s)?;
 
         Ok(())
     }
@@ -311,22 +323,23 @@ impl RerunWrite for RocketActionsLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         actions: RocketActions,
     ) -> Result<()> {
-        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
-        log_vector3_timeseries(rec, format!("{ent_path}/thrust_b_n"), actions.thrust_b_n)?;
+        log_vector3_timeseries(rec, format!("{ent_path}/thrust_b_n"), &actions.thrust_b_n)?;
         log_vector3_timeseries(
             rec,
             format!("{ent_path}/aero_force_b_n"),
-            actions.aero_actions.forces_b_n,
+            &actions.aero_actions.forces_b_n,
         )?;
         log_vector3_timeseries(
             rec,
             format!("{ent_path}/aero_moments_b_nm"),
-            actions.aero_actions.moments_b_nm,
+            &actions.aero_actions.moments_b_nm,
         )?;
 
         let thrust_scaled = actions.thrust_b_n / 20.0;
@@ -359,14 +372,15 @@ impl RerunWrite for RocketAccelLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         accel: RocketAccelerations,
     ) -> Result<()> {
-        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
-        log_vector3_timeseries(rec, format!("{ent_path}/acc_b"), accel.acc_b_m_s2)?;
-        log_vector3_timeseries(rec, format!("{ent_path}/acc_n"), accel.acc_n_m_s2)?;
+        log_vector3_timeseries(rec, format!("{ent_path}/acc_b"), &accel.acc_b_m_s2)?;
+        log_vector3_timeseries(rec, format!("{ent_path}/acc_n"), &accel.acc_n_m_s2)?;
 
         Ok(())
     }
@@ -381,16 +395,17 @@ impl RerunWrite for ServoPositionLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         servo_pos: ServoPosition,
     ) -> Result<()> {
-        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
         log_matrix_timeseries(
             rec,
             format!("{ent_path}/raw"),
-            servo_pos.pos_rad.map(|x| x.to_degrees()),
+            &servo_pos.pos_rad.map(|x| x.to_degrees()),
             None,
             None,
         )?;
@@ -399,7 +414,7 @@ impl RerunWrite for ServoPositionLog {
         log_matrix_timeseries(
             rec,
             format!("{ent_path}/mixed"),
-            mixed.pos_rad.map(|x| x.to_degrees()),
+            &mixed.pos_rad.map(|x| x.to_degrees()),
             Some(&[
                 "yaw".to_string(),
                 "pitch".to_string(),
@@ -422,13 +437,14 @@ impl RerunWrite for RocketMassPropertiesLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         mass: RocketMassProperties,
     ) -> Result<()> {
-        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
-        log_vector3_timeseries(rec, format!("{ent_path}/xcg_tot_m"), mass.xcg_total_m)?;
+        log_vector3_timeseries(rec, format!("{ent_path}/xcg_tot_m"), &mass.xcg_total_m)?;
 
         rec.log(
             format!("{ent_path}/mass_tot_kg"),
@@ -440,11 +456,11 @@ impl RerunWrite for RocketMassPropertiesLog {
             &rerun::Scalars::single(mass.mass_dot_kg_s),
         )?;
 
-        log_matrix3_timeseries(rec, format!("{ent_path}/inertia_kgm2"), mass.inertia_kgm2)?;
+        log_matrix3_timeseries(rec, format!("{ent_path}/inertia_kgm2"), &mass.inertia_kgm2)?;
         log_matrix3_timeseries(
             rec,
             format!("{ent_path}/inertia_dot_kgm2_s"),
-            mass.inertia_dot_kgm2_s,
+            &mass.inertia_dot_kgm2_s,
         )?;
 
         Ok(())
@@ -460,11 +476,12 @@ impl RerunWrite for RocketEngineMassPropertiesLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         mass: RocketEngineMassProperties,
     ) -> Result<()> {
-        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{ent_path}/xcg_eng_frame_m"),
@@ -489,12 +506,12 @@ impl RerunWrite for RocketEngineMassPropertiesLog {
         log_matrix3_timeseries(
             rec,
             format!("{ent_path}/inertia_eng_frame_kgm2"),
-            mass.inertia_eng_frame_kgm2,
+            &mass.inertia_eng_frame_kgm2,
         )?;
         log_matrix3_timeseries(
             rec,
             format!("{ent_path}/inertia_dot_eng_frame_kgm2"),
-            mass.inertia_dot_eng_frame_kgm2,
+            &mass.inertia_dot_eng_frame_kgm2,
         )?;
 
         Ok(())
@@ -510,16 +527,17 @@ impl RerunWrite for IMUSampleLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         imu: IMUSample,
     ) -> Result<()> {
-        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
-        log_vector3_timeseries(rec, format!("{ent_path}/acc_m_s2"), imu.acc)?;
+        log_vector3_timeseries(rec, format!("{ent_path}/acc_m_s2"), &imu.acc)?;
 
         let gyro_deg = imu.gyro.map(|x| x.to_degrees());
-        log_vector3_timeseries(rec, format!("{ent_path}/gyro_deg_s"), gyro_deg)?;
+        log_vector3_timeseries(rec, format!("{ent_path}/gyro_deg_s"), &gyro_deg)?;
 
         Ok(())
     }
@@ -534,13 +552,14 @@ impl RerunWrite for MagnetometerSampleLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         mag: MagnetometerSample,
     ) -> Result<()> {
-        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
-        log_vector3_timeseries(rec, ent_path.to_string(), mag.magfield_b)?;
+        log_vector3_timeseries(rec, ent_path.to_string(), &mag.magfield_b)?;
 
         Ok(())
     }
@@ -555,11 +574,12 @@ impl RerunWrite for GncEventLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         event: GncEventItem,
     ) -> Result<()> {
-        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{}", ent_path),
@@ -580,11 +600,12 @@ impl RerunWrite for SimEventLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         event: SimEvent,
     ) -> Result<()> {
-        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{}", ent_path),
@@ -604,11 +625,12 @@ impl RerunWrite for AdaOutputLog {
     fn write(
         &mut self,
         rec: &mut RecordingStream,
+        timeline: &str,
         ent_path: &str,
         ts: Timestamp,
         ada: AdaResult,
     ) -> Result<()> {
-        rec.set_duration_secs("sim_time", ts.monotonic.elapsed_seconds_f64());
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
         rec.log(
             format!("{}/altitude_m", ent_path),
@@ -624,14 +646,89 @@ impl RerunWrite for AdaOutputLog {
     }
 }
 
+#[derive(Default)]
+pub struct PressureSensorSampleLog;
+
+impl RerunWrite for PressureSensorSampleLog {
+    type Telem = PressureSensorSample;
+
+    fn write(
+        &mut self,
+        rec: &mut RecordingStream,
+        timeline: &str,
+        ent_path: &str,
+        ts: Timestamp,
+        data: Self::Telem,
+    ) -> Result<()> {
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
+
+        rec.log(
+            format!("{}/pressure_pa", ent_path),
+            &rerun::Scalars::single(data.pressure.get::<pascal>() as f64),
+        )?;
+
+        if let Some(temp) = data.temperature {
+            rec.log(
+                format!("{}/temperature_degc", ent_path),
+                &rerun::Scalars::single(temp.get::<degree_celsius>() as f64),
+            )?;
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct ImuSensorSampleLog;
+
+impl RerunWrite for ImuSensorSampleLog {
+    type Telem = ImuSensorSample;
+
+    fn write(
+        &mut self,
+        rec: &mut RecordingStream,
+        timeline: &str,
+        ent_path: &str,
+        ts: Timestamp,
+        data: Self::Telem,
+    ) -> Result<()> {
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
+
+        let accel_m_s2 = data.accel_m_s2_vec();
+        let ang_vel_deg_s = data.ang_vel_deg_s_vec();
+
+        log_vector3_timeseries(rec, format!("{}/accel_m_s2", ent_path), &accel_m_s2)?;
+        log_vector3_timeseries(rec, format!("{}/ang_vel_deg_s", ent_path), &ang_vel_deg_s)?;
+
+        if let Some(temp) = data.temperature {
+            rec.log(
+                format!("{}/temperature_degc", ent_path),
+                &rerun::Scalars::single(temp.get::<degree_celsius>() as f64),
+            )?;
+        }
+
+        rec.log(
+            format!("{}/int_latency_s", ent_path),
+            &rerun::Scalars::single(data.int_latency.0.to_micros() as f64 / 1_000_000f64),
+        )?;
+
+        rec.log(
+            format!("{}/overrun_count", ent_path),
+            &rerun::Scalars::single(data.overrun_count as f64),
+        )?;
+
+        Ok(())
+    }
+}
+
 fn vec3_to_slice(vec: &Vector3<f64>) -> [f32; 3] {
     [vec[0] as f32, vec[1] as f32, vec[2] as f32]
 }
 
-fn log_matrix_timeseries<const R: usize, const C: usize>(
+fn log_matrix_timeseries<T: Float + AsPrimitive<f64>, const R: usize, const C: usize>(
     rec: &mut RecordingStream,
     ent_path: String,
-    matrix: SMatrix<f64, R, C>,
+    matrix: &SMatrix<T, R, C>,
     row_names: Option<&[String]>,
     col_names: Option<&[String]>,
 ) -> Result<()> {
@@ -659,7 +756,7 @@ fn log_matrix_timeseries<const R: usize, const C: usize>(
                 )
             };
 
-            rec.log(ent_path, &rerun::Scalars::single(matrix[(r, c)]))?;
+            rec.log(ent_path, &rerun::Scalars::single(matrix[(r, c)].as_()))?;
         }
     }
 
@@ -669,7 +766,7 @@ fn log_matrix_timeseries<const R: usize, const C: usize>(
 fn _log_matrix_tensor<const R: usize, const C: usize>(
     rec: &mut RecordingStream,
     ent_path: String,
-    matrix: SMatrix<f64, R, C>,
+    matrix: &SMatrix<f64, R, C>,
 ) -> Result<()> {
     let tensor = TensorData::new(
         vec![R as u64, C as u64],
@@ -682,19 +779,19 @@ fn _log_matrix_tensor<const R: usize, const C: usize>(
     Ok(())
 }
 
-fn log_vector3_timeseries(
+fn log_vector3_timeseries<T: Float + AsPrimitive<f64>>(
     rec: &mut RecordingStream,
     ent_path: String,
-    matrix: Vector3<f64>,
+    matrix: &Vector3<T>,
 ) -> Result<()> {
     let row_names = ["x".to_string(), "y".to_string(), "z".to_string()];
     log_matrix_timeseries(rec, ent_path, matrix, Some(&row_names), None)
 }
 
-fn log_matrix3_timeseries(
+fn log_matrix3_timeseries<T: Float + AsPrimitive<f64>>(
     rec: &mut RecordingStream,
     ent_path: String,
-    matrix: Matrix3<f64>,
+    matrix: &Matrix3<T>,
 ) -> Result<()> {
     let row_names = ["x".to_string(), "y".to_string(), "z".to_string()];
 
