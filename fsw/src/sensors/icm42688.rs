@@ -1,11 +1,16 @@
 use core::array;
 
+use arbitrary_int::{u3, u4, u6, u12};
 use crater_gnc::{Duration, common::Ts, datatypes::sensors::ImuSensorSample};
 use defmt::{info, warn};
 use embassy_stm32::mode::Blocking;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use embassy_time::{Instant, Timer};
-use regs::{AccelMode, Addr, GyroMode};
+use regs::{
+    AccelConfigStatic2, AccelConfigStatic3, AccelConfigStatic4, AccelMode, AddrBank0, AddrBank1,
+    AddrBank2, GyroConfigStatic2, GyroConfigStatic3, GyroConfigStatic4, GyroConfigStatic5,
+    GyroMode,
+};
 use thiserror::Error;
 use uom::si::{
     acceleration::meter_per_second_squared,
@@ -18,18 +23,61 @@ use crate::device::spi::SpiDevice;
 
 const CHIP_ID: u8 = 0x47;
 
+#[derive(Debug)]
+pub struct AccelAAFConfig {
+    enable: bool,
+    aaf_delt: u6,
+    aaf_deltsqr: u12,
+    aaf_bitshift: u4,
+}
+
+impl Default for AccelAAFConfig {
+    fn default() -> Self {
+        AccelAAFConfig {
+            enable: true,
+            aaf_delt: u6::new(2),
+            aaf_deltsqr: u12::new(4),
+            aaf_bitshift: u4::new(13),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct GyroAAFConfig {
+    enable: bool,
+    aaf_delt: u6,
+    aaf_deltsqr: u12,
+    aaf_bitshift: u4,
+}
+
+impl Default for GyroAAFConfig {
+    fn default() -> Self {
+        GyroAAFConfig {
+            enable: true,
+            aaf_delt: u6::new(2),
+            aaf_deltsqr: u12::new(4),
+            aaf_bitshift: u4::new(13),
+        }
+    }
+}
+
 pub struct Config {
     pub gyro_odr: regs::GyroDataRate,
     pub gyro_fs: regs::GyroFullScale,
 
     pub accel_odr: regs::AccelDataRate,
     pub accel_fs: regs::AccelFullScale,
+
+    pub accel_aaf: AccelAAFConfig,
+    pub gyro_aaf: GyroAAFConfig,
 }
 
 pub mod regs {
+    use arbitrary_int::{u4, u6};
     use bitbybit::{bitenum, bitfield};
 
-    pub enum Addr {
+    pub enum AddrBank0 {
+        DeviceConfig = 0x11,
         TempData1 = 0x1D,
 
         IntStatus = 0x2D,
@@ -42,6 +90,19 @@ pub mod regs {
 
         WhoAmI = 0x75,
         RegBankSel = 0x76,
+    }
+
+    pub enum AddrBank1 {
+        GyroConfigStatic2 = 0x0B,
+        GyroConfigStatic3 = 0x0C,
+        GyroConfigStatic4 = 0x0D,
+        GyroConfigStatic5 = 0x0E,
+    }
+
+    pub enum AddrBank2 {
+        AccelConfigStatic2 = 0x03,
+        AccelConfigStatic3 = 0x04,
+        AccelConfigStatic4 = 0x05,
     }
 
     #[bitenum(u2, exhaustive = true)]
@@ -217,6 +278,67 @@ pub mod regs {
         #[bit(6, rw)]
         pub ui_fsync_int: bool,
     }
+
+    #[bitfield(u8)]
+    #[derive(Debug)]
+    pub(super) struct GyroConfigStatic2 {
+        #[bit(0, rw)]
+        pub gyro_nf_dis: bool,
+
+        #[bit(1, rw)]
+        pub gyro_aaf_dis: bool,
+    }
+
+    #[bitfield(u8)]
+    #[derive(Debug)]
+    pub(super) struct GyroConfigStatic3 {
+        #[bits(0..=5, rw)]
+        pub gyro_aaf_delt: u6,
+    }
+
+    #[bitfield(u8)]
+    #[derive(Debug)]
+    pub(super) struct GyroConfigStatic4 {
+        #[bits(0..=7, rw)]
+        pub gyro_aaf_deltsqr_0_7: u8,
+    }
+
+    #[bitfield(u8)]
+    #[derive(Debug)]
+    pub(super) struct GyroConfigStatic5 {
+        #[bits(0..=3, rw)]
+        pub gyro_aaf_deltsqr_8_11: u4,
+
+        #[bits(4..=7, rw)]
+        pub gyro_aaf_bitshift: u4,
+    }
+
+    #[bitfield(u8)]
+    #[derive(Debug)]
+    pub(super) struct AccelConfigStatic2 {
+        #[bit(0, rw)]
+        pub accel_aaf_dis: bool,
+
+        #[bits(1..=6, rw)]
+        pub accel_aaf_delt: u6,
+    }
+
+    #[bitfield(u8)]
+    #[derive(Debug)]
+    pub(super) struct AccelConfigStatic3 {
+        #[bits(0..=7, rw)]
+        pub accel_aaf_deltsqr_0_7: u8,
+    }
+
+    #[bitfield(u8)]
+    #[derive(Debug)]
+    pub(super) struct AccelConfigStatic4 {
+        #[bits(0..=3, rw)]
+        pub accel_aaf_deltsqr_8_11: u4,
+
+        #[bits(4..=7, rw)]
+        pub accel_aaf_bitshift: u4,
+    }
 }
 
 #[derive(Debug, Error)]
@@ -249,7 +371,7 @@ impl Icm42688 {
             let chip_id = spi_dev
                 .start_transaction()
                 .await
-                .read_reg_u8(regs::Addr::WhoAmI as u8);
+                .read_reg_u8(regs::AddrBank0::WhoAmI as u8);
 
             if chip_id == CHIP_ID {
                 break;
@@ -260,6 +382,14 @@ impl Icm42688 {
             }
         }
 
+        // Reset sensor
+        spi_dev
+            .start_transaction()
+            .await
+            .write_reg_u8(AddrBank0::DeviceConfig as u8, 1);
+
+        Timer::after_millis(2).await;
+
         // Set gyro ODR & FS
         let gyro_config0 = regs::GyroConfig0::new_with_raw_value(0)
             .with_odr(config.gyro_odr)
@@ -267,7 +397,7 @@ impl Icm42688 {
         spi_dev
             .start_transaction()
             .await
-            .write_reg_u8(Addr::GyroConfig0 as u8, gyro_config0.raw_value());
+            .write_reg_u8(AddrBank0::GyroConfig0 as u8, gyro_config0.raw_value());
 
         // Set accel ODR & FS
         let accel_config0 = regs::AccelConfig0::new_with_raw_value(0)
@@ -276,24 +406,91 @@ impl Icm42688 {
         spi_dev
             .start_transaction()
             .await
-            .write_reg_u8(Addr::AccelConfig0 as u8, accel_config0.raw_value());
+            .write_reg_u8(AddrBank0::AccelConfig0 as u8, accel_config0.raw_value());
 
         // Setup interrupts
         let int_source0 = regs::IntSource0::new_with_raw_value(0).with_ui_drdy_int1_en(true);
         spi_dev
             .start_transaction()
             .await
-            .write_reg_u8(Addr::IntSource0 as u8, int_source0.raw_value());
+            .write_reg_u8(AddrBank0::IntSource0 as u8, int_source0.raw_value());
 
+        // TODO: UI filter BW
+
+        // // Goto bank 1
+        // Self::select_bank(&mut spi_dev, regs::Bank::Bank1).await;
+        // // Disable gyro notch filter & enable AA filter
+        // let gyro_cfg_2 = GyroConfigStatic2::new_with_raw_value(0)
+        //     .with_gyro_aaf_dis(!config.gyro_aaf.enable)
+        //     .with_gyro_nf_dis(true);
+        // spi_dev
+        //     .start_transaction()
+        //     .await
+        //     .write_reg_u8(AddrBank1::GyroConfigStatic2 as u8, gyro_cfg_2.raw_value());
+
+        // let gyro_cfg_3 =
+        //     GyroConfigStatic3::new_with_raw_value(0).with_gyro_aaf_delt(config.gyro_aaf.aaf_delt);
+        // spi_dev
+        //     .start_transaction()
+        //     .await
+        //     .write_reg_u8(AddrBank1::GyroConfigStatic3 as u8, gyro_cfg_3.raw_value());
+
+        // let gyro_cfg_4 = GyroConfigStatic4::new_with_raw_value(0)
+        //     .with_gyro_aaf_deltsqr_0_7((config.gyro_aaf.aaf_deltsqr.value() & 0x00FF) as u8);
+        // spi_dev
+        //     .start_transaction()
+        //     .await
+        //     .write_reg_u8(AddrBank1::GyroConfigStatic4 as u8, gyro_cfg_4.raw_value());
+
+        // let gyro_cfg_5 = GyroConfigStatic5::new_with_raw_value(0)
+        //     .with_gyro_aaf_deltsqr_8_11(u4::new(
+        //         (config.gyro_aaf.aaf_deltsqr.value() & 0x0F00 >> 8) as u8,
+        //     ))
+        //     .with_gyro_aaf_bitshift(config.gyro_aaf.aaf_bitshift);
+        // spi_dev
+        //     .start_transaction()
+        //     .await
+        //     .write_reg_u8(AddrBank1::GyroConfigStatic5 as u8, gyro_cfg_5.raw_value());
+
+        // // Goto bank 2
+        // Self::select_bank(&mut spi_dev, regs::Bank::Bank2).await;
+        // // Configure accel AA filter
+        // let acc_cfg_2 = AccelConfigStatic2::new_with_raw_value(0)
+        //     .with_accel_aaf_delt(config.accel_aaf.aaf_delt)
+        //     .with_accel_aaf_dis(!config.accel_aaf.enable);
+        // spi_dev
+        //     .start_transaction()
+        //     .await
+        //     .write_reg_u8(AddrBank2::AccelConfigStatic2 as u8, acc_cfg_2.raw_value());
+
+        // let acc_cfg_3 = AccelConfigStatic3::new_with_raw_value(0)
+        //     .with_accel_aaf_deltsqr_0_7((config.accel_aaf.aaf_deltsqr.value() & 0x00FF) as u8);
+        // spi_dev
+        //     .start_transaction()
+        //     .await
+        //     .write_reg_u8(AddrBank2::AccelConfigStatic3 as u8, acc_cfg_3.raw_value());
+
+        // let acc_cfg_4 = AccelConfigStatic4::new_with_raw_value(0)
+        //     .with_accel_aaf_deltsqr_8_11(u4::new(
+        //         (config.accel_aaf.aaf_deltsqr.value() & 0x0F00 >> 8) as u8,
+        //     ))
+        //     .with_accel_aaf_bitshift(config.accel_aaf.aaf_bitshift);
+        // spi_dev
+        //     .start_transaction()
+        //     .await
+        //     .write_reg_u8(AddrBank2::AccelConfigStatic4 as u8, acc_cfg_4.raw_value());
+
+        // Self::select_bank(&mut spi_dev, regs::Bank::Bank0).await;
         // Enable accel & gyro
         let pwr_mgmt0 = regs::PwrMgmt0::new_with_raw_value(0)
             .with_accel_mode(AccelMode::LowNoise)
             .with_gyro_mode(GyroMode::LowNoise);
 
+        // Turn IMU on
         spi_dev
             .start_transaction()
             .await
-            .write_reg_u8(Addr::PwrMgmt0 as u8, pwr_mgmt0.raw_value());
+            .write_reg_u8(AddrBank0::PwrMgmt0 as u8, pwr_mgmt0.raw_value());
 
         // Wait at least 200 us for gyro & accel to start
         Timer::after_micros(200).await;
@@ -302,7 +499,7 @@ impl Icm42688 {
         let _ = spi_dev
             .start_transaction()
             .await
-            .read_reg_u8(regs::Addr::IntStatus as u8);
+            .read_reg_u8(regs::AddrBank0::IntStatus as u8);
 
         Ok(Self {
             spi_dev,
@@ -313,7 +510,7 @@ impl Icm42688 {
 
     async fn select_bank(spi_dev: &mut SpiDevice<Blocking>, bank: regs::Bank) {
         spi_dev.start_transaction().await.write_reg_u8(
-            Addr::PwrMgmt0 as u8,
+            AddrBank0::PwrMgmt0 as u8,
             regs::RegBankSel::new_with_raw_value(0)
                 .with_bank_sel(bank)
                 .raw_value(),
@@ -330,7 +527,7 @@ impl Icm42688 {
         self.spi_dev
             .start_transaction()
             .await
-            .read_reg_raw(regs::Addr::TempData1 as u8, &mut buf);
+            .read_reg_raw(regs::AddrBank0::TempData1 as u8, &mut buf);
 
         // info!("Int status: {:#?}", reg.drdy_int());
 
