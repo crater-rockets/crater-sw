@@ -669,7 +669,7 @@ impl RerunWrite for NavigationOutputLog {
 
         log_quat_timeseries::<f32>(
             rec,
-            &data.q_bn,
+            &data.quat_nb,
             format!("{}/quat", ent_path),
             format!("{}/euler", ent_path),
         )?;

@@ -2,7 +2,7 @@ use nalgebra::{UnitQuaternion, Vector3};
 
 #[derive(Debug, Clone)]
 pub struct NavigationOutput {
-    pub q_bn: UnitQuaternion<f32>,
+    pub quat_nb: UnitQuaternion<f32>,
 
     pub pos_n_m: Vector3<f32>,
     pub vel_n_m_s: Vector3<f32>,

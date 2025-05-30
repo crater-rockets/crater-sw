@@ -14,6 +14,7 @@ pub mod rocket {
 pub mod gnc {
     pub const GNC_EVENTS: &str = "/gnc/events";
     pub const ADA_OUTPUT: &str = "/gnc/ada";
+    pub const IDEAL_NAV_OUTPUT: &str = "/gnc/ideal/nav";
     pub const NAV_OUTPUT: &str = "/gnc/nav";
     pub const SERVO_COMMAND: &str = "/gnc/contro/servo_command";
 }

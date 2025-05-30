@@ -111,10 +111,13 @@ impl RerunLogConfig for CraterUiLogConfig {
             AdaOutputLog::default(),
         )?;
         builder.log_telemetry::<NavigationOutput>(
+            ChannelName::from_base_path(channels::gnc::IDEAL_NAV_OUTPUT, "timeseries"),
+            NavigationOutputLog::default(),
+        )?;
+        builder.log_telemetry::<NavigationOutput>(
             ChannelName::from_base_path(channels::gnc::NAV_OUTPUT, "timeseries"),
             NavigationOutputLog::default(),
         )?;
-
         Ok(())
     }
 }
