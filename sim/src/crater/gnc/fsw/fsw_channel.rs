@@ -45,15 +45,15 @@ impl<T: 'static + Clone> Receiver<T> for TelemetryReceiver<T> {
         }
     }
 
-    fn try_recv_last(&mut self) -> Option<Ts<T>> {
-        let mut out = None;
+    // fn try_recv_last(&mut self) -> Option<Ts<T>> {
+    //     let mut out = None;
 
-        while let Some(v) = self.try_recv() {
-            out = Some(v);
-        }
+    //     while let Some(v) = self.try_recv() {
+    //         out = Some(v);
+    //     }
 
-        out
-    }
+    //     out
+    // }
 
     fn capacity(&self) -> usize {
         todo!()

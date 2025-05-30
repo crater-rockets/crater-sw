@@ -6,6 +6,7 @@ use crate::{
 };
 
 use anyhow::Result;
+use crater_gnc::datatypes::gnc::NavigationOutput;
 
 use super::{
     mass::RocketMassProperties,
@@ -21,6 +22,7 @@ pub struct RocketOutput {
     snd_aerostate: TelemetrySender<AeroState>,
     snd_rocket_mass: TelemetrySender<RocketMassProperties>,
     snd_engine_mass: TelemetrySender<RocketEngineMassProperties>,
+    snd_ideal_nav: TelemetrySender<NavigationOutput>,
 }
 
 impl RocketOutput {
@@ -32,6 +34,7 @@ impl RocketOutput {
             snd_aerostate: telemetry.publish(channels::rocket::AERO_STATE)?,
             snd_rocket_mass: telemetry.publish(channels::rocket::MASS_ROCKET)?,
             snd_engine_mass: telemetry.publish(channels::rocket::MASS_ENGINE)?,
+            snd_ideal_nav: telemetry.publish(channels::gnc::IDEAL_NAV_OUTPUT)?,
         })
     }
 
@@ -42,6 +45,15 @@ impl RocketOutput {
 
         let ode_output = RocketOdeStep::calc(rocket, t_s, rocket.state.clone());
 
+        let navout = NavigationOutput {
+            pos_n_m: rocket.state.pos_n_m().cast::<f32>(),
+            vel_n_m_s: rocket.state.vel_n_m_s().cast::<f32>(),
+            quat_nb: rocket.state.quat_nb().cast::<f32>(),
+            acc_unbias_b_m_s2: ode_output.accels.acc_b_m_s2.cast::<f32>(),
+            angvel_unbias_b_rad_s: rocket.state.angvel_b_rad_s().cast::<f32>(),
+        };
+
+        self.snd_ideal_nav.send(t, navout);
         self.snd_actions.send(t, ode_output.actions);
         self.snd_accels.send(t, ode_output.accels);
         self.snd_aerostate.send(t, ode_output.aero_state);

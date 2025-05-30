@@ -139,7 +139,7 @@ impl NavigationAlgorithm {
         let acc_unbias_b_m_s2: Vector3<f32> = Vector3::<f32>::zeros();
 
         let nav_out = NavigationOutput {
-            q_bn: quat_bn,
+            quat_nb: quat_bn,
             pos_n_m,
             vel_n_m_s,
             angvel_unbias_b_rad_s,
