@@ -2,7 +2,7 @@ use std::fs;
 
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::gnc::{datatypes::ServoPosition, MixedServoPosition},
+    crater::{channels, gnc::{datatypes::ServoPosition, MixedServoPosition}},
     nodes::{Node, NodeContext, StepResult},
     telemetry::TelemetrySender,
 };
@@ -81,7 +81,7 @@ pub struct OpenloopControl {
 
 impl OpenloopControl {
     pub fn new(ctx: NodeContext) -> Result<Self> {
-        let tx_servo_cmd = ctx.telemetry().publish("/gnc/control/servo_command")?;
+        let tx_servo_cmd = ctx.telemetry().publish(channels::gnc::SERVO_COMMAND)?;
 
         let sequence_file = ctx
             .parameters()

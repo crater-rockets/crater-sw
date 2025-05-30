@@ -1,6 +1,6 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::rocket::rocket_data::RocketState,
+    crater::{channels, rocket::rocket_data::RocketState},
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
@@ -18,9 +18,11 @@ pub struct IdealGPS {
 
 impl IdealGPS {
     pub fn new(ctx: NodeContext) -> Result<Self> {
-        let rx_state = ctx.telemetry().subscribe("/rocket/state", Unbounded)?;
+        let rx_state = ctx
+            .telemetry()
+            .subscribe(channels::rocket::STATE, Unbounded)?;
 
-        let tx_gps = ctx.telemetry().publish("/sensors/gps")?;
+        let tx_gps = ctx.telemetry().publish(channels::sensors::IDEAL_GPS)?;
 
         Ok(Self { rx_state, tx_gps })
     }

@@ -1,6 +1,6 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::gnc::ServoPosition,
+    crater::{channels, gnc::ServoPosition},
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
@@ -18,9 +18,11 @@ impl IdealServo {
     pub fn new(ctx: NodeContext) -> Result<Self> {
         let rx_control = ctx
             .telemetry()
-            .subscribe("/gnc/control/servo_command", Unbounded)?;
+            .subscribe(channels::gnc::SERVO_COMMAND, Unbounded)?;
 
-        let tx_servo_pos = ctx.telemetry().publish("/actuators/servo_position")?;
+        let tx_servo_pos = ctx
+            .telemetry()
+            .publish(channels::actuators::IDEAL_SERVO_POSITION)?;
 
         Ok(Self {
             rx_control,

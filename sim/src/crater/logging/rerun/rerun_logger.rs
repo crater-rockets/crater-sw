@@ -99,6 +99,27 @@ where
 //     }
 // }
 
+pub struct ChannelName {
+    channel_name: String,
+    entity_path: String,
+}
+
+impl ChannelName {
+    pub fn from_base_path(channel_name: &str, base_ent_path: &str) -> Self {
+        Self {
+            channel_name: channel_name.to_string(),
+            entity_path: format!("{base_ent_path}{channel_name}"),
+        }
+    }
+
+    pub fn from_parts(channel_name: &str, entity_path: &str) -> Self {
+        Self {
+            channel_name: channel_name.to_string(),
+            entity_path: entity_path.to_string(),
+        }
+    }
+}
+
 pub struct RerunLoggerBuilder {
     telem: TelemetryService,
     sel_receivers: Vec<Box<dyn SelectorReceiver>>,
@@ -114,15 +135,14 @@ impl RerunLoggerBuilder {
 
     pub fn log_telemetry<T: 'static + Send>(
         &mut self,
-        channel_name: &str,
-        ent_path: &str,
+        channel: ChannelName,
         logger: impl RerunWrite<Telem = T> + 'static,
     ) -> Result<()> {
         let receiver = self
             .telem
-            .subscribe::<T>(channel_name, Capacity::Unbounded)?;
+            .subscribe::<T>(&channel.channel_name, Capacity::Unbounded)?;
 
-        let log_fn = TelemetryLogFunction::new(receiver, logger, ent_path);
+        let log_fn = TelemetryLogFunction::new(receiver, logger, &channel.entity_path);
 
         self.sel_receivers.push(Box::new(log_fn));
 
@@ -131,15 +151,14 @@ impl RerunLoggerBuilder {
 
     pub fn log_telemetry_mp<T: 'static + Send>(
         &mut self,
-        channel_name: &str,
-        ent_path: &str,
+        channel: ChannelName,
         logger: impl RerunWrite<Telem = T> + 'static,
     ) -> Result<()> {
         let receiver = self
             .telem
-            .subscribe_mp::<T>(channel_name, Capacity::Unbounded)?;
+            .subscribe_mp::<T>(&channel.channel_name, Capacity::Unbounded)?;
 
-        let log_fn = TelemetryLogFunction::new(receiver, logger, ent_path);
+        let log_fn = TelemetryLogFunction::new(receiver, logger, &channel.entity_path);
 
         self.sel_receivers.push(Box::new(log_fn));
 

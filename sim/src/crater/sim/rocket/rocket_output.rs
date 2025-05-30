@@ -1,6 +1,6 @@
 use crate::{
     core::time::Timestamp,
-    crater::{aero::aerodynamics::AeroState, engine::engine::RocketEngineMassProperties},
+    crater::{aero::aerodynamics::AeroState, channels, engine::engine::RocketEngineMassProperties},
     nodes::NodeTelemetry,
     telemetry::TelemetrySender,
 };
@@ -26,12 +26,12 @@ pub struct RocketOutput {
 impl RocketOutput {
     pub fn new(telemetry: &NodeTelemetry) -> Result<Self> {
         Ok(Self {
-            snd_state: telemetry.publish("/rocket/state")?,
-            snd_actions: telemetry.publish("/rocket/actions")?,
-            snd_accels: telemetry.publish("/rocket/accel")?,
-            snd_aerostate: telemetry.publish("/rocket/aerostate")?,
-            snd_rocket_mass: telemetry.publish("/rocket/mass/rocket")?,
-            snd_engine_mass: telemetry.publish("/rocket/mass/engine")?,
+            snd_state: telemetry.publish(channels::rocket::STATE)?,
+            snd_actions: telemetry.publish(channels::rocket::ACTIONS)?,
+            snd_accels: telemetry.publish(channels::rocket::ACCEL)?,
+            snd_aerostate: telemetry.publish(channels::rocket::AERO_STATE)?,
+            snd_rocket_mass: telemetry.publish(channels::rocket::MASS_ROCKET)?,
+            snd_engine_mass: telemetry.publish(channels::rocket::MASS_ENGINE)?,
         })
     }
 

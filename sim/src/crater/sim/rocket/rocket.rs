@@ -14,6 +14,7 @@ use crate::{
             linear_aerodynamics::LinearizedAeroCoefficients,
             tabulated_aerodynamics::TabulatedAeroCoefficients,
         },
+        channels,
         engine::{
             SimpleRocketEngine, TabRocketEngine,
             engine::{RocketEngine, RocketEngineMassProperties},
@@ -126,11 +127,13 @@ impl Rocket {
 
         let rx_servo_pos = ctx
             .telemetry()
-            .subscribe("/actuators/servo_position", Unbounded)?;
+            .subscribe(channels::actuators::IDEAL_SERVO_POSITION, Unbounded)?;
 
-        let rx_sim_event = ctx.telemetry().subscribe_mp("/sim/events", Unbounded)?;
-        let tx_gnc_event = ctx.telemetry().publish_mp("/gnc/events")?;
-        let tx_sim_event = ctx.telemetry().publish_mp("/sim/events")?;
+        let rx_sim_event = ctx
+            .telemetry()
+            .subscribe_mp(channels::sim::SIM_EVENTS, Unbounded)?;
+        let tx_gnc_event = ctx.telemetry().publish_mp(channels::gnc::GNC_EVENTS)?;
+        let tx_sim_event = ctx.telemetry().publish_mp(channels::sim::SIM_EVENTS)?;
 
         let fsm = RocketFsm::new(tx_gnc_event, tx_sim_event).state_machine();
 

@@ -6,7 +6,10 @@ use strum::AsRefStr;
 
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::events::{Event, GncEvent, GncEventItem, SimEvent},
+    crater::{
+        channels,
+        events::{Event, GncEvent, GncEventItem, SimEvent},
+    },
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender},
 };
@@ -19,15 +22,16 @@ pub struct Orchestrator {
 impl Orchestrator {
     pub fn new(ctx: NodeContext) -> Result<Self> {
         let fsm = OrchestratorFsm {
-            tx_sim_event: ctx.telemetry().publish_mp("/sim/events")?,
-            tx_gnc_event: ctx.telemetry().publish_mp("/gnc/events")?,
+            tx_sim_event: ctx.telemetry().publish_mp(channels::sim::SIM_EVENTS)?,
+            tx_gnc_event: ctx.telemetry().publish_mp(channels::gnc::GNC_EVENTS)?,
         }
         .state_machine();
 
         Ok(Self {
-            rx_gnc_event: ctx
-                .telemetry()
-                .subscribe_mp("/gnc/events", crate::utils::capacity::Capacity::Unbounded)?,
+            rx_gnc_event: ctx.telemetry().subscribe_mp(
+                channels::gnc::GNC_EVENTS,
+                crate::utils::capacity::Capacity::Unbounded,
+            )?,
             fsm,
         })
     }

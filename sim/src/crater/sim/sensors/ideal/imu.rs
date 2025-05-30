@@ -1,8 +1,11 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::rocket::{
-        mass::RocketMassProperties,
-        rocket_data::{RocketAccelerations, RocketState},
+    crater::{
+        channels,
+        rocket::{
+            mass::RocketMassProperties,
+            rocket_data::{RocketAccelerations, RocketState},
+        },
     },
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
@@ -10,7 +13,7 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::TimeDelta;
-use crater_gnc::{Duration, DurationU64, datatypes::sensors::ImuSensorSample};
+use crater_gnc::{DurationU64, datatypes::sensors::ImuSensorSample};
 use nalgebra::{Quaternion, UnitQuaternion, Vector3, Vector4};
 
 #[derive(Debug)]
@@ -33,16 +36,20 @@ pub struct IdealIMU {
 
 impl IdealIMU {
     pub fn new(ctx: NodeContext) -> Result<Self> {
-        let rx_state = ctx.telemetry().subscribe("/rocket/state", Unbounded)?;
-        let rx_accels = ctx.telemetry().subscribe("/rocket/accel", Unbounded)?;
+        let rx_state = ctx
+            .telemetry()
+            .subscribe(channels::rocket::STATE, Unbounded)?;
+        let rx_accels = ctx
+            .telemetry()
+            .subscribe(channels::rocket::ACCEL, Unbounded)?;
         let rx_masses = ctx
             .telemetry()
             .subscribe("/rocket/mass/rocket", Unbounded)?;
 
         let imu_params = ctx.parameters().get_map("sim.rocket.imu")?;
 
-        let tx_imu_translated = ctx.telemetry().publish("/sensors/ideal_imu/translated")?;
-        let tx_imu_cg = ctx.telemetry().publish("/sensors/ideal_imu/cg")?;
+        let tx_imu_translated = ctx.telemetry().publish(channels::sensors::IDEAL_IMU)?;
+        let tx_imu_cg = ctx.telemetry().publish(channels::sensors::IDEAL_IMU_CG)?;
 
         let pos_r = imu_params.get_param("pos_r")?.value_float_arr()?;
         let pos_r = Vector3::from_column_slice(&pos_r);

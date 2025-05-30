@@ -31,7 +31,7 @@ impl ModelBuilder for OpenLoopCrater {
         nm.add_node("openloop_control", |ctx| {
             Ok(Box::new(OpenloopControl::new(ctx)?))
         })?;
-        nm.add_node("ideal_serve", |ctx| Ok(Box::new(IdealServo::new(ctx)?)))?;
+        nm.add_node("ideal_servo", |ctx| Ok(Box::new(IdealServo::new(ctx)?)))?;
 
         Ok(())
     }

@@ -26,7 +26,7 @@ pub struct FlightSoftware {
 impl FlightSoftware {
     pub fn new(ctx: NodeContext) -> Result<Self> {
         let harness = CraterLoopHarness {
-            tx_events: Box::new(ctx.telemetry().publish_mp(channels::gnc::EVENTS)?),
+            tx_events: Box::new(ctx.telemetry().publish_mp(channels::gnc::GNC_EVENTS)?),
             fmm: FmmHarness {
                 rx_liftoff_pin: Box::new(
                     ctx.telemetry()
@@ -66,7 +66,7 @@ impl FlightSoftware {
         let ev_pub = event_queue.get_publisher(ComponentId::Ground);
         let rx_gnc_events = ctx
             .telemetry()
-            .subscribe_mp(channels::gnc::EVENTS, Capacity::Unbounded)?;
+            .subscribe_mp(channels::gnc::GNC_EVENTS, Capacity::Unbounded)?;
 
         Ok(Self {
             crater: CraterLoop::new(event_queue, harness)?,

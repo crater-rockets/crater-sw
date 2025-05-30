@@ -1,6 +1,6 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::rocket::rocket_data::RocketState,
+    crater::{channels, rocket::rocket_data::RocketState},
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
@@ -35,8 +35,12 @@ pub struct IdealMagnetometer {
 
 impl IdealMagnetometer {
     pub fn new(ctx: NodeContext) -> Result<Self> {
-        let rx_state = ctx.telemetry().subscribe("/rocket/state", Unbounded)?;
-        let tx_magn = ctx.telemetry().publish("/sensors/ideal_mag")?;
+        let rx_state = ctx
+            .telemetry()
+            .subscribe(channels::rocket::STATE, Unbounded)?;
+        let tx_magn = ctx
+            .telemetry()
+            .publish(channels::sensors::IDEAL_MAGNETOMETER)?;
 
         let mag_params = ctx.parameters().get_map("sim.rocket.magnetomer")?;
 
