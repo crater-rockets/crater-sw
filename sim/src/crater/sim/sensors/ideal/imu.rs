@@ -1,8 +1,8 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::sim::{
-        rocket::{mass::RocketMassProperties, rocket_data::{RocketAccelerations, RocketState}},
-        sensors::datatypes::IMUSample,
+    crater::rocket::{
+        mass::RocketMassProperties,
+        rocket_data::{RocketAccelerations, RocketState},
     },
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
@@ -10,6 +10,7 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::TimeDelta;
+use crater_gnc::{Duration, DurationU64, datatypes::sensors::ImuSensorSample};
 use nalgebra::{Quaternion, UnitQuaternion, Vector3, Vector4};
 
 #[derive(Debug)]
@@ -26,15 +27,17 @@ pub struct IdealIMU {
     rx_accels: TelemetryReceiver<RocketAccelerations>,
     rx_masses: TelemetryReceiver<RocketMassProperties>,
     params: ImuParams,
-    tx_imu_translated: TelemetrySender<IMUSample>,
-    tx_imu_cg: TelemetrySender<IMUSample>,
+    tx_imu_translated: TelemetrySender<ImuSensorSample>,
+    tx_imu_cg: TelemetrySender<ImuSensorSample>,
 }
 
 impl IdealIMU {
     pub fn new(ctx: NodeContext) -> Result<Self> {
         let rx_state = ctx.telemetry().subscribe("/rocket/state", Unbounded)?;
         let rx_accels = ctx.telemetry().subscribe("/rocket/accel", Unbounded)?;
-        let rx_masses = ctx.telemetry().subscribe("/rocket/mass/rocket", Unbounded)?;
+        let rx_masses = ctx
+            .telemetry()
+            .subscribe("/rocket/mass/rocket", Unbounded)?;
 
         let imu_params = ctx.parameters().get_map("sim.rocket.imu")?;
 
@@ -106,17 +109,23 @@ impl Node for IdealIMU {
 
         self.tx_imu_cg.send(
             Timestamp::now(clock),
-            IMUSample {
-                acc: meas_acc_cg_imu,
-                gyro: meas_angvel_imu,
+            ImuSensorSample {
+                accel_m_s2: meas_acc_cg_imu.map(|v| v as f32),
+                angvel_rad_s: meas_angvel_imu.map(|v| v as f32),
+                int_latency: DurationU64::micros(0).into(),
+                temperature_degc: None,
+                overrun_count: 0,
             },
         );
 
         self.tx_imu_translated.send(
             Timestamp::now(clock),
-            IMUSample {
-                acc: meas_acc_imu,
-                gyro: meas_angvel_imu,
+            ImuSensorSample {
+                accel_m_s2: meas_acc_imu.map(|v| v as f32),
+                angvel_rad_s: meas_angvel_imu.map(|v| v as f32),
+                int_latency: DurationU64::micros(0).into(),
+                temperature_degc: None,
+                overrun_count: 0,
             },
         );
 

@@ -1,18 +1,19 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::sim::{rocket::rocket_data::RocketState, sensors::datatypes::GPSSample},
+    crater::rocket::rocket_data::RocketState,
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
 };
 use anyhow::Result;
 use chrono::TimeDelta;
+use crater_gnc::datatypes::sensors::GpsSensorSample;
 
 #[derive(Debug)]
 pub struct IdealGPS {
     rx_state: TelemetryReceiver<RocketState>,
 
-    tx_gps: TelemetrySender<GPSSample>,
+    tx_gps: TelemetrySender<GpsSensorSample>,
 }
 
 impl IdealGPS {
@@ -32,9 +33,12 @@ impl Node for IdealGPS {
             .try_recv()
             .expect("GPS step executed, but no /rocket/state input available");
 
-        let sample = GPSSample {
-            pos_n: state.pos_n_m(),
-            vel_n: state.vel_n_m_s(),
+        let pos_n_m = state.pos_n_m();
+        let vel_n_m_s = state.vel_n_m_s();
+
+        let sample = GpsSensorSample {
+            pos_n_m: pos_n_m.map(|v| v as f32),
+            vel_n_m_s: vel_n_m_s.map(|v| v as f32),
         };
 
         self.tx_gps.send(Timestamp::now(clock), sample);

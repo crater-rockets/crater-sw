@@ -1,12 +1,13 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::sim::{rocket::rocket_data::RocketState, sensors::datatypes::MagnetometerSample},
+    crater::rocket::rocket_data::RocketState,
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
 };
 use anyhow::Result;
 use chrono::TimeDelta;
+use crater_gnc::datatypes::sensors::MagnetometerSensorSample;
 use nalgebra::{Quaternion, UnitQuaternion, Vector3, Vector4};
 use num_traits::ToPrimitive;
 use world_magnetic_model::{GeomagneticField, uom::si::angle::radian};
@@ -27,7 +28,7 @@ pub struct MagParams {
 #[derive(Debug)]
 pub struct IdealMagnetometer {
     rx_state: TelemetryReceiver<RocketState>,
-    tx_magn: TelemetrySender<MagnetometerSample>,
+    tx_magn: TelemetrySender<MagnetometerSensorSample>,
     mag_par: MagParams,
     mag_ned: Vector3<f64>,
 }
@@ -99,11 +100,12 @@ impl Node for IdealMagnetometer {
             .try_recv()
             .expect("Magnetometer step executed, but no /rocket/state input available");
 
-        let sample = MagnetometerSample {
-            magfield_b: self
+        let sample = MagnetometerSensorSample {
+            mag_field_b_gauss: self
                 .mag_par
                 .quat_mag_b
-                .transform_vector(&state.quat_nb().inverse_transform_vector(&self.mag_ned)),
+                .transform_vector(&state.quat_nb().inverse_transform_vector(&self.mag_ned))
+                .map(|v| v as f32),
         };
 
         self.tx_magn.send(Timestamp::now(clock), sample);

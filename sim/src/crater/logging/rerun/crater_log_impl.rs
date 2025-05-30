@@ -1,8 +1,6 @@
-use std::array;
-
 use crater_gnc::{
     components::ada::AdaResult,
-    datatypes::sensors::{ImuSensorSample, PressureSensorSample},
+    datatypes::sensors::{ImuSensorSample, MagnetometerSensorSample, PressureSensorSample},
 };
 use map_3d::ned2geodetic;
 use nalgebra::{Matrix3, SMatrix, Vector3};
@@ -11,14 +9,10 @@ use rerun::{
     Quaternion, RecordingStream, TensorData, TextLogLevel, components::RotationQuat,
     external::arrow::buffer::ScalarBuffer,
 };
-use uom::si::{
-    length::meter, pressure::pascal, thermodynamic_temperature::degree_celsius,
-    velocity::meter_per_second,
-};
 
 use crate::{
     core::time::Timestamp,
-    crater::sim::{
+    crater::{
         aero::aerodynamics::AeroState,
         engine::engine::RocketEngineMassProperties,
         events::{GncEventItem, SimEvent},
@@ -27,7 +21,6 @@ use crate::{
             mass::RocketMassProperties,
             rocket_data::{RocketAccelerations, RocketActions, RocketState},
         },
-        sensors::{IMUSample, MagnetometerSample},
     },
 };
 
@@ -522,7 +515,7 @@ impl RerunWrite for RocketEngineMassPropertiesLog {
 pub struct IMUSampleLog;
 
 impl RerunWrite for IMUSampleLog {
-    type Telem = IMUSample;
+    type Telem = ImuSensorSample;
 
     fn write(
         &mut self,
@@ -530,13 +523,13 @@ impl RerunWrite for IMUSampleLog {
         timeline: &str,
         ent_path: &str,
         ts: Timestamp,
-        imu: IMUSample,
+        imu: ImuSensorSample,
     ) -> Result<()> {
         rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
-        log_vector3_timeseries(rec, format!("{ent_path}/acc_m_s2"), &imu.acc)?;
+        log_vector3_timeseries(rec, format!("{ent_path}/acc_m_s2"), &imu.accel_m_s2)?;
 
-        let gyro_deg = imu.gyro.map(|x| x.to_degrees());
+        let gyro_deg = imu.angvel_rad_s.map(|x| x.to_degrees());
         log_vector3_timeseries(rec, format!("{ent_path}/gyro_deg_s"), &gyro_deg)?;
 
         Ok(())
@@ -547,7 +540,7 @@ impl RerunWrite for IMUSampleLog {
 pub struct MagnetometerSampleLog;
 
 impl RerunWrite for MagnetometerSampleLog {
-    type Telem = MagnetometerSample;
+    type Telem = MagnetometerSensorSample;
 
     fn write(
         &mut self,
@@ -555,11 +548,11 @@ impl RerunWrite for MagnetometerSampleLog {
         timeline: &str,
         ent_path: &str,
         ts: Timestamp,
-        mag: MagnetometerSample,
+        mag: MagnetometerSensorSample,
     ) -> Result<()> {
         rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
-        log_vector3_timeseries(rec, ent_path.to_string(), &mag.magfield_b)?;
+        log_vector3_timeseries(rec, ent_path.to_string(), &mag.mag_field_b_gauss)?;
 
         Ok(())
     }
@@ -634,12 +627,12 @@ impl RerunWrite for AdaOutputLog {
 
         rec.log(
             format!("{}/altitude_m", ent_path),
-            &rerun::Scalars::single(ada.altitude.get::<meter>() as f64),
+            &rerun::Scalars::single(ada.altitude_m as f64),
         )?;
 
         rec.log(
             format!("{}/vertical_speed_m_s", ent_path),
-            &rerun::Scalars::single(ada.vertical_speed.get::<meter_per_second>() as f64),
+            &rerun::Scalars::single(ada.vertical_speed_m_s as f64),
         )?;
 
         Ok(())
@@ -664,13 +657,13 @@ impl RerunWrite for PressureSensorSampleLog {
 
         rec.log(
             format!("{}/pressure_pa", ent_path),
-            &rerun::Scalars::single(data.pressure.get::<pascal>() as f64),
+            &rerun::Scalars::single(data.pressure_pa as f64),
         )?;
 
-        if let Some(temp) = data.temperature {
+        if let Some(temp) = data.temperature_degc {
             rec.log(
                 format!("{}/temperature_degc", ent_path),
-                &rerun::Scalars::single(temp.get::<degree_celsius>() as f64),
+                &rerun::Scalars::single(temp as f64),
             )?;
         }
 
@@ -694,16 +687,17 @@ impl RerunWrite for ImuSensorSampleLog {
     ) -> Result<()> {
         rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
-        let accel_m_s2 = data.accel_m_s2_vec();
-        let ang_vel_deg_s = data.ang_vel_deg_s_vec();
+        log_vector3_timeseries(rec, format!("{}/accel_m_s2", ent_path), &data.accel_m_s2)?;
+        log_vector3_timeseries(
+            rec,
+            format!("{}/ang_vel_deg_s", ent_path),
+            &data.angvel_rad_s.map(|v| v.to_degrees()),
+        )?;
 
-        log_vector3_timeseries(rec, format!("{}/accel_m_s2", ent_path), &accel_m_s2)?;
-        log_vector3_timeseries(rec, format!("{}/ang_vel_deg_s", ent_path), &ang_vel_deg_s)?;
-
-        if let Some(temp) = data.temperature {
+        if let Some(temp) = data.temperature_degc {
             rec.log(
                 format!("{}/temperature_degc", ent_path),
-                &rerun::Scalars::single(temp.get::<degree_celsius>() as f64),
+                &rerun::Scalars::single(temp as f64),
             )?;
         }
 

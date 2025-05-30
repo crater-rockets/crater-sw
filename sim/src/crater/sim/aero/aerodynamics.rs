@@ -2,7 +2,7 @@ use std::f64;
 
 use nalgebra::{Vector3, vector};
 
-use crate::crater::sim::gnc::ServoPosition;
+use crate::crater::gnc::ServoPosition;
 
 #[derive(Debug, Clone)]
 pub struct AerodynamicActions {

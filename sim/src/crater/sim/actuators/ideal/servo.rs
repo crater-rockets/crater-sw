@@ -1,6 +1,6 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::sim::gnc::ServoPosition,
+    crater::gnc::ServoPosition,
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,

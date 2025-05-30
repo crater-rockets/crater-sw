@@ -1,15 +1,16 @@
 use chrono::TimeDelta;
 use crater_gnc::{
+    DurationU64, InstantU64,
     component::StepData,
-    components::{ada::AdaHarness, fmm::FmmHarness},
+    components::{ada::AdaHarness, fmm::FmmHarness, navigation::NavigationHarness},
     events::{EventItem, EventPublisher, EventQueue},
     gnc_main::{CraterLoop, CraterLoopHarness},
     mav_crater::ComponentId,
-    DurationU64, InstantU64,
 };
 
 use crate::{
     core::time::Clock,
+    crater::channels,
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, Timestamped},
     utils::capacity::Capacity,
@@ -25,19 +26,39 @@ pub struct FlightSoftware {
 impl FlightSoftware {
     pub fn new(ctx: NodeContext) -> Result<Self> {
         let harness = CraterLoopHarness {
-            tx_events: Box::new(ctx.telemetry().publish_mp("/gnc/events")?),
+            tx_events: Box::new(ctx.telemetry().publish_mp(channels::gnc::EVENTS)?),
             fmm: FmmHarness {
                 rx_liftoff_pin: Box::new(
                     ctx.telemetry()
-                        .subscribe("/sensors/liftoff_pin", Capacity::Unbounded)?,
+                        .subscribe(channels::sensors::LIFTOFF_PIN, Capacity::Unbounded)?,
                 ),
             },
             ada: AdaHarness {
-                rx_static_pressure: Box::new(
+                rx_static_pressure: Box::new(ctx.telemetry().subscribe(
+                    channels::sensors::IDEAL_STATIC_PRESSURE,
+                    Capacity::Unbounded,
+                )?),
+                tx_ada_data: Box::new(ctx.telemetry().publish(channels::gnc::ADA_OUTPUT)?),
+            },
+            nav: NavigationHarness {
+                rx_gps: Box::new(
                     ctx.telemetry()
-                        .subscribe("/sensors/ideal_static_pressure", Capacity::Unbounded)?,
+                        .subscribe(channels::sensors::IDEAL_GPS, Capacity::Unbounded)?,
                 ),
-                tx_ada_data: Box::new(ctx.telemetry().publish("/gnc/ada")?),
+                rx_imu: Box::new(
+                    ctx.telemetry()
+                        .subscribe(channels::sensors::IDEAL_IMU, Capacity::Unbounded)?,
+                ),
+                rx_magn: Box::new(
+                    ctx.telemetry()
+                        .subscribe(channels::sensors::IDEAL_MAGNETOMETER, Capacity::Unbounded)?,
+                ),
+                rx_mock_nav_out: Some(Box::new(
+                    ctx.telemetry()
+                        .subscribe(channels::sensors::IDEAL_NAV_OUTPUT, Capacity::Unbounded)?,
+                )),
+
+                tx_nav_out: Box::new(ctx.telemetry().publish(channels::gnc::NAV_OUTPUT)?),
             },
         };
 
@@ -45,7 +66,7 @@ impl FlightSoftware {
         let ev_pub = event_queue.get_publisher(ComponentId::Ground);
         let rx_gnc_events = ctx
             .telemetry()
-            .subscribe_mp("/gnc/events", Capacity::Unbounded)?;
+            .subscribe_mp(channels::gnc::EVENTS, Capacity::Unbounded)?;
 
         Ok(Self {
             crater: CraterLoop::new(event_queue, harness)?,

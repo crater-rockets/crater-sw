@@ -1,23 +1,15 @@
-use core::{array, f32};
-
-use nalgebra::Vector3;
-use uom::si::{
-    acceleration::meter_per_second_squared,
-    angular_velocity::{degree_per_second, radian_per_second},
-    f32::{Acceleration, AngularVelocity, Pressure, ThermodynamicTemperature},
-    pressure::pascal,
-    thermodynamic_temperature::degree_celsius,
-};
+use core::f32;
 
 use crate::{
     Duration, DurationU64, Instant,
     mav_crater::{self, MavMessage, SensImuSample_DATA, SensPressureSample_DATA},
 };
+use nalgebra::Vector3;
 
 #[derive(Debug, Clone)]
 pub struct PressureSensorSample {
-    pub pressure: uom::si::f32::Pressure,
-    pub temperature: Option<uom::si::f32::ThermodynamicTemperature>,
+    pub pressure_pa: f32,
+    pub temperature_degc: Option<f32>,
 }
 
 impl PressureSensorSample {
@@ -25,11 +17,8 @@ impl PressureSensorSample {
         MavMessage::SensPressureSample(SensPressureSample_DATA {
             sensor_id: id,
             timestamp_us: ts.0.duration_since_epoch().to_micros() as i64,
-            pressure_pa: self.pressure.get::<pascal>(),
-            temperature_degc: self
-                .temperature
-                .map(|v| v.get::<degree_celsius>())
-                .unwrap_or(f32::NAN),
+            pressure_pa: self.pressure_pa,
+            temperature_degc: self.temperature_degc.unwrap_or(f32::NAN),
         })
     }
 }
@@ -43,11 +32,9 @@ impl From<SensPressureSample_DATA> for PressureSensorSample {
 impl From<&SensPressureSample_DATA> for PressureSensorSample {
     fn from(data: &SensPressureSample_DATA) -> Self {
         Self {
-            pressure: Pressure::new::<pascal>(data.pressure_pa),
-            temperature: if !data.temperature_degc.is_nan() {
-                Some(ThermodynamicTemperature::new::<degree_celsius>(
-                    data.temperature_degc,
-                ))
+            pressure_pa: data.pressure_pa,
+            temperature_degc: if !data.temperature_degc.is_nan() {
+                Some(data.temperature_degc)
             } else {
                 None
             },
@@ -57,50 +44,23 @@ impl From<&SensPressureSample_DATA> for PressureSensorSample {
 
 #[derive(Debug, Clone)]
 pub struct ImuSensorSample {
-    pub accel: [uom::si::f32::Acceleration; 3],
-    pub ang_vel: [uom::si::f32::AngularVelocity; 3],
-    pub temperature: Option<uom::si::f32::ThermodynamicTemperature>,
+    pub accel_m_s2: Vector3<f32>,
+    pub angvel_rad_s: Vector3<f32>,
+    pub temperature_degc: Option<f32>,
     pub int_latency: Duration,
-    pub overrun_count: u8
+    pub overrun_count: u8,
 }
 
 impl ImuSensorSample {
-    pub fn accel_m_s2_array(&self) -> [f32; 3] {
-        array::from_fn(|i| self.accel[i].get::<meter_per_second_squared>())
-    }
-
-    pub fn ang_vel_rad_s_array(&self) -> [f32; 3] {
-        array::from_fn(|i| self.ang_vel[i].get::<radian_per_second>())
-    }
-
-    pub fn ang_vel_deg_s_array(&self) -> [f32; 3] {
-        array::from_fn(|i| self.ang_vel[i].get::<degree_per_second>())
-    }
-
-    pub fn accel_m_s2_vec(&self) -> Vector3<f32> {
-        Vector3::from_fn(|i, _| self.accel[i].get::<meter_per_second_squared>())
-    }
-
-    pub fn ang_vel_rad_s_vec(&self) -> Vector3<f32> {
-        Vector3::from_fn(|i, _| self.ang_vel[i].get::<radian_per_second>())
-    }
-
-    pub fn ang_vel_deg_s_vec(&self) -> Vector3<f32> {
-        Vector3::from_fn(|i, _| self.ang_vel[i].get::<degree_per_second>())
-    }
-
     pub fn to_mavlink(&self, id: mav_crater::ImuSensorId, ts: Instant) -> MavMessage {
         MavMessage::SensImuSample(SensImuSample_DATA {
             sensor_id: id,
             timestamp_us: ts.0.duration_since_epoch().to_micros() as i64,
-            accel_m_s2: self.accel_m_s2_array(),
-            ang_vel_deg_s: self.ang_vel_deg_s_array(),
-            temperature_degc: self
-                .temperature
-                .map(|v| v.get::<degree_celsius>())
-                .unwrap_or(f32::NAN),
+            accel_m_s2: self.accel_m_s2.into(),
+            ang_vel_deg_s: self.angvel_rad_s.into(),
+            temperature_degc: self.temperature_degc.unwrap_or(f32::NAN),
             latency_us: self.int_latency.0.to_micros() as i64,
-            overrun_count: self.overrun_count
+            overrun_count: self.overrun_count,
         })
     }
 }
@@ -114,21 +74,26 @@ impl From<SensImuSample_DATA> for ImuSensorSample {
 impl From<&SensImuSample_DATA> for ImuSensorSample {
     fn from(data: &SensImuSample_DATA) -> Self {
         Self {
-            accel: array::from_fn(|i| {
-                Acceleration::new::<meter_per_second_squared>(data.accel_m_s2[i])
-            }),
-            ang_vel: array::from_fn(|i| {
-                AngularVelocity::new::<degree_per_second>(data.ang_vel_deg_s[i])
-            }),
-            temperature: if !data.temperature_degc.is_nan() {
-                Some(ThermodynamicTemperature::new::<degree_celsius>(
-                    data.temperature_degc,
-                ))
+            accel_m_s2: data.accel_m_s2.into(),
+            angvel_rad_s: data.ang_vel_deg_s.into(),
+            temperature_degc: if !data.temperature_degc.is_nan() {
+                Some(data.temperature_degc)
             } else {
                 None
             },
             int_latency: DurationU64::micros(data.latency_us as u64).into(),
-            overrun_count: data.overrun_count
+            overrun_count: data.overrun_count,
         }
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct GpsSensorSample {
+    pub pos_n_m: Vector3<f32>,
+    pub vel_n_m_s: Vector3<f32>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MagnetometerSensorSample {
+    pub mag_field_b_gauss: Vector3<f32>,
 }

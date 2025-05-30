@@ -1,9 +1,9 @@
 use anyhow::Result;
 
-use crater_gnc::components::ada::AdaResult;
+use crater_gnc::{components::ada::AdaResult, datatypes::sensors::{ImuSensorSample, MagnetometerSensorSample}};
 use rerun::RecordingStream;
 
-use crate::crater::sim::{
+use crate::crater::{
     aero::aerodynamics::AeroState,
     engine::engine::RocketEngineMassProperties,
     events::{GncEventItem, SimEvent},
@@ -12,7 +12,6 @@ use crate::crater::sim::{
         mass::RocketMassProperties,
         rocket_data::{RocketAccelerations, RocketActions, RocketState},
     },
-    sensors::{IMUSample, MagnetometerSample},
 };
 
 use super::{
@@ -88,17 +87,17 @@ impl RerunLogConfig for CraterUiLogConfig {
             "timeseries/rocket/mass/engine",
             RocketEngineMassPropertiesLog::default(),
         )?;
-        builder.log_telemetry::<IMUSample>(
+        builder.log_telemetry::<ImuSensorSample>(
             "/sensors/ideal_imu/translated",
             "timeseries/sensors/ideal_imu/translated",
             IMUSampleLog::default(),
         )?;
-        builder.log_telemetry::<IMUSample>(
+        builder.log_telemetry::<ImuSensorSample>(
             "/sensors/ideal_imu/cg",
             "timeseries/sensors/ideal_imu/cg",
             IMUSampleLog::default(),
         )?;
-        builder.log_telemetry::<MagnetometerSample>(
+        builder.log_telemetry::<MagnetometerSensorSample>(
             "/sensors/ideal_mag",
             "timeseries/sensors/ideal_mag",
             MagnetometerSampleLog::default(),

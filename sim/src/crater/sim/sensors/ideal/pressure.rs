@@ -1,19 +1,22 @@
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::sim::{aero::atmosphere::{Atmosphere, AtmosphereIsa}, rocket::rocket_data::RocketState},
+    crater::{
+        aero::atmosphere::{Atmosphere, AtmosphereIsa},
+        rocket::rocket_data::RocketState,
+    },
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender, Timestamped},
     utils::capacity::Capacity::Unbounded,
 };
 use anyhow::Result;
 use chrono::TimeDelta;
-use uom::si::{f32::Pressure, pressure::pascal};
+use crater_gnc::datatypes::sensors::PressureSensorSample;
 
 /// Implementation of an Ideal IMU, without noise or errors
 #[derive(Debug)]
 pub struct IdealStaticPressureSensor {
     rx_state: TelemetryReceiver<RocketState>,
-    tx_pressure: TelemetrySender<Pressure>,
+    tx_pressure: TelemetrySender<PressureSensorSample>,
     atmosphere: AtmosphereIsa,
 }
 
@@ -40,7 +43,10 @@ impl Node for IdealStaticPressureSensor {
 
         self.tx_pressure.send(
             Timestamp::now(clock),
-            Pressure::new::<pascal>(self.atmosphere.pressure_pa(-state.pos_n_m()[2]) as f32),
+            PressureSensorSample {
+                pressure_pa: self.atmosphere.pressure_pa(-state.pos_n_m()[2]) as f32,
+                temperature_degc: None,
+            },
         );
         Ok(StepResult::Continue)
     }

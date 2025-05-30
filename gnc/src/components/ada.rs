@@ -1,23 +1,17 @@
-use alloc::boxed::Box;
-use statig::prelude::*;
-use uom::si::{
-    f32::{Length, Pressure, Velocity},
-    length::meter,
-    pressure::{atmosphere, pascal},
-    velocity::meter_per_second,
-};
-
 use crate::{
     Duration, Instant,
     common::Ts,
     component::{Component, LoopContext},
+    datatypes::sensors::PressureSensorSample,
     events::{Event, EventPublisher},
     hal::channel::{Receiver, Sender},
     mav_crater::ComponentId,
 };
+use alloc::boxed::Box;
+use statig::prelude::*;
 
 pub struct AdaHarness {
-    pub rx_static_pressure: Box<dyn Receiver<Pressure> + Send>,
+    pub rx_static_pressure: Box<dyn Receiver<PressureSensorSample> + Send>,
 
     pub tx_ada_data: Box<dyn Sender<AdaResult> + Send>,
 }
@@ -90,7 +84,7 @@ impl AdaStateMachine {
         match event {
             Event::Step => {
                 if let Some(press) = self.harness.rx_static_pressure.try_recv() {
-                    calib.ref_pressure = press.v;
+                    calib.ref_pressure_pa = press.v.pressure_pa;
                 }
 
                 if context.step().step_time.0 - entry_time.0 >= self.shadow_mode_timeout.0 {
@@ -158,13 +152,13 @@ impl AdaStateMachine {
 
 #[derive(Debug, Clone)]
 pub struct AdaCalibration {
-    ref_pressure: Pressure,
+    ref_pressure_pa: f32,
 }
 
 impl Default for AdaCalibration {
     fn default() -> Self {
         AdaCalibration {
-            ref_pressure: Pressure::new::<atmosphere>(1.0),
+            ref_pressure_pa: 101325.0f32,
         }
     }
 }
@@ -176,8 +170,8 @@ pub struct AdaAlgorithm {
 
 #[derive(Debug, Clone)]
 pub struct AdaResult {
-    pub altitude: Length,
-    pub vertical_speed: Velocity,
+    pub altitude_m: f32,
+    pub vertical_speed_m_s: f32,
 }
 
 impl AdaAlgorithm {
@@ -186,12 +180,10 @@ impl AdaAlgorithm {
     }
 
     /// Just a mockup for now
-    fn update(&mut self, press: Ts<Pressure>) -> Ts<AdaResult> {
+    fn update(&mut self, press: Ts<PressureSensorSample>) -> Ts<AdaResult> {
         let v = AdaResult {
-            altitude: Length::new::<meter>(
-                (press.v - self.calib.ref_pressure).get::<pascal>() / 2f32,
-            ),
-            vertical_speed: Velocity::new::<meter_per_second>(-press.v.get::<pascal>()),
+            altitude_m: (press.v.pressure_pa - self.calib.ref_pressure_pa) / 2f32,
+            vertical_speed_m_s: -press.v.pressure_pa / 100f32,
         };
 
         Ts::new(press.t, v)

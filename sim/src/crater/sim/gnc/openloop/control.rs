@@ -2,7 +2,7 @@ use std::fs;
 
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::sim::gnc::{datatypes::ServoPosition, MixedServoPosition},
+    crater::gnc::{datatypes::ServoPosition, MixedServoPosition},
     nodes::{Node, NodeContext, StepResult},
     telemetry::TelemetrySender,
 };

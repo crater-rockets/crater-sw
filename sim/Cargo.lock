@@ -1525,7 +1525,6 @@ dependencies = [
  "thiserror 2.0.12",
  "time",
  "toml",
- "uom",
  "world_magnetic_model",
 ]
 
@@ -1550,7 +1549,6 @@ dependencies = [
  "serde_arrays 0.2.0",
  "statig",
  "thiserror 2.0.12",
- "uom",
 ]
 
 [[package]]
@@ -8862,7 +8860,6 @@ version = "0.36.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ffd36e5350a65d112584053ee91843955826bf9e56ec0d1351214e01f6d7cd9c"
 dependencies = [
- "num-rational",
  "num-traits",
  "typenum",
 ]

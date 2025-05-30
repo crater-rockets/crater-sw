@@ -1,6 +1,6 @@
 use nalgebra::{matrix, Matrix3, Vector3};
 
-use crate::crater::sim::engine::engine::RocketEngineMassProperties;
+use crate::crater::engine::engine::RocketEngineMassProperties;
 
 use super::rocket_data::RocketParams;
 

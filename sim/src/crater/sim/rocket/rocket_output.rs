@@ -1,6 +1,6 @@
 use crate::{
     core::time::Timestamp,
-    crater::sim::{aero::aerodynamics::AeroState, engine::engine::RocketEngineMassProperties},
+    crater::{aero::aerodynamics::AeroState, engine::engine::RocketEngineMassProperties},
     nodes::NodeTelemetry,
     telemetry::TelemetrySender,
 };

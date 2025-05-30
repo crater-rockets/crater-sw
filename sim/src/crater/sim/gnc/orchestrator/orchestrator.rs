@@ -6,7 +6,7 @@ use strum::AsRefStr;
 
 use crate::{
     core::time::{Clock, Timestamp},
-    crater::sim::events::{Event, GncEvent, GncEventItem, SimEvent},
+    crater::events::{Event, GncEvent, GncEventItem, SimEvent},
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender},
 };

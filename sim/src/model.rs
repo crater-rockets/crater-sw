@@ -1,5 +1,5 @@
 use crate::{
-    crater::sim::{
+    crater::{
         actuators::ideal::IdealServo,
         gnc::{fsw::FlightSoftware, openloop::OpenloopControl, orchestrator::Orchestrator},
         rocket::rocket::Rocket,

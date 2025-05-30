@@ -3,7 +3,7 @@ use core::f64;
 use anyhow::Result;
 use nalgebra::{Matrix3, Quaternion, SVector, UnitQuaternion, Vector3, Vector4, vector};
 
-use crate::{crater::sim::aero::aerodynamics::AerodynamicActions, parameters::ParameterMap};
+use crate::{crater::aero::aerodynamics::AerodynamicActions, parameters::ParameterMap};
 
 #[derive(Debug, Default, Clone)]
 pub struct RocketState(pub SVector<f64, 13>);
