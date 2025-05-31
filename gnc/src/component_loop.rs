@@ -1,5 +1,5 @@
 use crate::component::{Component, LoopContext, StepData};
-use crate::events::{EventItem, EventQueue};
+use crate::events::{GncEvent, EventQueue};
 use crate::hal::channel::Sender;
 use crate::mav_crater::ComponentId;
 use alloc::boxed::Box;
@@ -8,7 +8,7 @@ use thiserror::Error;
 
 pub struct ComponentLoop<const N: usize> {
     event_queue: EventQueue,
-    tx_event: Box<dyn Sender<EventItem> + Send>,
+    tx_event: Box<dyn Sender<GncEvent> + Send>,
     components: Vec<Box<dyn Component + Send>, N>,
 }
 
@@ -63,7 +63,7 @@ impl<const N: usize> ComponentLoopBuilder<N> {
     pub fn build(
         self,
         event_queue: EventQueue,
-        tx_event: Box<dyn Sender<EventItem> + Send>,
+        tx_event: Box<dyn Sender<GncEvent> + Send>,
     ) -> ComponentLoop<N> {
         ComponentLoop {
             event_queue,

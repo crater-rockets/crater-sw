@@ -1,0 +1,97 @@
+{
+    "name": "FinControl",
+    "start": "Sim",
+    "seq": [
+        {
+            "time": 9,
+            "channel": "/gnc/control/servo_command",
+            "cmd": {
+                "type": "MixedServoPositionDeg",
+                "pos": [
+                    0,
+                    -5,
+                    0,
+                    0
+                ]
+            }
+        },
+        {
+            "time": 12,
+            "channel": "/gnc/control/servo_command",
+            "cmd": {
+                "type": "MixedServoPositionDeg",
+                "pos": [
+                    0,
+                    0,
+                    0.5,
+                    0
+                ]
+            }
+        },
+        {
+            "time": 15,
+            "channel": "/gnc/control/servo_command",
+            "cmd": {
+                "type": "MixedServoPositionDeg",
+                "pos": [
+                    0,
+                    0,
+                    0,
+                    0
+                ]
+            }
+        },
+        {
+            "time": 16,
+            "channel": "/gnc/control/servo_command",
+            "cmd": {
+                "type": "MixedServoPositionDeg",
+                "pos": [
+                    0,
+                    2.5,
+                    0,
+                    0
+                ]
+            }
+        },
+        {
+            "time": 17,
+            "channel": "/gnc/control/servo_command",
+            "cmd": {
+                "type": "MixedServoPositionDeg",
+                "pos": [
+                    0,
+                    5,
+                    0,
+                    0
+                ]
+            }
+        },
+        {
+            "time": 18,
+            "channel": "/gnc/control/servo_command",
+            "cmd": {
+                "type": "MixedServoPositionDeg",
+                "pos": [
+                    0,
+                    7.5,
+                    0,
+                    0
+                ]
+            }
+        },
+        {
+            "time": 19,
+            "channel": "/gnc/control/servo_command",
+            "cmd": {
+                "type": "MixedServoPositionDeg",
+                "pos": [
+                    0,
+                    10,
+                    0,
+                    0
+                ]
+            }
+        }
+    ]
+}

@@ -3,7 +3,7 @@ use crater_gnc::{
     DurationU64, InstantU64,
     component::StepData,
     components::{ada::AdaHarness, fmm::FmmHarness, navigation::NavigationHarness},
-    events::{EventItem, EventPublisher, EventQueue},
+    events::{GncEvent, EventPublisher, EventQueue},
     gnc_main::{CraterLoop, CraterLoopHarness},
     mav_crater::ComponentId,
 };
@@ -19,7 +19,7 @@ use anyhow::Result;
 
 pub struct FlightSoftware {
     crater: CraterLoop,
-    rx_gnc_events: TelemetryReceiver<EventItem>,
+    rx_gnc_events: TelemetryReceiver<GncEvent>,
     ev_pub: EventPublisher,
 }
 

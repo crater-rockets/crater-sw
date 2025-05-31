@@ -77,7 +77,7 @@ pub mod channels {
 
     use crate::sensors::icm42688::Icm42688Sample;
 
-    pub static EVENTS: PubSubChannel<ThreadModeRawMutex, crater_gnc::events::EventItem, 50, 1, 1> =
+    pub static EVENTS: PubSubChannel<ThreadModeRawMutex, crater_gnc::events::GncEvent, 50, 1, 1> =
         PubSubChannel::new();
 
     pub static SENS_BMP_390_SAMPLE: PubSubChannel<

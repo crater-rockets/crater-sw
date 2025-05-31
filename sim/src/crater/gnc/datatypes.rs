@@ -1,4 +1,5 @@
 use nalgebra::{Matrix4, Vector4, matrix};
+use serde::{Deserialize, Serialize};
 
 /// From fin deflections to mixed deflections
 const MIXING_MATRIX: Matrix4<f64> = matrix![-0.25,  0.25,  0.25, -0.25;
@@ -25,7 +26,7 @@ const INV_MIXING_MATRIX: Matrix4<f64> = matrix![-1.0,  1.0, -1.0, -1.0;
 ///  body Z axis
 /// ```
 /// Positive angle according to right hand rule over fin hinge axis
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct ServoPosition {
     pub pos_rad: Vector4<f64>,
 }
@@ -76,7 +77,7 @@ impl From<[f64; 4]> for ServoPosition {
 /// |δ_s|   | -1  1 -1  1 | |δ_4|
 ///
 /// ```
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct MixedServoPosition {
     pub pos_rad: Vector4<f64>,
 }

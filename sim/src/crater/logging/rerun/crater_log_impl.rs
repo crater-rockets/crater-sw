@@ -18,7 +18,7 @@ use crate::{
     crater::{
         aero::aerodynamics::AeroState,
         engine::engine::RocketEngineMassProperties,
-        events::{GncEventItem, SimEvent},
+        events::{GncEvent, SimEvent},
         gnc::ServoPosition,
         rocket::{
             mass::RocketMassProperties,
@@ -498,7 +498,7 @@ impl RerunWrite for MagnetometerSampleLog {
 pub struct GncEventLog;
 
 impl RerunWrite for GncEventLog {
-    type Telem = GncEventItem;
+    type Telem = GncEvent;
 
     fn write(
         &mut self,
@@ -506,7 +506,7 @@ impl RerunWrite for GncEventLog {
         timeline: &str,
         ent_path: &str,
         ts: Timestamp,
-        event: GncEventItem,
+        event: GncEvent,
     ) -> Result<()> {
         rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 

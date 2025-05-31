@@ -1,7 +1,7 @@
 use crate::{
     crater::{
         actuators::ideal::IdealServo,
-        gnc::{fsw::FlightSoftware, openloop::OpenloopControl, orchestrator::Orchestrator},
+        gnc::{fsw::FlightSoftware, orchestrator::Orchestrator, sequencer::Sequencer},
         rocket::rocket::Rocket,
         sensors::ideal::{IdealIMU, IdealMagnetometer, IdealStaticPressureSensor},
     },
@@ -27,10 +27,13 @@ impl ModelBuilder for OpenLoopCrater {
         nm.add_node("ideal_press", |ctx| {
             Ok(Box::new(IdealStaticPressureSensor::new(ctx)?))
         })?;
-        nm.add_node("fsw", |ctx| Ok(Box::new(FlightSoftware::new(ctx)?)))?;
-        nm.add_node("openloop_control", |ctx| {
-            Ok(Box::new(OpenloopControl::new(ctx)?))
+        nm.add_node("sequencer", |ctx| {
+            Ok(Box::new(Sequencer::from_params(ctx)?))
         })?;
+        nm.add_node("fsw", |ctx| Ok(Box::new(FlightSoftware::new(ctx)?)))?;
+        // nm.add_node("openloop_control", |ctx| {
+        //     Ok(Box::new(OpenloopControl::new(ctx)?))
+        // })?;
         nm.add_node("ideal_servo", |ctx| Ok(Box::new(IdealServo::new(ctx)?)))?;
 
         Ok(())

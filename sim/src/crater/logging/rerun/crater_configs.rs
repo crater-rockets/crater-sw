@@ -13,7 +13,7 @@ use crate::crater::{
     aero::aerodynamics::AeroState,
     channels,
     engine::engine::RocketEngineMassProperties,
-    events::{GncEventItem, SimEvent},
+    events::{GncEvent, SimEvent},
     gnc::ServoPosition,
     rocket::{
         mass::RocketMassProperties,
@@ -102,7 +102,7 @@ impl RerunLogConfig for CraterUiLogConfig {
             ChannelName::from_base_path(channels::sim::SIM_EVENTS, "log"),
             SimEventLog::default(),
         )?;
-        builder.log_telemetry_mp::<GncEventItem>(
+        builder.log_telemetry_mp::<GncEvent>(
             ChannelName::from_base_path(channels::gnc::GNC_EVENTS, "log"),
             GncEventLog::default(),
         )?;

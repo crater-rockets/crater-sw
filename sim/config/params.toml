@@ -100,5 +100,5 @@ cn_b = { val = 37.2959, type = "float" }
 cn_r = { val = -1813.0, type = "float" }
 cn_dy = { val = 21.8445, type = "float" }
 
-[sim.rocket.gnc.openloop]
-sequence = { val = "config/openloop_seq.toml", type = "str" }
+[sim.rocket.sequencer]
+sequences = { val = ["config/fin_sequence.json"], type = "str[]" }

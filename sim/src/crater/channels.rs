@@ -16,7 +16,7 @@ pub mod gnc {
     pub const ADA_OUTPUT: &str = "/gnc/ada";
 
     pub const NAV_OUTPUT: &str = "/gnc/nav";
-    pub const SERVO_COMMAND: &str = "/gnc/contro/servo_command";
+    pub const SERVO_COMMAND: &str = "/gnc/control/servo_command";
 }
 
 pub mod sensors {

@@ -12,6 +12,8 @@ use chrono::TimeDelta;
 pub struct IdealServo {
     rx_control: TelemetryReceiver<ServoPosition>,
     tx_servo_pos: TelemetrySender<ServoPosition>,
+
+    last_pos: Option<ServoPosition>,
 }
 
 impl IdealServo {
@@ -27,19 +29,24 @@ impl IdealServo {
         Ok(Self {
             rx_control,
             tx_servo_pos,
+            last_pos: None,
         })
     }
 }
 
 impl Node for IdealServo {
     fn step(&mut self, _: usize, _: TimeDelta, clock: &dyn Clock) -> Result<StepResult> {
-        let Timestamped(_, cmd) = self
-            .rx_control
-            .try_recv()
-            .expect("IdealServo step executed, but no /gnc/control/servo_command input available");
+        while let Ok(Timestamped(_, cmd)) = self.rx_control.try_recv() {
+            self.last_pos = Some(cmd);
+        }
 
-        // Just repeat the command
-        self.tx_servo_pos.send(Timestamp::now(clock), cmd);
+        self.tx_servo_pos.send(
+            Timestamp::now(clock),
+            self.last_pos
+                .as_ref()
+                .map(|v| v.clone())
+                .unwrap_or(ServoPosition::default()),
+        );
 
         Ok(StepResult::Continue)
     }

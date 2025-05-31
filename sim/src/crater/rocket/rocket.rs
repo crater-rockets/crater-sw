@@ -19,7 +19,7 @@ use crate::{
             SimpleRocketEngine, TabRocketEngine,
             engine::{RocketEngine, RocketEngineMassProperties},
         },
-        events::{Event, GncEvent, GncEventItem, SimEvent},
+        events::{Event, GncEvent, GncEventEnum, SimEvent},
         gnc::ServoPosition,
     },
     math::ode::{OdeProblem, OdeSolver, RungeKutta4},
@@ -324,11 +324,11 @@ impl Node for Rocket {
         }
         self.fsm.handle_with_context(&Event::Step, &mut fsm_ctx);
 
-        let servo_pos = if let Ok(Timestamped(_, servo_pos)) = self.rx_servo_pos.try_recv() {
-            servo_pos
-        } else {
-            ServoPosition::default()
-        };
+        let servo_pos = self
+            .rx_servo_pos
+            .try_recv()
+            .expect("No servo position received")
+            .1;
 
         self.step_state.servo_pos = servo_pos;
 
@@ -358,7 +358,7 @@ impl Node for Rocket {
 }
 
 pub struct RocketFsm {
-    tx_gnc_event: TelemetrySender<GncEventItem>,
+    tx_gnc_event: TelemetrySender<GncEvent>,
     tx_sim_event: TelemetrySender<SimEvent>,
     ignition_time: Option<Timestamp>,
 }
@@ -371,7 +371,7 @@ pub struct RocketFsmContext {
 
 impl RocketFsm {
     fn new(
-        tx_gnc_event: TelemetrySender<GncEventItem>,
+        tx_gnc_event: TelemetrySender<GncEvent>,
         tx_sim_event: TelemetrySender<SimEvent>,
     ) -> Self {
         RocketFsm {
@@ -428,9 +428,9 @@ impl RocketFsm {
     fn enter_flying_ramp(&mut self, context: &RocketFsmContext) {
         self.tx_gnc_event.send(
             context.time,
-            GncEventItem {
+            GncEvent {
                 src: ComponentId::Ground,
-                event: GncEvent::CmdFmmForceLiftoff,
+                event: GncEventEnum::CmdFmmForceLiftoff,
             },
         );
     }

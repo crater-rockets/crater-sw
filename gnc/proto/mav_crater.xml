@@ -31,6 +31,9 @@
             <entry name="Navigation" value="3">
                 <description>Navigation</description>
             </entry>
+            <entry name="SimSequencer" value="4">
+                <description>SimSequencer</description>
+            </entry>
         </enum>
 
         <enum name="PRESSURE_SENSOR_ID">

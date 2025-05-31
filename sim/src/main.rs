@@ -19,7 +19,7 @@ fn main() -> Result<()> {
         OpenLoopCrater {},
         &Path::new("config/params.toml"),
         Box::new(CraterUiLogConfig),
-        crater::nodes::ParameterSampling::Random,
+        crater::nodes::ParameterSampling::Perfect,
         None,
     )?;
 

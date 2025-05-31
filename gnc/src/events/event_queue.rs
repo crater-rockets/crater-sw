@@ -6,11 +6,14 @@ use super::event::Event;
 use alloc::sync::Arc;
 use heapless::mpmc::MpMcQueue;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 static QUEUE_SIZE: usize = 64;
 
-
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct EventItem {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct GncEvent {
     pub src: ComponentId,
     pub event: Event,
 }
@@ -22,7 +25,7 @@ pub struct EventQueue {
 
 #[derive(Default)]
 struct EventQueueInner {
-    ev_queue: MpMcQueue<Ts<EventItem>, QUEUE_SIZE>,
+    ev_queue: MpMcQueue<Ts<GncEvent>, QUEUE_SIZE>,
     queue_full_signal: AtomicBool,
 }
 
@@ -40,7 +43,7 @@ impl EventQueue {
         }
     }
 
-    pub fn pop_event(&self) -> Option<Ts<EventItem>> {
+    pub fn pop_event(&self) -> Option<Ts<GncEvent>> {
         self.dispatcher.ev_queue.dequeue()
     }
 
@@ -69,7 +72,7 @@ impl EventPublisher {
             .ev_queue
             .enqueue(Ts {
                 t: ts,
-                v: EventItem {
+                v: GncEvent {
                     src: self.src,
                     event,
                 },

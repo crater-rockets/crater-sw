@@ -33,7 +33,7 @@ mavlink-bindgen = "0.13.1"
 [lib]
 
 [features]
-default = ["mav_crater", "std", "log"]
+default = ["mav_crater", "std", "log", "serde"]
 mav_crater = []
 std = [
     "mavlink-core/std",

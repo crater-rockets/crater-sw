@@ -9,7 +9,7 @@ use thiserror::Error;
 
 use crate::{core::time::Timestamp, utils::capacity::Capacity};
 
-#[derive(PartialEq, Eq, Error, Debug)]
+#[derive(PartialEq, Eq, Error, Debug, Clone)]
 pub enum TelemetryError {
     #[error("Requested channel type '{requested}', but channel is a '{expected}'")]
     WrongChannelDataType { requested: String, expected: String },

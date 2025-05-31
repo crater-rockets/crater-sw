@@ -1,6 +1,6 @@
 use anyhow::Result;
 use chrono::TimeDelta;
-use crater_gnc::{events::EventItem, mav_crater::ComponentId};
+use crater_gnc::{events::GncEvent, mav_crater::ComponentId};
 use statig::prelude::*;
 use strum::AsRefStr;
 
@@ -8,14 +8,14 @@ use crate::{
     core::time::{Clock, Timestamp},
     crater::{
         channels,
-        events::{Event, GncEvent, GncEventItem, SimEvent},
+        events::{Event, GncEventEnum, SimEvent},
     },
     nodes::{Node, NodeContext, StepResult},
     telemetry::{TelemetryReceiver, TelemetrySender},
 };
 
 pub struct Orchestrator {
-    rx_gnc_event: TelemetryReceiver<crater_gnc::events::EventItem>,
+    rx_gnc_event: TelemetryReceiver<crater_gnc::events::GncEvent>,
     fsm: StateMachine<OrchestratorFsm>,
 }
 
@@ -58,7 +58,7 @@ pub struct StepContext {
 }
 
 pub struct OrchestratorFsm {
-    tx_gnc_event: TelemetrySender<GncEventItem>,
+    tx_gnc_event: TelemetrySender<GncEvent>,
     tx_sim_event: TelemetrySender<SimEvent>,
 }
 
@@ -75,9 +75,9 @@ impl OrchestratorFsm {
             Event::Step => {
                 self.tx_gnc_event.send(
                     context.time,
-                    EventItem {
+                    GncEvent {
                         src: ComponentId::Ground,
-                        event: GncEvent::CmdFmmCalibrate,
+                        event: GncEventEnum::CmdFmmCalibrate,
                     },
                 );
                 Transition(State::wait_ready())
@@ -89,7 +89,7 @@ impl OrchestratorFsm {
     #[state]
     fn wait_ready(context: &mut StepContext, event: &Event) -> Response<State> {
         match event {
-            Event::Gnc(GncEvent::FlightStateReady, _) => Transition(State::arm(context.time)),
+            Event::Gnc(GncEventEnum::FlightStateReady, _) => Transition(State::arm(context.time)),
             Event::Step => Handled,
             _ => Super,
         }
@@ -99,7 +99,7 @@ impl OrchestratorFsm {
     fn enter_arm(&mut self, context: &mut StepContext) {
         self.tx_gnc_event.send(
             context.time,
-            EventItem {
+            GncEvent {
                 src: ComponentId::Ground,
                 event: crater_gnc::events::Event::CmdFmmArm,
             },

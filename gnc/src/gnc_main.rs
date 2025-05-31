@@ -10,7 +10,7 @@ use crate::{
         fmm::{FlightModeManager, FmmHarness},
         navigation::{NavigationComponent, NavigationHarness},
     },
-    events::{EventItem, EventQueue},
+    events::{GncEvent, EventQueue},
     hal::channel::Sender,
     mav_crater::ComponentId,
 };
@@ -24,7 +24,7 @@ pub enum CraterLoopError {
 }
 
 pub struct CraterLoopHarness {
-    pub tx_events: Box<dyn Sender<EventItem> + Send>,
+    pub tx_events: Box<dyn Sender<GncEvent> + Send>,
     pub fmm: FmmHarness,
     pub ada: AdaHarness,
     pub nav: NavigationHarness,
