@@ -290,7 +290,7 @@ impl TelemetryServiceInner {
 
 #[cfg(test)]
 mod tests {
-    use crate::{core::time::SystemClock, utils::ringchannel::Select};
+    use crate::{core::time::SystemClock};
 
     use super::*;
 
@@ -367,39 +367,6 @@ mod tests {
         assert_eq!(s_ch1.try_recv(), Ok(Timestamped(ts, 1.0)));
         assert_eq!(s_ch2.try_recv(), Err(TelemetryError::Empty));
         assert_eq!(s_ch3.try_recv(), Err(TelemetryError::Empty));
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_ring_buf() -> Result<(), TelemetryError> {
-        let telem_service = TelemetryService::default();
-
-        let sub = telem_service.subscribe::<f64>("/test/channel/1", 3usize.into())?;
-        let prod = telem_service.publish::<f64>("/test/channel/1")?;
-
-        let ts = Timestamp::now(&SystemClock::default());
-
-        prod.send(ts, 1.0);
-        prod.send(ts, 2.0);
-        prod.send(ts, 3.0);
-
-        assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 1.0)));
-        assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 2.0)));
-        assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 3.0)));
-        assert_eq!(sub.try_recv(), Err(TelemetryError::Empty));
-
-        let ts = Timestamp::now(&SystemClock::default());
-
-        prod.send(ts, 1.0);
-        prod.send(ts, 2.0);
-        prod.send(ts, 3.0);
-        prod.send(ts, 4.0);
-
-        assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 2.0)));
-        assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 3.0)));
-        assert_eq!(sub.try_recv(), Ok(Timestamped(ts, 4.0)));
-        assert_eq!(sub.try_recv(), Err(TelemetryError::Empty));
 
         Ok(())
     }

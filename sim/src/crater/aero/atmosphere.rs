@@ -103,32 +103,32 @@ mod tests {
     fn test_default_isa_temperature() {
         let isa = AtmosphereIsa::default();
 
-        assert_relative_eq!(isa.temperature(0.0), 288.15, epsilon = 0.01);
-        assert_relative_eq!(isa.temperature(304.8), 286.17, epsilon = 0.01);
-        assert_relative_eq!(isa.temperature(1219.2), 280.23, epsilon = 0.01);
-        assert_relative_eq!(isa.temperature(4572.0), 258.43, epsilon = 0.01);
-        assert_relative_eq!(isa.temperature(10668.0), 218.81, epsilon = 0.01);
+        assert_relative_eq!(isa.temperature_k(0.0), 288.15, epsilon = 0.01);
+        assert_relative_eq!(isa.temperature_k(304.8), 286.17, epsilon = 0.01);
+        assert_relative_eq!(isa.temperature_k(1219.2), 280.23, epsilon = 0.01);
+        assert_relative_eq!(isa.temperature_k(4572.0), 258.43, epsilon = 0.01);
+        assert_relative_eq!(isa.temperature_k(10668.0), 218.81, epsilon = 0.01);
     }
 
     #[test]
     fn test_default_isa_pressure() {
         let isa = AtmosphereIsa::default();
 
-        assert_relative_eq!(isa.pressure(0.0), 101325.0, epsilon = 1.0);
-        assert_relative_eq!(isa.pressure(304.8), 97717.0, epsilon = 1.0);
-        assert_relative_eq!(isa.pressure(1219.2), 87511.0, epsilon = 1.0);
-        assert_relative_eq!(isa.pressure(4572.0), 57182.0, epsilon = 1.0);
-        assert_relative_eq!(isa.pressure(10668.0), 23842.0, epsilon = 1.0);
+        assert_relative_eq!(isa.pressure_pa(0.0), 101325.0, epsilon = 1.0);
+        assert_relative_eq!(isa.pressure_pa(304.8), 97717.0, epsilon = 1.0);
+        assert_relative_eq!(isa.pressure_pa(1219.2), 87511.0, epsilon = 1.0);
+        assert_relative_eq!(isa.pressure_pa(4572.0), 57182.0, epsilon = 1.0);
+        assert_relative_eq!(isa.pressure_pa(10668.0), 23842.0, epsilon = 1.0);
     }
 
     #[test]
     fn test_default_isa_density() {
         let isa = AtmosphereIsa::default();
 
-        assert_relative_eq!(isa.density(0.0), 1.2250, epsilon = 0.0001);
-        assert_relative_eq!(isa.density(304.8), 1.1896, epsilon = 0.0001);
-        assert_relative_eq!(isa.density(1219.2), 1.0879, epsilon = 0.0001);
-        assert_relative_eq!(isa.density(4572.0), 0.7708, epsilon = 0.0001);
-        assert_relative_eq!(isa.density(10668.0), 0.3796, epsilon = 0.0001);
+        assert_relative_eq!(isa.density_kg_m3(0.0), 1.2250, epsilon = 0.0001);
+        assert_relative_eq!(isa.density_kg_m3(304.8), 1.1896, epsilon = 0.0001);
+        assert_relative_eq!(isa.density_kg_m3(1219.2), 1.0879, epsilon = 0.0001);
+        assert_relative_eq!(isa.density_kg_m3(4572.0), 0.7708, epsilon = 0.0001);
+        assert_relative_eq!(isa.density_kg_m3(10668.0), 0.3796, epsilon = 0.0001);
     }
 }

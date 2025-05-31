@@ -129,10 +129,18 @@ mod test {
     #[test]
     fn test_inverse_matrix() {
         let test_positions = [
-            ServoPosition(vector![1.0, 2.0, 3.0, 4.0]),
-            ServoPosition(vector![0.0, 0.0, 0.0, 0.0]),
-            ServoPosition(vector![-1.0, 2.0, -3.0, 4.0]),
-            ServoPosition(vector![1.0, 2.0, -3.0, -4.0]),
+            ServoPosition {
+                pos_rad: vector![1.0, 2.0, 3.0, 4.0],
+            },
+            ServoPosition {
+                pos_rad: vector![0.0, 0.0, 0.0, 0.0],
+            },
+            ServoPosition {
+                pos_rad: vector![-1.0, 2.0, -3.0, 4.0],
+            },
+            ServoPosition {
+                pos_rad: vector![1.0, 2.0, -3.0, -4.0],
+            },
         ];
 
         for p in test_positions {
@@ -148,33 +156,49 @@ mod test {
     fn test_mixing() {
         let test_positions = [
             (
-                ServoPosition(vector![-1.0, 1.0, 1.0, -1.0]),
-                MixedServoPosition(vector![1.0, 0.0, 0.0, 0.0]),
+                ServoPosition {
+                    pos_rad: vector![-1.0, 1.0, 1.0, -1.0],
+                },
+                MixedServoPosition {
+                    pos_rad: vector![1.0, 0.0, 0.0, 0.0],
+                },
             ),
             (
-                ServoPosition(vector![1.0, 1.0, -1.0, -1.0]),
-                MixedServoPosition(vector![0.0, 1.0, 0.0, 0.0]),
+                ServoPosition {
+                    pos_rad: vector![1.0, 1.0, -1.0, -1.0],
+                },
+                MixedServoPosition {
+                    pos_rad: vector![0.0, 1.0, 0.0, 0.0],
+                },
             ),
             (
-                ServoPosition(vector![-1.0, -1.0, -1.0, -1.0]),
-                MixedServoPosition(vector![0.0, 0.0, 1.0, 0.0]),
+                ServoPosition {
+                    pos_rad: vector![-1.0, -1.0, -1.0, -1.0],
+                },
+                MixedServoPosition {
+                    pos_rad: vector![0.0, 0.0, 1.0, 0.0],
+                },
             ),
             (
-                ServoPosition(vector![-1.0, 1.0, -1.0, 1.0]),
-                MixedServoPosition(vector![0.0, 0.0, 0.0, 1.0]),
+                ServoPosition {
+                    pos_rad: vector![-1.0, 1.0, -1.0, 1.0],
+                },
+                MixedServoPosition {
+                    pos_rad: vector![0.0, 0.0, 0.0, 1.0],
+                },
             ),
         ];
 
         for (p, expected) in test_positions.iter() {
             let mixed = p.mix();
 
-            assert_relative_eq!(mixed.0, expected.0, epsilon = 0.001);
+            assert_relative_eq!(mixed.pos_rad, expected.pos_rad, epsilon = 0.001);
         }
 
         for (expected, mixed) in test_positions.iter() {
             let pos = mixed.unmix();
 
-            assert_relative_eq!(pos.0, expected.0, epsilon = 0.001);
+            assert_relative_eq!(pos.pos_rad, expected.pos_rad, epsilon = 0.001);
         }
     }
 }
