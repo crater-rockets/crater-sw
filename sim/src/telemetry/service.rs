@@ -1,10 +1,10 @@
 use std::{
-    any::{type_name, Any},
+    any::{Any, type_name},
     collections::HashMap,
     sync::{Arc, Mutex},
 };
 
-use flume::{bounded, unbounded, Receiver, RecvError, Sender, TryRecvError};
+use crossbeam_channel::{Receiver, Sender, TryRecvError, bounded, unbounded};
 use thiserror::Error;
 
 use crate::{core::time::Timestamp, utils::capacity::Capacity};
@@ -40,10 +40,10 @@ pub struct TelemetrySender<T> {
 
 impl<T: 'static + Clone> TelemetrySender<T> {
     pub fn send(&self, timestamp: Timestamp, value: T) {
-        let senders = self.transport.to_rx_channels.lock().unwrap();
+        let senders = self.transport.senders.lock().unwrap();
 
         for tx in senders.iter() {
-            let _ = tx.send(Timestamped(timestamp, value.clone()));
+            tx.0.send(Timestamped(timestamp, value.clone())).unwrap();
         }
     }
 }
@@ -55,9 +55,9 @@ pub struct TelemetryReceiver<T> {
 
 impl<T> TelemetryReceiver<T> {
     pub fn recv(&self) -> Result<Timestamped<T>, TelemetryError> {
-        self.receiver.recv().map_err(|e| match e {
-            RecvError::Disconnected => TelemetryError::Disconnected,
-        })
+        self.receiver
+            .recv()
+            .map_err(|_| TelemetryError::Disconnected)
     }
 
     pub fn try_recv(&self) -> Result<Timestamped<T>, TelemetryError> {
@@ -89,6 +89,7 @@ struct TelemetryChannel {
 
     ch_type: ChannelType,
     num_producers: usize,
+    num_subscribers: usize,
 }
 
 #[derive(Debug)]
@@ -98,13 +99,13 @@ struct TelemetryChannelTransport<T> {
 
 #[derive(Debug)]
 struct TelemetryChannelTransportInner<T> {
-    to_rx_channels: Mutex<Vec<Sender<Timestamped<T>>>>,
+    senders: Mutex<Vec<(Sender<Timestamped<T>>, usize)>>,
 }
 
 impl<T> Default for TelemetryChannelTransportInner<T> {
     fn default() -> Self {
         TelemetryChannelTransportInner {
-            to_rx_channels: Mutex::new(Vec::new()),
+            senders: Mutex::new(Vec::new()),
         }
     }
 }
@@ -121,6 +122,7 @@ impl TelemetryChannel {
             transport: Box::new(transport),
             ch_type,
             num_producers: 0,
+            num_subscribers: 0,
         }
     }
 
@@ -137,6 +139,8 @@ impl TelemetryChannel {
         &mut self,
         capacity: Capacity,
     ) -> Result<TelemetryReceiver<T>, TelemetryError> {
+        let num_subs = self.num_subscribers;
+        self.num_subscribers += 1;
         let transport = self.transport_mut::<T>()?;
 
         let (tx, rx) = match capacity {
@@ -144,7 +148,7 @@ impl TelemetryChannel {
             Capacity::Unbounded => unbounded(),
         };
 
-        transport.inner.to_rx_channels.lock().unwrap().push(tx);
+        transport.inner.senders.lock().unwrap().push((tx, num_subs));
 
         Ok(TelemetryReceiver { receiver: rx })
     }
@@ -290,7 +294,7 @@ impl TelemetryServiceInner {
 
 #[cfg(test)]
 mod tests {
-    use crate::{core::time::SystemClock};
+    use crate::core::time::SystemClock;
 
     use super::*;
 

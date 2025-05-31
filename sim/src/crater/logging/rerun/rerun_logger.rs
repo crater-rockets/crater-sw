@@ -2,12 +2,11 @@ use std::cell::RefCell;
 
 use crate::{
     core::time::Timestamp,
-    telemetry::{TelemetryReceiver, TelemetryService, Timestamped},
+    telemetry::{TelemetryReceiver, TelemetryService, Timestamped, selector::Selector},
     utils::capacity::Capacity,
 };
 
 use anyhow::Result;
-use flume::Selector;
 use rerun::RecordingStream;
 
 pub trait RerunWrite {
@@ -28,9 +27,9 @@ trait SelectorReceiver {
 
     fn recv<'a>(
         &'a mut self,
-        selector: Selector<'a, ()>,
+        selector: Selector<'a>,
         rec: &'a RefCell<RecordingStream>,
-    ) -> Selector<'a, ()>;
+    ) -> Selector<'a>;
 }
 
 struct TelemetryLogFunction<T, L> {
@@ -62,9 +61,9 @@ where
 
     fn recv<'a>(
         &'a mut self,
-        selector: Selector<'a, ()>,
+        selector: Selector<'a>,
         rec: &'a RefCell<RecordingStream>,
-    ) -> Selector<'a, ()> {
+    ) -> Selector<'a> {
         selector.recv(self.receiver.inner(), |v| {
             if let Ok(Timestamped(ts, state)) = v {
                 self.data_logger
@@ -181,7 +180,7 @@ pub struct RerunLogger {
 impl RerunLogger {
     pub fn log_blocking(mut self) -> Result<()> {
         loop {
-            let mut selector: Selector<'_, ()> = Selector::new();
+            let mut selector: Selector<'_> = Selector::new();
             let mut num_recv = 0usize;
 
             for sel_recv in self.sel_receivers.iter_mut() {
@@ -192,7 +191,7 @@ impl RerunLogger {
             }
 
             if num_recv > 0 {
-                selector.wait();
+                selector.ready();
             } else {
                 break;
             }
