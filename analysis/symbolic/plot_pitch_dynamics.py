@@ -17,12 +17,12 @@ def load_params(path: Path) -> dict:
     params = load_sim_params(path)
 
     # Extract only stuff we need in a flattened dictionary
-    p_rocket = params["sim"]["rocket"]["crater"]
-    p_aero = params["sim"]["rocket"]["crater"]["aero"]
+    p_rocket = params["sim"]["rocket"]
+    p_aero = params["sim"]["rocket"]["aero"]["linear"]
 
     p_flat = {
         "m": p_rocket["mass"],
-        "Iy": p_rocket["inertia"][1],
+        "Iy": p_rocket["inertia_empty"][4],
         "d": p_rocket["diameter"],
         "S": math.pi * (p_rocket["diameter"] / 2) ** 2,
     }
@@ -31,7 +31,7 @@ def load_params(path: Path) -> dict:
     return p_flat
 
 
-params = load_params(Path("sim/config/params.toml"))
+params = load_params(Path("../sim/config/params.toml"))
 params.update({"u": 100, "rho": 1.06})
 
 rocket = RocketPitchDynamics()
@@ -48,7 +48,7 @@ pprint(eq_ode, "eq_ode")
 
 
 eq_ode_lambda = lambdify(
-    (dynamicsymbols("alpha"), dynamicsymbols("q"), Symbol("delta_p")), eq_ode, "numpy"
+    [dynamicsymbols("alpha"), dynamicsymbols("q"), rocket.rocket.delta_p], eq_ode, "numpy"
 )
 
 

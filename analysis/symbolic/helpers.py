@@ -52,7 +52,7 @@ def load_sim_params(file: Path) -> dict:
     def to_plain_dict(params: dict) -> dict:
         out = {}
         for k, v in params.items():
-            if "val" in v and "dtype" in v:
+            if "val" in v and "type" in v:
                 out[k] = v["val"]
             else:
                 out[k] = to_plain_dict(v)
