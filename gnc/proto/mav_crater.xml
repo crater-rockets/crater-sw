@@ -28,6 +28,9 @@
             <entry name="ApogeeDetectionAlgorithm" value="2">
                 <description>Apogee Detection Algorithm</description>
             </entry>
+            <entry name="Navigation" value="3">
+                <description>Navigation</description>
+            </entry>
         </enum>
 
         <enum name="PRESSURE_SENSOR_ID">

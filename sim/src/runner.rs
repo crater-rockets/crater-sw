@@ -9,6 +9,7 @@ pub use anyhow::Result;
 use chrono::TimeDelta;
 use log::info;
 use rand::{TryRngCore, rngs::OsRng};
+use rerun::log::ChunkBatcherConfig;
 
 use crate::{
     crater::logging::rerun::{RerunLogConfig, RerunLoggerBuilder},
@@ -87,10 +88,17 @@ impl SingleThreadedRunner {
         });
 
         info!("Connecting to Rerun interface...");
-        let mut rec = rerun::RecordingStreamBuilder::new("crater").connect_grpc_opts(
-            "rerun+http://127.0.0.1:9876/proxy",
-            Some(Duration::from_secs(60)),
-        )?;
+
+        let mut batcher_cfg = ChunkBatcherConfig::default();
+        batcher_cfg.flush_tick = Duration::from_millis(50);
+        batcher_cfg.apply_env()?; // Values specified in env take precedence
+
+        let mut rec = rerun::RecordingStreamBuilder::new("crater")
+            .batcher_config(batcher_cfg)
+            .connect_grpc_opts(
+                "rerun+http://127.0.0.1:9876/proxy",
+                Some(Duration::from_secs(60)),
+            )?;
 
         info!("Rerun connected!");
         log_config.init_rec(&mut rec)?;

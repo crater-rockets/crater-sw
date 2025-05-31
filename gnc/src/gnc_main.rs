@@ -8,13 +8,14 @@ use crate::{
     components::{
         ada::{AdaComponent, AdaHarness},
         fmm::{FlightModeManager, FmmHarness},
+        navigation::{NavigationComponent, NavigationHarness},
     },
     events::{EventItem, EventQueue},
     hal::channel::Sender,
     mav_crater::ComponentId,
 };
 
-const NUM_COMPONENTS: usize = 2;
+const NUM_COMPONENTS: usize = 3;
 
 #[derive(Debug, Error, Clone)]
 pub enum CraterLoopError {
@@ -26,6 +27,7 @@ pub struct CraterLoopHarness {
     pub tx_events: Box<dyn Sender<EventItem> + Send>,
     pub fmm: FmmHarness,
     pub ada: AdaHarness,
+    pub nav: NavigationHarness,
 }
 
 pub struct CraterLoop {
@@ -51,6 +53,9 @@ impl CraterLoop {
             DurationU64::secs(5).into(),
         );
         loop_builder.add_component(ada)?;
+
+        let nav = NavigationComponent::new(harness.nav);
+        loop_builder.add_component(nav)?;
 
         Ok(CraterLoop {
             component_loop: loop_builder.build(event_queue, harness.tx_events),

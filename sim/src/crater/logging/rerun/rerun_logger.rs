@@ -2,12 +2,11 @@ use std::cell::RefCell;
 
 use crate::{
     core::time::Timestamp,
-    telemetry::{TelemetryReceiver, TelemetryService, Timestamped},
+    telemetry::{TelemetryReceiver, TelemetryService, Timestamped, selector::Selector},
     utils::capacity::Capacity,
 };
 
 use anyhow::Result;
-use flume::Selector;
 use rerun::RecordingStream;
 
 pub trait RerunWrite {
@@ -28,9 +27,9 @@ trait SelectorReceiver {
 
     fn recv<'a>(
         &'a mut self,
-        selector: Selector<'a, ()>,
+        selector: Selector<'a>,
         rec: &'a RefCell<RecordingStream>,
-    ) -> Selector<'a, ()>;
+    ) -> Selector<'a>;
 }
 
 struct TelemetryLogFunction<T, L> {
@@ -62,9 +61,9 @@ where
 
     fn recv<'a>(
         &'a mut self,
-        selector: Selector<'a, ()>,
+        selector: Selector<'a>,
         rec: &'a RefCell<RecordingStream>,
-    ) -> Selector<'a, ()> {
+    ) -> Selector<'a> {
         selector.recv(self.receiver.inner(), |v| {
             if let Ok(Timestamped(ts, state)) = v {
                 self.data_logger
@@ -99,6 +98,27 @@ where
 //     }
 // }
 
+pub struct ChannelName {
+    channel_name: String,
+    entity_path: String,
+}
+
+impl ChannelName {
+    pub fn from_base_path(channel_name: &str, base_ent_path: &str) -> Self {
+        Self {
+            channel_name: channel_name.to_string(),
+            entity_path: format!("{base_ent_path}{channel_name}"),
+        }
+    }
+
+    pub fn from_parts(channel_name: &str, entity_path: &str) -> Self {
+        Self {
+            channel_name: channel_name.to_string(),
+            entity_path: entity_path.to_string(),
+        }
+    }
+}
+
 pub struct RerunLoggerBuilder {
     telem: TelemetryService,
     sel_receivers: Vec<Box<dyn SelectorReceiver>>,
@@ -114,15 +134,14 @@ impl RerunLoggerBuilder {
 
     pub fn log_telemetry<T: 'static + Send>(
         &mut self,
-        channel_name: &str,
-        ent_path: &str,
+        channel: ChannelName,
         logger: impl RerunWrite<Telem = T> + 'static,
     ) -> Result<()> {
         let receiver = self
             .telem
-            .subscribe::<T>(channel_name, Capacity::Unbounded)?;
+            .subscribe::<T>(&channel.channel_name, Capacity::Unbounded)?;
 
-        let log_fn = TelemetryLogFunction::new(receiver, logger, ent_path);
+        let log_fn = TelemetryLogFunction::new(receiver, logger, &channel.entity_path);
 
         self.sel_receivers.push(Box::new(log_fn));
 
@@ -131,15 +150,14 @@ impl RerunLoggerBuilder {
 
     pub fn log_telemetry_mp<T: 'static + Send>(
         &mut self,
-        channel_name: &str,
-        ent_path: &str,
+        channel: ChannelName,
         logger: impl RerunWrite<Telem = T> + 'static,
     ) -> Result<()> {
         let receiver = self
             .telem
-            .subscribe_mp::<T>(channel_name, Capacity::Unbounded)?;
+            .subscribe_mp::<T>(&channel.channel_name, Capacity::Unbounded)?;
 
-        let log_fn = TelemetryLogFunction::new(receiver, logger, ent_path);
+        let log_fn = TelemetryLogFunction::new(receiver, logger, &channel.entity_path);
 
         self.sel_receivers.push(Box::new(log_fn));
 
@@ -162,7 +180,7 @@ pub struct RerunLogger {
 impl RerunLogger {
     pub fn log_blocking(mut self) -> Result<()> {
         loop {
-            let mut selector: Selector<'_, ()> = Selector::new();
+            let mut selector: Selector<'_> = Selector::new();
             let mut num_recv = 0usize;
 
             for sel_recv in self.sel_receivers.iter_mut() {
@@ -173,7 +191,7 @@ impl RerunLogger {
             }
 
             if num_recv > 0 {
-                selector.wait();
+                selector.ready();
             } else {
                 break;
             }

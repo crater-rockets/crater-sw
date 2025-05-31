@@ -1,10 +1,17 @@
 use anyhow::Result;
 
-use crater_gnc::components::ada::AdaResult;
+use crater_gnc::{
+    components::ada::AdaResult,
+    datatypes::{
+        gnc::NavigationOutput,
+        sensors::{ImuSensorSample, MagnetometerSensorSample},
+    },
+};
 use rerun::RecordingStream;
 
-use crate::crater::sim::{
+use crate::crater::{
     aero::aerodynamics::AeroState,
+    channels,
     engine::engine::RocketEngineMassProperties,
     events::{GncEventItem, SimEvent},
     gnc::ServoPosition,
@@ -12,16 +19,16 @@ use crate::crater::sim::{
         mass::RocketMassProperties,
         rocket_data::{RocketAccelerations, RocketActions, RocketState},
     },
-    sensors::{IMUSample, MagnetometerSample},
 };
 
 use super::{
     crater_log_impl::{
         AdaOutputLog, AeroStateLog, GncEventLog, IMUSampleLog, MagnetometerSampleLog,
-        RocketAccelLog, RocketActionsLog, RocketEngineMassPropertiesLog, RocketMassPropertiesLog,
-        RocketStateRawLog, RocketStateUILog, ServoPositionLog, SimEventLog,
+        NavigationOutputLog, RocketAccelLog, RocketActionsLog, RocketEngineMassPropertiesLog,
+        RocketMassPropertiesLog, RocketStateRawLog, RocketStateUILog, ServoPositionLog,
+        SimEventLog,
     },
-    rerun_logger::{RerunLogConfig, RerunLoggerBuilder},
+    rerun_logger::{ChannelName, RerunLogConfig, RerunLoggerBuilder},
 };
 
 #[derive(Debug, Clone)]
@@ -43,82 +50,74 @@ impl RerunLogConfig for CraterUiLogConfig {
 
     fn subscribe_telem(&self, builder: &mut RerunLoggerBuilder) -> Result<()> {
         builder.log_telemetry::<RocketState>(
-            "/rocket/state",
-            "timeseries/rocket/state",
+            ChannelName::from_base_path(channels::rocket::STATE, "timeseries"),
             RocketStateRawLog::default(),
         )?;
         builder.log_telemetry::<RocketState>(
-            "/rocket/state",
-            "timeseries/rocket/state",
+            ChannelName::from_base_path(channels::rocket::STATE, "timeseries"),
             RocketStateUILog::default(),
         )?;
 
         builder.log_telemetry::<AeroState>(
-            "/rocket/aerostate",
-            "timeseries/rocket/aerostate",
+            ChannelName::from_base_path(channels::rocket::AERO_STATE, "timeseries"),
             AeroStateLog::default(),
         )?;
         builder.log_telemetry::<RocketActions>(
-            "/rocket/actions",
-            "timeseries/rocket/actions",
+            ChannelName::from_base_path(channels::rocket::ACTIONS, "timeseries"),
             RocketActionsLog::default(),
         )?;
         builder.log_telemetry::<RocketAccelerations>(
-            "/rocket/accel",
-            "timeseries/rocket/accel",
+            ChannelName::from_base_path(channels::rocket::ACCEL, "timeseries"),
             RocketAccelLog::default(),
         )?;
         builder.log_telemetry::<ServoPosition>(
-            "/gnc/control/servo_command",
-            "timeseries/gnc/control/servo_command",
+            ChannelName::from_base_path(channels::gnc::SERVO_COMMAND, "timeseries"),
             ServoPositionLog::default(),
         )?;
         builder.log_telemetry::<ServoPosition>(
-            "/actuators/servo_position",
-            "timeseries/actuators/servo_position",
+            ChannelName::from_base_path(channels::actuators::IDEAL_SERVO_POSITION, "timeseries"),
             ServoPositionLog::default(),
         )?;
         builder.log_telemetry::<RocketMassProperties>(
-            "/rocket/mass/rocket",
-            "timeseries/rocket/mass/rocket",
+            ChannelName::from_base_path(channels::rocket::MASS_ROCKET, "timeseries"),
             RocketMassPropertiesLog::default(),
         )?;
         builder.log_telemetry::<RocketEngineMassProperties>(
-            "/rocket/mass/engine",
-            "timeseries/rocket/mass/engine",
+            ChannelName::from_base_path(channels::rocket::MASS_ENGINE, "timeseries"),
             RocketEngineMassPropertiesLog::default(),
         )?;
-        builder.log_telemetry::<IMUSample>(
-            "/sensors/ideal_imu/translated",
-            "timeseries/sensors/ideal_imu/translated",
+        builder.log_telemetry::<ImuSensorSample>(
+            ChannelName::from_base_path(channels::sensors::IDEAL_IMU, "timeseries"),
             IMUSampleLog::default(),
         )?;
-        builder.log_telemetry::<IMUSample>(
-            "/sensors/ideal_imu/cg",
-            "timeseries/sensors/ideal_imu/cg",
+        builder.log_telemetry::<ImuSensorSample>(
+            ChannelName::from_base_path(channels::sensors::IDEAL_IMU_CG, "timeseries"),
             IMUSampleLog::default(),
         )?;
-        builder.log_telemetry::<MagnetometerSample>(
-            "/sensors/ideal_mag",
-            "timeseries/sensors/ideal_mag",
+        builder.log_telemetry::<MagnetometerSensorSample>(
+            ChannelName::from_base_path(channels::sensors::IDEAL_MAGNETOMETER, "timeseries"),
             MagnetometerSampleLog::default(),
         )?;
         builder.log_telemetry_mp::<SimEvent>(
-            "/sim/events",
-            "log/sim/events",
+            ChannelName::from_base_path(channels::sim::SIM_EVENTS, "log"),
             SimEventLog::default(),
         )?;
         builder.log_telemetry_mp::<GncEventItem>(
-            "/gnc/events",
-            "log/gnc/events",
+            ChannelName::from_base_path(channels::gnc::GNC_EVENTS, "log"),
             GncEventLog::default(),
         )?;
         builder.log_telemetry::<AdaResult>(
-            "/gnc/fsw/ada",
-            "timeseries/gnc/fsw/ada",
+            ChannelName::from_base_path(channels::gnc::ADA_OUTPUT, "timeseries"),
             AdaOutputLog::default(),
         )?;
-
+        builder.log_telemetry::<NavigationOutput>(
+            ChannelName::from_base_path(channels::sensors::IDEAL_NAV_OUTPUT, "timeseries"),
+            NavigationOutputLog::default(),
+        )?;
+        builder.log_telemetry::<NavigationOutput>(
+            ChannelName::from_base_path(channels::gnc::NAV_OUTPUT, "timeseries"),
+            NavigationOutputLog::default(),
+        )?;
         Ok(())
     }
 }

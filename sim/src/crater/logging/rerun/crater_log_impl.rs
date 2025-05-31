@@ -1,24 +1,21 @@
-use std::array;
-
 use crater_gnc::{
     components::ada::AdaResult,
-    datatypes::sensors::{ImuSensorSample, PressureSensorSample},
+    datatypes::{
+        gnc::NavigationOutput,
+        sensors::{ImuSensorSample, MagnetometerSensorSample, PressureSensorSample},
+    },
 };
 use map_3d::ned2geodetic;
-use nalgebra::{Matrix3, SMatrix, Vector3};
+use nalgebra::{Matrix3, RealField, SMatrix, UnitQuaternion, Vector3, Vector4};
 use num_traits::{AsPrimitive, Float};
 use rerun::{
     Quaternion, RecordingStream, TensorData, TextLogLevel, components::RotationQuat,
     external::arrow::buffer::ScalarBuffer,
 };
-use uom::si::{
-    length::meter, pressure::pascal, thermodynamic_temperature::degree_celsius,
-    velocity::meter_per_second,
-};
 
 use crate::{
     core::time::Timestamp,
-    crater::sim::{
+    crater::{
         aero::aerodynamics::AeroState,
         engine::engine::RocketEngineMassProperties,
         events::{GncEventItem, SimEvent},
@@ -27,7 +24,6 @@ use crate::{
             mass::RocketMassProperties,
             rocket_data::{RocketAccelerations, RocketActions, RocketState},
         },
-        sensors::{IMUSample, MagnetometerSample},
     },
 };
 
@@ -51,64 +47,18 @@ impl RerunWrite for RocketStateRawLog {
         let ts_seconds = ts.monotonic.elapsed_seconds_f64();
         rec.set_duration_secs(timeline, ts_seconds);
 
-        let pos = state.pos_n_m();
-        rec.log(
-            format!("{ent_path}/pos_n/x"),
-            &rerun::Scalars::single(pos[0]),
+        log_vector3_timeseries(rec, format!("{ent_path}/pos_n"), &state.pos_n_m())?;
+        log_vector3_timeseries(rec, format!("{ent_path}/vel_n"), &state.vel_n_m_s())?;
+        log_vector3_timeseries(
+            rec,
+            format!("{ent_path}/ang_vel_b"),
+            &state.angvel_b_rad_s(),
         )?;
-        rec.log(
-            format!("{ent_path}/pos_n/y"),
-            &rerun::Scalars::single(pos[1]),
-        )?;
-        rec.log(
-            format!("{ent_path}/pos_n/z"),
-            &rerun::Scalars::single(pos[2]),
-        )?;
-
-        let vel_n = state.vel_n_m_s();
-        rec.log(
-            format!("{ent_path}/vel_n/x"),
-            &rerun::Scalars::single(vel_n[0]),
-        )?;
-        rec.log(
-            format!("{ent_path}/vel_n/y"),
-            &rerun::Scalars::single(vel_n[1]),
-        )?;
-        rec.log(
-            format!("{ent_path}/vel_n/z"),
-            &rerun::Scalars::single(vel_n[2]),
-        )?;
-
-        let angvel = state.angvel_b_rad_s();
-        rec.log(
-            format!("{ent_path}/ang_vel_b/x"),
-            &rerun::Scalars::single(angvel[0].to_degrees()),
-        )?;
-        rec.log(
-            format!("{ent_path}/ang_vel_b/y"),
-            &rerun::Scalars::single(angvel[1].to_degrees()),
-        )?;
-        rec.log(
-            format!("{ent_path}/ang_vel_b/z"),
-            &rerun::Scalars::single(angvel[2].to_degrees()),
-        )?;
-
-        let quat = state.quat_nb();
-        rec.log(
-            format!("{ent_path}/orient/quat/x"),
-            &rerun::Scalars::single(quat.i),
-        )?;
-        rec.log(
-            format!("{ent_path}/orient/quat/y"),
-            &rerun::Scalars::single(quat.j),
-        )?;
-        rec.log(
-            format!("{ent_path}/orient/quat/z"),
-            &rerun::Scalars::single(quat.k),
-        )?;
-        rec.log(
-            format!("{ent_path}/orient/quat/w"),
-            &rerun::Scalars::single(quat.w),
+        log_quat_timeseries(
+            rec,
+            &state.quat_nb(),
+            format!("{ent_path}/orient/quat"),
+            format!("{ent_path}/orient/euler"),
         )?;
 
         Ok(())
@@ -139,7 +89,8 @@ impl RerunWrite for RocketStateUILog {
             1411.211,
         ];
         let pos = state.pos_n_m();
-        let pos_f32 = vec3_to_slice(&pos.clone_owned());
+        let pos_f32_arr: [f32; 3] = pos.map(|v| v as f32).into();
+
         let (lat, lon, _) = ned2geodetic(
             pos[0],
             pos[1],
@@ -155,45 +106,18 @@ impl RerunWrite for RocketStateUILog {
 
         rec.log(
             "/frame/body_centered",
-            &rerun::Transform3D::from_translation(pos_f32),
+            &rerun::Transform3D::from_translation(pos_f32_arr),
         )?;
 
         // Velocity body frame
         let vel_b = state.vel_b_m_s(&state.quat_nb());
         let vnorm = vel_b.norm();
 
-        rec.log(
-            format!("{ent_path}/vel_b/x"),
-            &rerun::Scalars::single(vel_b[0]),
-        )?;
-        rec.log(
-            format!("{ent_path}/vel_b/y"),
-            &rerun::Scalars::single(vel_b[1]),
-        )?;
-        rec.log(
-            format!("{ent_path}/vel_b/z"),
-            &rerun::Scalars::single(vel_b[2]),
-        )?;
+        log_vector3_timeseries(rec, format!("{ent_path}/vel_b"), &vel_b)?;
 
         rec.log(
             format!("{ent_path}/vel_norm"),
             &rerun::Scalars::single(vnorm),
-        )?;
-
-        // Orientation Euler
-        let quat = state.quat_nb();
-        let euler = quat.euler_angles();
-        rec.log(
-            format!("{ent_path}/orient/euler/yaw"),
-            &rerun::Scalars::single(euler.2.to_degrees()),
-        )?;
-        rec.log(
-            format!("{ent_path}/orient/euler/pitch"),
-            &rerun::Scalars::single(euler.1.to_degrees()),
-        )?;
-        rec.log(
-            format!("{ent_path}/orient/euler/roll"),
-            &rerun::Scalars::single(euler.0.to_degrees()),
         )?;
 
         // Log trajectory less frequently, as every log contains the full position history, making logs huge
@@ -229,18 +153,21 @@ impl RerunWrite for RocketStateUILog {
         )?;
 
         // Velocity vector
+        let arrow_vec: [f32; 3] = (state.vel_b_m_s(&state.quat_nb()) / 10.0)
+            .map(|v| v as f32)
+            .into();
+
         rec.log(
             "objects/vectors/velocity",
-            &rerun::Arrows3D::from_vectors([vec3_to_slice(
-                &(state.vel_b_m_s(&state.quat_nb()) / 10.0),
-            )])
-            .with_colors([rerun::Color::from_rgb(0, 255, 0)])
-            .with_origins([[0.0, 0.0, 0.0]]),
+            &rerun::Arrows3D::from_vectors([arrow_vec])
+                .with_colors([rerun::Color::from_rgb(0, 255, 0)])
+                .with_origins([[0.0, 0.0, 0.0]]),
         )?;
 
         // Transform
+        let quat = state.quat_nb();
         let body_transform = rerun::Transform3D::from_translation_rotation(
-            pos_f32,
+            pos_f32_arr,
             rerun::Rotation3D::Quaternion(RotationQuat(Quaternion([
                 quat.i as f32,
                 quat.j as f32,
@@ -342,19 +269,21 @@ impl RerunWrite for RocketActionsLog {
             &actions.aero_actions.moments_b_nm,
         )?;
 
-        let thrust_scaled = actions.thrust_b_n / 20.0;
-        let aero_force_scaled = actions.aero_actions.forces_b_n / 1.0;
+        let thrust_scaled: [f32; 3] = (actions.thrust_b_n / 20.0).map(|v| v as f32).into();
+        let aero_force_scaled: [f32; 3] = (actions.aero_actions.forces_b_n / 1.0)
+            .map(|v| v as f32)
+            .into();
 
         rec.log(
             "objects/vectors/thurst",
-            &rerun::Arrows3D::from_vectors([vec3_to_slice(&thrust_scaled)])
+            &rerun::Arrows3D::from_vectors([thrust_scaled])
                 .with_colors([rerun::Color::from_rgb(255, 0, 0)])
                 .with_origins([[2.0, 0.0, 0.0]]),
         )?;
 
         rec.log(
             "objects/vectors/aero_forces",
-            &rerun::Arrows3D::from_vectors([vec3_to_slice(&aero_force_scaled)])
+            &rerun::Arrows3D::from_vectors([aero_force_scaled])
                 .with_colors([rerun::Color::from_rgb(0, 0, 255)])
                 .with_origins([[0.0, 0.0, 0.0]]),
         )?;
@@ -522,7 +451,7 @@ impl RerunWrite for RocketEngineMassPropertiesLog {
 pub struct IMUSampleLog;
 
 impl RerunWrite for IMUSampleLog {
-    type Telem = IMUSample;
+    type Telem = ImuSensorSample;
 
     fn write(
         &mut self,
@@ -530,13 +459,13 @@ impl RerunWrite for IMUSampleLog {
         timeline: &str,
         ent_path: &str,
         ts: Timestamp,
-        imu: IMUSample,
+        imu: ImuSensorSample,
     ) -> Result<()> {
         rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
-        log_vector3_timeseries(rec, format!("{ent_path}/acc_m_s2"), &imu.acc)?;
+        log_vector3_timeseries(rec, format!("{ent_path}/acc_m_s2"), &imu.accel_m_s2)?;
 
-        let gyro_deg = imu.gyro.map(|x| x.to_degrees());
+        let gyro_deg = imu.angvel_rad_s.map(|x| x.to_degrees());
         log_vector3_timeseries(rec, format!("{ent_path}/gyro_deg_s"), &gyro_deg)?;
 
         Ok(())
@@ -547,7 +476,7 @@ impl RerunWrite for IMUSampleLog {
 pub struct MagnetometerSampleLog;
 
 impl RerunWrite for MagnetometerSampleLog {
-    type Telem = MagnetometerSample;
+    type Telem = MagnetometerSensorSample;
 
     fn write(
         &mut self,
@@ -555,11 +484,11 @@ impl RerunWrite for MagnetometerSampleLog {
         timeline: &str,
         ent_path: &str,
         ts: Timestamp,
-        mag: MagnetometerSample,
+        mag: MagnetometerSensorSample,
     ) -> Result<()> {
         rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
-        log_vector3_timeseries(rec, ent_path.to_string(), &mag.magfield_b)?;
+        log_vector3_timeseries(rec, ent_path.to_string(), &mag.mag_field_b_gauss)?;
 
         Ok(())
     }
@@ -634,12 +563,12 @@ impl RerunWrite for AdaOutputLog {
 
         rec.log(
             format!("{}/altitude_m", ent_path),
-            &rerun::Scalars::single(ada.altitude.get::<meter>() as f64),
+            &rerun::Scalars::single(ada.altitude_m as f64),
         )?;
 
         rec.log(
             format!("{}/vertical_speed_m_s", ent_path),
-            &rerun::Scalars::single(ada.vertical_speed.get::<meter_per_second>() as f64),
+            &rerun::Scalars::single(ada.vertical_speed_m_s as f64),
         )?;
 
         Ok(())
@@ -664,13 +593,13 @@ impl RerunWrite for PressureSensorSampleLog {
 
         rec.log(
             format!("{}/pressure_pa", ent_path),
-            &rerun::Scalars::single(data.pressure.get::<pascal>() as f64),
+            &rerun::Scalars::single(data.pressure_pa as f64),
         )?;
 
-        if let Some(temp) = data.temperature {
+        if let Some(temp) = data.temperature_degc {
             rec.log(
                 format!("{}/temperature_degc", ent_path),
-                &rerun::Scalars::single(temp.get::<degree_celsius>() as f64),
+                &rerun::Scalars::single(temp as f64),
             )?;
         }
 
@@ -694,16 +623,17 @@ impl RerunWrite for ImuSensorSampleLog {
     ) -> Result<()> {
         rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
 
-        let accel_m_s2 = data.accel_m_s2_vec();
-        let ang_vel_deg_s = data.ang_vel_deg_s_vec();
+        log_vector3_timeseries(rec, format!("{}/accel_m_s2", ent_path), &data.accel_m_s2)?;
+        log_vector3_timeseries(
+            rec,
+            format!("{}/ang_vel_deg_s", ent_path),
+            &data.angvel_rad_s.map(|v| v.to_degrees()),
+        )?;
 
-        log_vector3_timeseries(rec, format!("{}/accel_m_s2", ent_path), &accel_m_s2)?;
-        log_vector3_timeseries(rec, format!("{}/ang_vel_deg_s", ent_path), &ang_vel_deg_s)?;
-
-        if let Some(temp) = data.temperature {
+        if let Some(temp) = data.temperature_degc {
             rec.log(
                 format!("{}/temperature_degc", ent_path),
-                &rerun::Scalars::single(temp.get::<degree_celsius>() as f64),
+                &rerun::Scalars::single(temp as f64),
             )?;
         }
 
@@ -721,8 +651,44 @@ impl RerunWrite for ImuSensorSampleLog {
     }
 }
 
-fn vec3_to_slice(vec: &Vector3<f64>) -> [f32; 3] {
-    [vec[0] as f32, vec[1] as f32, vec[2] as f32]
+#[derive(Default)]
+pub struct NavigationOutputLog;
+
+impl RerunWrite for NavigationOutputLog {
+    type Telem = NavigationOutput;
+
+    fn write(
+        &mut self,
+        rec: &mut RecordingStream,
+        timeline: &str,
+        ent_path: &str,
+        ts: Timestamp,
+        data: Self::Telem,
+    ) -> Result<()> {
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
+
+        log_quat_timeseries::<f32>(
+            rec,
+            &data.quat_nb,
+            format!("{}/quat", ent_path),
+            format!("{}/euler", ent_path),
+        )?;
+
+        log_vector3_timeseries(rec, format!("{}/pos_n_m", ent_path), &data.pos_n_m)?;
+        log_vector3_timeseries(rec, format!("{}/vel_n_m_s", ent_path), &data.vel_n_m_s)?;
+        log_vector3_timeseries(
+            rec,
+            format!("{}/angvel_unbias_b_rad_s", ent_path),
+            &data.angvel_unbias_b_rad_s,
+        )?;
+        log_vector3_timeseries(
+            rec,
+            format!("{}/acc_unbias_b_m_s2", ent_path),
+            &data.acc_unbias_b_m_s2,
+        )?;
+
+        Ok(())
+    }
 }
 
 fn log_matrix_timeseries<T: Float + AsPrimitive<f64>, const R: usize, const C: usize>(
@@ -786,6 +752,34 @@ fn log_vector3_timeseries<T: Float + AsPrimitive<f64>>(
 ) -> Result<()> {
     let row_names = ["x".to_string(), "y".to_string(), "z".to_string()];
     log_matrix_timeseries(rec, ent_path, matrix, Some(&row_names), None)
+}
+
+fn log_quat_timeseries<T: RealField + Float + AsPrimitive<f64>>(
+    rec: &mut RecordingStream,
+    quat: &UnitQuaternion<T>,
+    quat_ent_path: String,
+    eul_ent_path: String,
+) -> Result<()> {
+    let quat_row_names = [
+        "w".to_string(),
+        "x".to_string(),
+        "y".to_string(),
+        "z".to_string(),
+    ];
+    let quat_vec: &Vector4<T> = quat.quaternion().as_vector();
+    log_matrix_timeseries(rec, quat_ent_path, quat_vec, Some(&quat_row_names), None)?;
+
+    let eul_row_names = ["yaw".to_string(), "pitch".to_string(), "roll".to_string()];
+    let (roll, pitch, yaw) = quat.euler_angles();
+    log_matrix_timeseries(
+        rec,
+        eul_ent_path,
+        &Vector3::new(yaw.to_degrees(), pitch.to_degrees(), roll.to_degrees()),
+        Some(&eul_row_names),
+        None,
+    )?;
+
+    Ok(())
 }
 
 fn log_matrix3_timeseries<T: Float + AsPrimitive<f64>>(
