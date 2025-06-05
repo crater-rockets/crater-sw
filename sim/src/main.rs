@@ -20,7 +20,7 @@ fn main() -> Result<()> {
         &Path::new("config/params.toml"),
         Box::new(CraterUiLogConfig),
         crater::nodes::ParameterSampling::Random,
-        None,
+        Some(0_u64),
     )?;
 
     runner.run_blocking()?;

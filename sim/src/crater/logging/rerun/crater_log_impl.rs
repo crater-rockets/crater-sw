@@ -29,6 +29,7 @@ use crate::{
 
 use super::rerun_logger::RerunWrite;
 use anyhow::{Ok, Result};
+use crate::crater::aero::wind::WindSample;
 
 #[derive(Default)]
 pub struct RocketStateRawLog;
@@ -686,6 +687,30 @@ impl RerunWrite for NavigationOutputLog {
             format!("{}/acc_unbias_b_m_s2", ent_path),
             &data.acc_unbias_b_m_s2,
         )?;
+
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct WindOutputLog;
+
+impl RerunWrite for WindOutputLog {
+    type Telem = WindSample;
+
+    fn write(
+        &mut self,
+        rec: &mut RecordingStream,
+        timeline: &str,
+        ent_path: &str,
+        ts: Timestamp,
+        data: Self::Telem,
+    ) -> Result<()> {
+        rec.set_duration_secs(timeline, ts.monotonic.elapsed_seconds_f64());
+
+
+        log_vector3_timeseries(rec, format!("{}/wind_vel_ned", ent_path), &data.wind_vel_ned)?;
+        log_vector3_timeseries(rec, format!("{}/wind_ang_vel", ent_path), &data.wind_ang_vel)?;
 
         Ok(())
     }

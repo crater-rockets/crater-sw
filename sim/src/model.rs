@@ -8,6 +8,7 @@ use crate::{
     nodes::NodeManager,
 };
 use anyhow::Result;
+use crate::crater::aero::wind::WindModel;
 
 pub trait ModelBuilder {
     fn build(&self, node_manager: &mut NodeManager) -> Result<()>;
@@ -19,6 +20,7 @@ pub struct OpenLoopCrater {}
 impl ModelBuilder for OpenLoopCrater {
     fn build(&self, nm: &mut NodeManager) -> Result<()> {
         nm.add_node("orchestrator", |ctx| Ok(Box::new(Orchestrator::new(ctx)?)))?;
+        nm.add_node("wind", |ctx| Ok(Box::new(WindModel::new(ctx)?)))?;
         nm.add_node("rocket", |ctx| Ok(Box::new(Rocket::new("crater", ctx)?)))?;
         nm.add_node("ideal_imu", |ctx| Ok(Box::new(IdealIMU::new(ctx)?)))?;
         nm.add_node("ideal_mag", |ctx| {

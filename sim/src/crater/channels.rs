@@ -1,5 +1,6 @@
 pub mod sim {
     pub const SIM_EVENTS: &str = "/sim/events";
+    pub const WIND: &str = "/sim/wind";
 }
 
 pub mod rocket {
@@ -41,3 +42,5 @@ pub mod sensors {
 pub mod actuators {
     pub const IDEAL_SERVO_POSITION: &str = "/actuators/ideal_servo_position";
 }
+
+

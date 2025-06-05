@@ -20,13 +20,13 @@ use crate::crater::{
         rocket_data::{RocketAccelerations, RocketActions, RocketState},
     },
 };
-
+use crate::crater::aero::wind::WindSample;
 use super::{
     crater_log_impl::{
         AdaOutputLog, AeroStateLog, GncEventLog, IMUSampleLog, MagnetometerSampleLog,
         NavigationOutputLog, RocketAccelLog, RocketActionsLog, RocketEngineMassPropertiesLog,
         RocketMassPropertiesLog, RocketStateRawLog, RocketStateUILog, ServoPositionLog,
-        SimEventLog,
+        SimEventLog,WindOutputLog,
     },
     rerun_logger::{ChannelName, RerunLogConfig, RerunLoggerBuilder},
 };
@@ -117,6 +117,10 @@ impl RerunLogConfig for CraterUiLogConfig {
         builder.log_telemetry::<NavigationOutput>(
             ChannelName::from_base_path(channels::gnc::NAV_OUTPUT, "timeseries"),
             NavigationOutputLog::default(),
+        )?;
+        builder.log_telemetry::<WindSample>(
+            ChannelName::from_base_path(channels::sim::WIND, "timeseries"),
+            WindOutputLog::default(),
         )?;
         Ok(())
     }

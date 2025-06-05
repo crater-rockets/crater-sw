@@ -4,7 +4,7 @@ dt = { val = 0.003, type = "float" }
 
 [sim.rocket]
 max_t = { val = 120, type = "float" }
-mass = { val = 2, type = "randfloat", dist = { type = "normal", mean = 2, std_dev = 0.1 } }
+mass = { val = 2.5, type = "randfloat", dist = { type = "normal", mean = 2, std_dev = 0.1 } }
 
 datcom_ref_pos = { val = [0.5, 0.0, 0.0], type = "float[]" }
 engine_ref_pos = { val = [0.70, 0.0, 0.0], type = "float[]" }
@@ -22,7 +22,7 @@ inertia_empty = { val = [
     0.0,
     0.26,
 ], type = "float[]" }
-diameter = { val = 0.08, type = "randfloat", dist = { type = "normal", mean = 0.08, std_dev = 0.00026 } }
+diameter = { val = 0.1, type = "randfloat", dist = { type = "normal", mean = 0.1, std_dev = 0.00026 } }
 g_n = { val = [0, 0, 9.81], type = "float[]" }
 
 # Used for magnetic field model
@@ -62,15 +62,22 @@ quat_imu_b = { val = [0.0, 0.0, 0.0, 1.0], type = "float[]" }
 # Orientation of the magnetometer in the body frame (w component last)
 quat_mag_b = { val = [0.0, 0.0, 0.0, 1.0], type = "float[]" }
 
+[sim.rocket.wind]
+wind_vel = { val = 5.0, type = "float"}
+azimuth = { val = 0.1, type = "float"}
+wind_20_feet = { val = 2, type = "float"}
+turb_intensity = { val = 0.01, type = "float"}
+turb_type = { val = 1, type = "int"}
+
 [sim.rocket.aero]
 model = { val = "tabulated", type = "str" }
-# aero_model = { val = "linear", type = "str" }
+#model = { val = "linear", type = "str" }
 
 [sim.rocket.aero.tabulated]
-coeffs_main = { val = "coeffs_main.h5", type = "str" }
-coeffs_dynamic = { val = "coeffs_dynamic.h5", type = "str" }
+coeffs_main = { val = "config/for006_coeffs_11.h5", type = "str" }
+coeffs_dynamic = { val = "config/for006_coeffs_11.h5", type = "str" }
 
-[sim.rocket.aero.linear]
+[sim.rocket.sim.rocket.aero.linear]
 cA_0 = { val = 0.3200, type = "float" }
 cA_a = { val = -0.1725, type = "float" }
 cA_b = { val = -0.1725, type = "float" }
