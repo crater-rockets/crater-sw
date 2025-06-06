@@ -12,6 +12,7 @@ use crate::{
 use anyhow::Result;
 use chrono::TimeDelta;
 use nalgebra::Vector3;
+use rand::rngs::StdRng;
 use rand_xoshiro::{Xoroshiro64StarStar, Xoshiro256StarStar};
 
 #[derive(Debug, Clone)]
@@ -38,7 +39,11 @@ pub struct WindParams {
 
 #[derive(Debug)]
 pub struct WindData {
-
+    wind_old: Vector3<f64>,
+    gust_old: Vector3<f64>,
+    scale_length: Vector3<f64>,
+    sigmas: Vector3<f64>,
+    rngs: Vector3<Xoshiro256StarStar>,
 }
 
 #[derive(Debug)]
@@ -46,6 +51,7 @@ pub struct WindModel {
     rx_state: TelemetryReceiver<RocketState>,
     tx_wind: TelemetrySender<WindSample>,
     params: WindParams,
+    data: WindData,
 }
 
 
@@ -68,14 +74,9 @@ impl WindModel{
         let rng_v: Xoshiro256StarStar = ctx.get_rng_256();
         let rng_w: Xoshiro256StarStar = ctx.get_rng_256();
 
-        println!("{:#?}?",rng_u);
-        println!("{:#?}?",rng_v);
-        println!("{:#?}?",rng_w);
-
         let turbulence = match turb_type {
             0 => Turbulence::CONST,
-            1 => Turbulence::MIL1797,
-            2 => Turbulence::MIL8785,
+            1 => Turbulence::MIL8785,
             _ => Turbulence::CONST,
         };
 
@@ -87,11 +88,20 @@ impl WindModel{
             turb_intensity,
             turbulence,
         };
+
+        let data = WindData{
+            wind_old: wind_vel_0,
+            gust_old: Vector3::zeros(),
+            scale_length: Vector3::zeros(),
+            sigmas: Vector3::zeros(),
+            rngs: Vector3::new(rng_u,rng_v,rng_w),
+        };
         
         Ok(Self{
             rx_state,
             tx_wind,
             params,
+            data
         })
     }
 }
