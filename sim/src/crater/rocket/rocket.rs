@@ -13,6 +13,7 @@ use crate::{
             atmosphere::{Atmosphere, AtmosphereIsa, AtmosphereProperties, mach_number},
             linear_aerodynamics::LinearizedAeroCoefficients,
             tabulated_aerodynamics::TabulatedAeroCoefficients,
+            wind::{WindModel, WindSample},
         },
         channels,
         engine::{
@@ -45,11 +46,13 @@ pub struct Rocket {
     pub(super) aero_coeffs: Box<dyn AerodynamicsCoefficients + Send>,
     pub(super) aerodynamics: Aerodynamics,
     pub(super) atmosphere: Box<dyn Atmosphere + Send>,
+    pub(super) wind_state: WindState,
 
     pub(super) fsm: StateMachine<RocketFsm>,
 
     rx_servo_pos: TelemetryReceiver<ServoPosition>,
     rx_sim_event: TelemetryReceiver<SimEvent>,
+    rx_wind: TelemetryReceiver<WindSample>,
 
     output: RocketOutput,
 }
@@ -58,6 +61,11 @@ pub struct Rocket {
 #[derive(Debug, Clone, Default)]
 pub(super) struct StepState {
     servo_pos: ServoPosition,
+}
+
+#[derive(Debug, Clone, Default)]
+pub(super) struct WindState {
+    wind: WindSample,
 }
 
 impl Rocket {
@@ -132,6 +140,8 @@ impl Rocket {
         let rx_sim_event = ctx
             .telemetry()
             .subscribe_mp(channels::sim::SIM_EVENTS, Unbounded)?;
+        let rx_wind = ctx.telemetry().subscribe(channels::sim::WIND, Unbounded)?;
+
         let tx_gnc_event = ctx.telemetry().publish_mp(channels::gnc::GNC_EVENTS)?;
         let tx_sim_event = ctx.telemetry().publish_mp(channels::sim::SIM_EVENTS)?;
 
@@ -148,9 +158,11 @@ impl Rocket {
             state,
             rx_servo_pos,
             rx_sim_event,
+            rx_wind,
             fsm,
             output,
             step_state: StepState::default(),
+            wind_state: WindState::default(),
         })
     }
 }
@@ -184,8 +196,11 @@ impl RocketOdeStep {
         let w_b_rad_s: Vector3<f64> = state.angvel_b_rad_s();
         let mach = mach_number(vel_norm_m_s, atmosphere_props.speed_of_sound_m_s);
 
+        let v_air_b_m_s =
+            vel_b_m_s - q_nb.inverse_transform_vector(&rocket.wind_state.wind.wind_vel_ned);
+
         let aero_state = AeroState::new(
-            vel_b_m_s,
+            v_air_b_m_s,
             w_b_rad_s,
             altitude_m,
             mach,
@@ -332,6 +347,14 @@ impl Node for Rocket {
 
         self.step_state.servo_pos = servo_pos;
 
+        let wind = if let Ok(Timestamped(_, wind)) = self.rx_wind.try_recv() {
+            wind
+        } else {
+            WindSample::default()
+        };
+
+        self.wind_state.wind = wind;
+        
         let next = RungeKutta4.solve(
             self,
             t.monotonic.elapsed_seconds_f64(),
