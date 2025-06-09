@@ -13,7 +13,7 @@ use crate::{
             atmosphere::{Atmosphere, AtmosphereIsa, AtmosphereProperties, mach_number},
             linear_aerodynamics::LinearizedAeroCoefficients,
             tabulated_aerodynamics::TabulatedAeroCoefficients,
-            wind::{WindModel, WindSample},
+            wind::WindSample,
         },
         channels,
         engine::{
@@ -199,9 +199,11 @@ impl RocketOdeStep {
         let v_air_b_m_s =
             vel_b_m_s - q_nb.inverse_transform_vector(&rocket.wind_state.wind.wind_vel_ned);
 
+        let w_b_air_rad_s = w_b_rad_s + rocket.wind_state.wind.wind_ang_vel;
+
         let aero_state = AeroState::new(
             v_air_b_m_s,
-            w_b_rad_s,
+            w_b_air_rad_s,
             altitude_m,
             mach,
             atmosphere_props.air_density_kg_m3,

@@ -711,6 +711,8 @@ impl RerunWrite for WindOutputLog {
 
         log_vector3_timeseries(rec, format!("{}/wind_vel_ned", ent_path), &data.wind_vel_ned)?;
         log_vector3_timeseries(rec, format!("{}/wind_ang_vel", ent_path), &data.wind_ang_vel)?;
+        log_vector3_timeseries(rec, format!("{}/wind_gusts", ent_path), &data.wind_gust)?;
+        log_vector3_timeseries(rec, format!("{}/wind_clean", ent_path), &data.wind_clean)?;
 
         Ok(())
     }

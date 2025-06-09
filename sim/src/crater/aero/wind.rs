@@ -1,3 +1,5 @@
+use std::f64::consts::PI;
+
 use crate::math::interp::Interpolator;
 use crate::{
     core::time::{Clock, Timestamp},
@@ -8,10 +10,10 @@ use crate::{
 };
 use anyhow::Result;
 use chrono::TimeDelta;
-use nalgebra::Vector3;
-use nalgebra::coordinates::M2x2;
+use nalgebra::{Vector3, Vector4};
 use rand_distr::{Distribution, Normal};
 use rand_xoshiro::Xoshiro256StarStar;
+
 #[derive(Debug, Clone, Default)]
 pub struct WindSample {
     pub wind_vel_ned: Vector3<f64>,
@@ -38,9 +40,10 @@ pub struct WindParams {
 pub struct WindData {
     wind_old: Vector3<f64>,
     gust_old: Vector3<f64>,
+    ang_old: Vector3<f64>,
     scale_length: Vector3<f64>,
     sigmas: Vector3<f64>,
-    rngs: Vector3<Xoshiro256StarStar>,
+    rngs: Vector4<Xoshiro256StarStar>,
 }
 
 pub struct WindModel {
@@ -69,6 +72,7 @@ impl WindModel {
         let rng_u = ctx.get_rng_256();
         let rng_v = ctx.get_rng_256();
         let rng_w = ctx.get_rng_256();
+        let rng_p = ctx.get_rng_256();
 
         let turbulence = match turb_type {
             1 => Turbulence::MIL8785,
@@ -86,9 +90,10 @@ impl WindModel {
         let data = WindData {
             wind_old: wind_vel_0,
             gust_old: Vector3::zeros(),
+            ang_old: Vector3::zeros(),
             scale_length: Vector3::zeros(),
             sigmas: Vector3::zeros(),
-            rngs: Vector3::new(rng_u, rng_v, rng_w),
+            rngs: Vector4::new(rng_u, rng_v, rng_w, rng_p),
         };
 
         let altitudes = [
@@ -119,10 +124,7 @@ impl WindModel {
     }
 
     fn scale_lengths(&mut self, altitude: f64) {
-        let mut alt_ft = altitude * 3.28084;
-        if altitude <= 1.0 {
-            alt_ft = 1.0;
-        }
+        let alt_ft = (altitude * 3.28084).max(20.0);
 
         let (length_u, length_v, length_w) = if self.params.turbulence == Turbulence::MIL8785 {
             if alt_ft <= 1000.0 {
@@ -143,7 +145,7 @@ impl WindModel {
     }
 
     fn turb_intensity(&mut self, altitude: f64) {
-        let alt_ft = altitude * 3.28084;
+        let alt_ft = (altitude * 3.28084).max(20.0);
 
         let sigma_z_standard = 0.1 * self.params.wind_20_feet;
         let sigma_u_standard = 1.0 / (0.177 + 0.000823 * alt_ft).powf(0.4) * sigma_z_standard;
@@ -177,24 +179,34 @@ impl WindModel {
         if self.params.turbulence == Turbulence::CONST {
             self.data.wind_old = self.params.wind_vel_0;
         } else {
-            if vel <= 0.0 {
-                vel = 0.0;
+            if vel_body <= self.params.wind_20_feet {
+                vel = self.params.wind_20_feet * 3.28084;
             }
 
-            let a1_u = -vel / self.data.scale_length.x;
-            let b1_u = self.data.sigmas.x * (2.0 * vel / self.data.scale_length.x).sqrt();
+            let a1_u: f64 = -vel / self.data.scale_length.x;
+            let b1_u: f64 = self.data.sigmas.x * (2.0 * vel / self.data.scale_length.x).sqrt();
 
-            let a1_v = -vel / self.data.scale_length.y;
-            let b1_v = self.data.sigmas.y * (2.0 * vel / self.data.scale_length.y).sqrt();
+            let a1_v: f64 = -vel / self.data.scale_length.y;
+            let b1_v: f64 = self.data.sigmas.y * (2.0 * vel / self.data.scale_length.y).sqrt();
 
-            let a1_w = -vel / self.data.scale_length.z;
-            let b1_w = self.data.sigmas.z * (2.0 * vel / self.data.scale_length.z).sqrt();
+            let a1_w: f64 = -vel / self.data.scale_length.z;
+            let b1_w: f64 = self.data.sigmas.z * (2.0 * vel / self.data.scale_length.z).sqrt();
 
-            let eta_u = Normal::new(0.0, 1.0).unwrap().sample(&mut self.data.rngs.x);
-            let eta_v = Normal::new(0.0, 1.0).unwrap().sample(&mut self.data.rngs.y);
-            let eta_w = Normal::new(0.0, 1.0).unwrap().sample(&mut self.data.rngs.z);
+            let a1_p: f64 = -2.6 / (self.data.scale_length.z * 1.0).sqrt();
+            let b1_p: f64 = (2.0 * 2.6 / (self.data.scale_length.z * 1.0)).sqrt() * 0.95
+                / (2.0 * self.data.scale_length.z * 1.0_f64.powf(2.0)).powf(1.0 / 3.0)
+                * self.data.sigmas.z;
 
-            let rad_dt = dt.sqrt();
+            let a1_r: f64 = -PI * vel / (4.0);
+            let b1_r: f64 = -PI / (4.0);
+
+            let eta_u: f64 = Normal::new(0.0, 1.0).unwrap().sample(&mut self.data.rngs.x);
+            let eta_v: f64 = Normal::new(0.0, 1.0).unwrap().sample(&mut self.data.rngs.y);
+            let eta_w: f64 = Normal::new(0.0, 1.0).unwrap().sample(&mut self.data.rngs.z);
+            let eta_p: f64 = Normal::new(0.0, 1.0).unwrap().sample(&mut self.data.rngs.w);
+
+            let rad_dt: f64 = dt.sqrt();
+            let old_gust: Vector3<f64> = self.data.gust_old.clone();
 
             self.data.gust_old.x =
                 self.data.gust_old.x + a1_u * self.data.gust_old.x * dt + b1_u * rad_dt * eta_u;
@@ -204,6 +216,14 @@ impl WindModel {
                 self.data.gust_old.z + a1_w * self.data.gust_old.z * dt + b1_w * rad_dt * eta_w;
 
             self.data.wind_old = self.params.wind_vel_0 + self.data.gust_old;
+
+            self.data.ang_old.x =
+                self.data.ang_old.x + a1_p * self.data.ang_old.x * dt + b1_p * rad_dt * eta_p;
+            self.data.ang_old.y = self.data.ang_old.y + a1_r * self.data.ang_old.y * dt
+                - b1_r * (self.data.gust_old.z - old_gust.z);
+            self.data.ang_old.z = self.data.ang_old.z
+                + a1_r * self.data.ang_old.z * dt
+                + b1_r * (self.data.gust_old.y - old_gust.y);
         }
     }
 }
@@ -225,7 +245,7 @@ impl Node for WindModel {
             Timestamp::now(clock),
             WindSample {
                 wind_vel_ned: self.data.wind_old,
-                wind_ang_vel: self.data.gust_old,
+                wind_ang_vel: self.data.ang_old,
                 wind_gust: self.data.gust_old,
                 wind_clean: self.params.wind_vel_0,
             },
