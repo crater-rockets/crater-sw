@@ -94,6 +94,10 @@ impl RerunLogConfig for CraterUiLogConfig {
             ChannelName::from_base_path(channels::sensors::IDEAL_IMU_CG, "timeseries"),
             IMUSampleLog::default(),
         )?;
+        builder.log_telemetry::<ImuSensorSample>(
+            ChannelName::from_base_path(channels::sensors::IMU_REAL, "timeseries"),
+            IMUSampleLog::default(),
+        )?;
         builder.log_telemetry::<MagnetometerSensorSample>(
             ChannelName::from_base_path(channels::sensors::IDEAL_MAGNETOMETER, "timeseries"),
             MagnetometerSampleLog::default(),

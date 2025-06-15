@@ -1,6 +1,6 @@
 [sim]
 t0 = { val = 0, type = "float" }
-dt = { val = 0.003, type = "float" }
+dt = { val = 0.0025, type = "float" }
 
 [sim.rocket]
 max_t = { val = 120, type = "float" }
@@ -57,7 +57,15 @@ thrust_duration = { val = 6, type = "float" }
 pos_r = { val = [0.0, 0.0, 0.0], type = "float[]" }
 # Orientation of the IMU in the body frame (w component last)
 quat_imu_b = { val = [0.0, 0.0, 0.0, 1.0], type = "float[]" }
-
+imu_freq = { val = 200.0, type = "float"}
+acc_noise = { val = 0.0048647, type = "float"}
+acc_bias =  { val = 0.000433, type = "float"}
+acc_res_ms2 = { val = 0.0048, type = "float"}
+acc_fs_range_g = { val = 16.0, type = "float"}
+gyro_noise = { val = 0.000187, type = "float"}
+gyro_bias =  { val = 0.0000266, type = "float"}
+gyro_res_rads = { val = 0.00106, type = "float"}
+gyro_fs_range_dps = { val = 2000, type = "float"}
 [sim.rocket.magnetomer]
 # Orientation of the magnetometer in the body frame (w component last)
 quat_mag_b = { val = [0.0, 0.0, 0.0, 1.0], type = "float[]" }
@@ -67,8 +75,8 @@ model = { val = "tabulated", type = "str" }
 # aero_model = { val = "linear", type = "str" }
 
 [sim.rocket.aero.tabulated]
-coeffs_main = { val = "coeffs_main.h5", type = "str" }
-coeffs_dynamic = { val = "coeffs_dynamic.h5", type = "str" }
+coeffs_main = { val = "config/for006_coeffs_97.h5", type = "str" }
+coeffs_dynamic = { val = "config/for006_coeffs_97.h5", type = "str" }
 
 [sim.rocket.aero.linear]
 cA_0 = { val = 0.3200, type = "float" }

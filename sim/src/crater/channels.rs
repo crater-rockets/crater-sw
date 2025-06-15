@@ -30,6 +30,7 @@ pub mod sensors {
 
     pub const IDEAL_IMU: &str = "/sensors/ideal/imu";
     pub const IDEAL_IMU_CG: &str = "/sensors/ideal/imu_cg";
+    pub const IMU_REAL: &str = "/sensors/ideal/imu_real";
     pub const IMU: &str = "/sensors/imu";
 
     pub const IDEAL_MAGNETOMETER: &str = "/sensors/ideal/magnetometer";
