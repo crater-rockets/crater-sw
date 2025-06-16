@@ -95,13 +95,13 @@ impl IdealIMU {
 
         let mut std_acc_noise = imu_params.get_param("acc_noise")?.value_float()?;
         let mut std_acc_bias = imu_params.get_param("acc_bias")?.value_float()?;
-        let mut acc_res_ms2 = imu_params.get_param("acc_res_ms2")?.value_float()?;
-        let mut acc_fs_range_g = imu_params.get_param("acc_fs_range_g")?.value_float()?;
+        let acc_res_ms2 = imu_params.get_param("acc_res_ms2")?.value_float()?;
+        let acc_fs_range_g = imu_params.get_param("acc_fs_range_g")?.value_float()?;
 
         let mut std_gyro_noise = imu_params.get_param("gyro_noise")?.value_float()?;
         let mut std_gyro_bias = imu_params.get_param("gyro_bias")?.value_float()?;
-        let mut gyro_res_rads = imu_params.get_param("gyro_res_rads")?.value_float()?;
-        let mut gyro_fs_range_dps = imu_params.get_param("gyro_fs_range_dps")?.value_float()?;
+        let gyro_res_rads = imu_params.get_param("gyro_res_rads")?.value_float()?;
+        let gyro_fs_range_dps = imu_params.get_param("gyro_fs_range_dps")?.value_float()?;
 
         std_acc_noise = std_acc_noise / imu_period.sqrt();
         std_acc_bias = std_acc_bias * imu_period.sqrt();
